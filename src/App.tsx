@@ -10,6 +10,7 @@ import DayView from './views/DayView';
 import SystemPage from './views/SystemPage';
 import YearView from './views/YearView';
 import Seed from './views/Seed';
+import Museum from './views/Museum';
 
 export const DEMO_NOTEBOOK: Notebook = {
   id: 'demo',
@@ -141,6 +142,7 @@ export default function App() {
   else if (parts[0] === 'nb' && parts[1] === 'new') view = <CoverEditor key={route} />;
   else if (parts[0] === 'nb') view = <NotebookView id={parts[1]} tab={parts[2] ?? 'timeline'} key={parts[1]} />;
   else if (parts[0] === 'year') view = <YearView />;
+  else if (parts[0] === 'museum') view = <Museum />;
   else if (parts[0] === 'system') view = <SystemPage />;
   else if (parts[0] === 'seed') view = <Seed />;
 
@@ -157,6 +159,9 @@ export default function App() {
           </a>
           <a className={on('/year')} href="#/year">
             Год
+          </a>
+          <a className={on('/museum')} href="#/museum">
+            Мелочи
           </a>
           <a className={on('/system')} href="#/system">
             Визуальная система
