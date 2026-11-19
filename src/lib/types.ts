@@ -190,6 +190,8 @@ export interface DayRecord {
   pageNo: number;
   demo?: boolean;
   ownerId?: string; // владелец (для демо-дней в облаке)
+  notebookId?: string; // тетрадь
+  place?: PlaceInfo; // место и погода
   hasVideo?: boolean;
   videoName?: string;
   photoUrls?: string[]; // для демо-дней: внешние ссылки на фото
@@ -203,4 +205,29 @@ export interface DayMedia {
   cover?: string;
   excerpt?: string; // фрагмент песни из файла
   video?: string;
+}
+
+export type CoverStyle = 'kraft' | 'marble' | 'guava' | 'birds' | 'linen' | 'night' | 'olive' | 'ransom' | 'collage';
+
+export interface Notebook {
+  id: string;
+  title: string;
+  cover: { style: CoverStyle };
+  createdAt: string;
+  demo?: boolean;
+}
+
+export interface PlaceInfo {
+  name: string; // «Астана»
+  country?: string;
+  lat: number;
+  lon: number;
+  weather?: {
+    code: number; // WMO
+    label: string; // «снег»
+    tmax?: number;
+    tmin?: number;
+    precip?: number;
+    wind?: number;
+  };
 }

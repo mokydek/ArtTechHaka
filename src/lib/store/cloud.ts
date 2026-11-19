@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { DayMedia, DayRecord } from '../types';
+import type { DayMedia, DayRecord, Notebook } from '../types';
 import type { DayFiles, DiaryStore } from './index';
 
 // Публикуемый (publishable) ключ рассчитан на браузер: доступ ограничен RLS-политиками (см. supabase/schema.sql)
@@ -105,6 +105,20 @@ export class CloudStore implements DiaryStore {
     return out;
   }
 
+  async photos(recs: DayRecord[]) {
+    const out: Record<string, string[]> = {};
+    const need: { id: string; paths: string[] }[] = [];
+    for (const r of recs) {
+      if (r.photoUrls?.length) out[r.id] = r.photoUrls;
+      else need.push({ id: r.id, paths: Array.from({ length: r.photoCount }, (_, i) => this.path(r.id, `photo-${i + 1}.jpg`, r.ownerId)) });
+    }
+    if (need.length) {
+      const s = await this.sign(need.flatMap((n) => n.paths));
+      for (const n of need) out[n.id] = n.paths.map((p) => s[p]).filter(Boolean);
+    }
+    return out;
+  }
+
   private async upload(id: string, name: string, blob: Blob) {
     const { error } = await this.sb.storage.from(BUCKET).upload(this.path(id, name), blob, { upsert: true, contentType: blob.type || undefined });
     if (error) throw error;
@@ -128,6 +142,21 @@ export class CloudStore implements DiaryStore {
   async saveBlob(id: string, name: string, blob: Blob) {
     const fname = name === 'video' ? `memory.${ext(blob)}` : name === 'cover' ? 'cover.jpg' : `${name}.${ext(blob)}`;
     await this.upload(id, fname, blob);
+  }
+
+  async listNotebooks(): Promise<Notebook[]> {
+    const { data, error } = await this.sb.from('notebooks').select('id, title, cover, created_at').eq('user_id', this.uid).order('created_at');
+    if (error) throw error;
+    return (data ?? []).map((r) => ({ id: r.id, title: r.title, cover: r.cover, createdAt: r.created_at }));
+  }
+
+  async saveNotebook(nb: Notebook) {
+    const { error } = await this.sb.from('notebooks').upsert({ id: nb.id, user_id: this.uid, title: nb.title, cover: nb.cover, created_at: nb.createdAt });
+    if (error) throw error;
+  }
+
+  async removeNotebook(id: string) {
+    await this.sb.from('notebooks').delete().eq('id', id);
   }
 
   async remove(id: string) {

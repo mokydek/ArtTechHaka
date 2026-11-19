@@ -10,8 +10,13 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export default function NewDay() {
-  const { store, days, reload, setCover, toast } = useDiary();
+export default function NewDay({ nb }: { nb?: string }) {
+  const { store, days, reload, setCover, toast, notebooks, defaultNotebook } = useDiary();
+  const own = notebooks.filter((n) => !n.demo);
+  const [nbId, setNbId] = useState(nb && own.some((n) => n.id === nb) ? nb : defaultNotebook);
+  useEffect(() => {
+    if (!nbId && defaultNotebook) setNbId(defaultNotebook);
+  }, [nbId, defaultNotebook]);
   const [date, setDate] = useState(today());
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
@@ -58,6 +63,7 @@ export default function NewDay() {
     setPhase('save');
     try {
       const rec = retitle(built.record, title || built.record.title);
+      rec.notebookId = nbId || defaultNotebook;
       const cover = await renderCover(rec, built.bitmaps);
       await store.save(rec, { photos: built.photoBlobs, cover, excerpt: built.excerpt });
       if (video) {
@@ -113,6 +119,18 @@ export default function NewDay() {
         <h1 className="h1" style={{ fontSize: 44, marginBottom: 18 }}>
           Как прошёл день?
         </h1>
+        {own.length > 1 && (
+          <div className="nb-pick">
+            <span className="mono muted">в тетрадь</span>
+            <select className="inp" value={nbId} onChange={(e) => setNbId(e.target.value)} disabled={phase === 'build'}>
+              {own.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="field">
           <textarea
             value={text}

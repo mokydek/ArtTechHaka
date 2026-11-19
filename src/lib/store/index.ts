@@ -1,4 +1,4 @@
-import type { DayMedia, DayRecord } from '../types';
+import type { DayMedia, DayRecord, Notebook } from '../types';
 import { LocalStore } from './local';
 import { CloudStore } from './cloud';
 
@@ -14,10 +14,14 @@ export interface DiaryStore {
   get(id: string): Promise<DayRecord | null>;
   media(rec: DayRecord): Promise<DayMedia>;
   covers(recs: DayRecord[]): Promise<Record<string, string>>;
+  photos(recs: DayRecord[]): Promise<Record<string, string[]>>;
   save(rec: DayRecord, files: DayFiles): Promise<void>;
   update(rec: DayRecord): Promise<void>;
   saveBlob(id: string, name: string, blob: Blob): Promise<void>;
   remove(id: string): Promise<void>;
+  listNotebooks(): Promise<Notebook[]>;
+  saveNotebook(nb: Notebook): Promise<void>;
+  removeNotebook(id: string): Promise<void>;
 }
 
 let storePromise: Promise<DiaryStore> | null = null;

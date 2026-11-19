@@ -1,14 +1,15 @@
-import type { DayMedia, DayRecord } from '../types';
+import type { DayMedia, DayRecord, Notebook } from '../types';
 import type { DayFiles, DiaryStore } from './index';
 
 const DB = 'ottisk';
 function open(): Promise<IDBDatabase> {
   return new Promise((res, rej) => {
-    const r = indexedDB.open(DB, 1);
+    const r = indexedDB.open(DB, 2);
     r.onupgradeneeded = () => {
       const db = r.result;
       if (!db.objectStoreNames.contains('days')) db.createObjectStore('days', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs');
+      if (!db.objectStoreNames.contains('notebooks')) db.createObjectStore('notebooks', { keyPath: 'id' });
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -73,6 +74,23 @@ export class LocalStore implements DiaryStore {
     return out;
   }
 
+  async photos(recs: DayRecord[]) {
+    const out: Record<string, string[]> = {};
+    for (const r of recs) {
+      if (r.photoUrls?.length) {
+        out[r.id] = r.photoUrls;
+        continue;
+      }
+      const list: string[] = [];
+      for (let i = 0; i < r.photoCount; i++) {
+        const u = await blobUrl(`${r.id}/photo-${i + 1}`);
+        if (u) list.push(u);
+      }
+      out[r.id] = list;
+    }
+    return out;
+  }
+
   async save(rec: DayRecord, files: DayFiles) {
     await tx('days', 'readwrite', (s) => s.put(rec));
     for (let i = 0; i < files.photos.length; i++) await this.saveBlob(rec.id, `photo-${i + 1}`, files.photos[i]);
@@ -87,6 +105,19 @@ export class LocalStore implements DiaryStore {
   async saveBlob(id: string, name: string, blob: Blob) {
     urlCache.delete(`${id}/${name}`);
     await tx('blobs', 'readwrite', (s) => s.put(blob, `${id}/${name}`));
+  }
+
+  async listNotebooks(): Promise<Notebook[]> {
+    const all = await tx<Notebook[]>('notebooks', 'readonly', (s) => s.getAll());
+    return all.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async saveNotebook(nb: Notebook) {
+    await tx('notebooks', 'readwrite', (s) => s.put(nb));
+  }
+
+  async removeNotebook(id: string) {
+    await tx('notebooks', 'readwrite', (s) => s.delete(id));
   }
 
   async remove(id: string) {

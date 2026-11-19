@@ -12,7 +12,11 @@ import { LocalStore } from '../lib/store/local';
 const demoLocal = new LocalStore();
 
 export default function DayView({ id }: { id: string }) {
-  const { store, days, covers, toast, reload } = useDiary();
+  const { store, days: allDays, covers, toast, reload, notebookOf, notebooks } = useDiary();
+  const rec0 = allDays.find((d) => d.id === id) ?? null;
+  const nbId = rec0 ? notebookOf(rec0) : '';
+  const nb = notebooks.find((n) => n.id === nbId);
+  const days = rec0 ? allDays.filter((d) => notebookOf(d) === nbId) : allDays;
   const rec = days.find((d) => d.id === id) ?? null;
   const [media, setMedia] = useState<DayMedia | null>(null);
   const [assets, setAssets] = useState<{ bitmaps: ImageBitmap[]; audio: AudioBuffer | null } | null>(null);
@@ -82,7 +86,7 @@ export default function DayView({ id }: { id: string }) {
     if (!confirm(`Удалить папку «${rec.folder}»? Это нельзя отменить.`)) return;
     await store.remove(rec.id);
     await reload();
-    location.hash = '#/';
+    location.hash = nb ? `#/nb/${nb.id}` : '#/';
   };
 
   return (
@@ -107,6 +111,11 @@ export default function DayView({ id }: { id: string }) {
         </div>
       )}
       <div className="panel">
+        {nb && (
+          <a className="mono muted" href={`#/nb/${nb.id}`} style={{ display: 'inline-block', marginBottom: 10 }}>
+            ← {nb.title}
+          </a>
+        )}
         <div className="sec">
           <b>№ {String(rec.pageNo).padStart(3, '0')}</b> · {humanDate(rec.date)} {rec.demo && <span className="badge">пример</span>}
         </div>

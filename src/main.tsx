@@ -11,6 +11,7 @@ import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/manrope/400.css';
 import '@fontsource/manrope/600.css';
 import '@fontsource/manrope/800.css';
+import '@fontsource/pt-mono/400.css';
 import './styles.css';
 import App from './App';
 import { analyzeAudio, bestExcerpt, excerptToWav } from './lib/analysis/audio';
@@ -31,6 +32,7 @@ const preload = [
   '500 16px "JetBrains Mono"',
   '800 40px Manrope',
   '600 16px Manrope',
+  '400 16px "PT Mono"',
 ];
 Promise.all(preload.map((f) => document.fonts.load(f, 'Аа Zz 1'))).catch(() => {});
 

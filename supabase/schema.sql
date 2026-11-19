@@ -47,3 +47,16 @@ create policy "days: read demo" on public.days for select to authenticated using
 drop policy if exists "diary: read demo" on storage.objects;
 create policy "diary: read demo" on storage.objects for select to authenticated
   using (bucket_id = 'diary' and exists (select 1 from public.days d where d.is_demo and d.id::text = (storage.foldername(name))[2]));
+
+-- Тетради (как полка в Footnotes): у каждого пользователя свои
+create table if not exists public.notebooks (
+  id uuid primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  title text not null,
+  cover jsonb not null default '{"style":"kraft"}'
+);
+alter table public.notebooks enable row level security;
+drop policy if exists "notebooks: own" on public.notebooks;
+create policy "notebooks: own" on public.notebooks for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+grant select, insert, update, delete on public.notebooks to authenticated;
