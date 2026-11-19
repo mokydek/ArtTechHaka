@@ -4,6 +4,8 @@ import Book from '../components/Book';
 import { dayPrompt, onThisDay, plural, streak, todayISO } from '../lib/prompts';
 import { humanDate } from '../lib/render/engine';
 import Envelope, { countdown, useNow } from '../components/Envelope';
+import Rewind from '../components/Rewind';
+import type { DayRecord } from '../lib/types';
 
 function usePerRow() {
   const calc = () => (window.innerWidth < 600 ? 2 : window.innerWidth < 1000 ? 3 : window.innerWidth < 1300 ? 4 : 5);
@@ -19,6 +21,18 @@ function usePerRow() {
 export default function Shelf() {
   const { notebooks, daysOf, days, covers, store, capsules, sealed } = useDiary();
   const now = useNow(1000);
+  const [rw, setRw] = useState<DayRecord | null>(null);
+  const travel = () => {
+    const past = days.filter((d) => d.date < today);
+    const pool = past.length ? past : days;
+    if (!pool.length) return;
+    // старые дни выпадают чаще: о них легче забыть
+    const w = pool.map((d) => 1 + (Date.now() - new Date(d.date).getTime()) / (86400000 * 30));
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    let i = 0;
+    while (r > w[i] && i < w.length - 1) r -= w[i++];
+    setRw(pool[i]);
+  };
   const letters = [...capsules].sort((a, b) => Number(!!a.openedAt) - Number(!!b.openedAt) || a.openAt.localeCompare(b.openAt));
   const perRow = usePerRow();
   const today = todayISO();
@@ -30,6 +44,7 @@ export default function Shelf() {
 
   return (
     <>
+      {rw && <Rewind to={rw} onDone={() => (location.hash = `#/day/${encodeURIComponent(rw.id)}`)} />}
       <section className="today">
         <div className="today-main">
           <div className="sec">
@@ -46,6 +61,11 @@ export default function Shelf() {
               <a className="btn" href="#/new">
                 {s.today ? '+ Ещё один день' : '+ Записать сегодняшний день'}
               </a>
+              {days.length > 1 && (
+                <button className="btn ghost" onClick={travel}>
+                  ⟲ Перенеси меня
+                </button>
+              )}
               {s.count > 0 && <span className="streak" title="дней подряд с записью">
                 <span className="streak-n">{s.count}</span> {plural(s.count, 'день', 'дня', 'дней')} подряд
               </span>}

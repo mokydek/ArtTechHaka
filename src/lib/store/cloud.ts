@@ -61,6 +61,32 @@ export class CloudStore implements DiaryStore {
     if (error) throw error;
   }
 
+  /** Открытка: снимок дня в JSON + ссылки на файлы, подписанные на год. Получателю не нужен вход */
+  async sharePostcard(rec: DayRecord, note: string): Promise<string> {
+    const YEAR = 60 * 60 * 24 * 365;
+    const f = this.files(rec);
+    const paths = Object.entries(f).filter(([k]) => k !== 'video');
+    const { data } = await this.sb.storage.from(BUCKET).createSignedUrls(
+      paths.map(([, p]) => p),
+      YEAR,
+    );
+    const url: Record<string, string> = {};
+    paths.forEach(([k], i) => data?.[i]?.signedUrl && (url[k] = data[i].signedUrl));
+    const photos = rec.photoUrls?.length ? rec.photoUrls : Array.from({ length: rec.photoCount }, (_, i) => url[`photo-${i + 1}`]).filter(Boolean);
+    const { ownerId: _o, ...clean } = rec;
+    void _o;
+    const card = { v: 1, rec: clean, note, photos, cover: url.cover, excerpt: url.excerpt, voice: url.voice, sentAt: new Date().toISOString() };
+    const name = `postcards/${crypto.randomUUID()}.json`;
+    const full = `${this.uid}/${name}`;
+    const { error } = await this.sb.storage.from(BUCKET).upload(full, new Blob([JSON.stringify(card)], { type: 'application/json' }), { upsert: true, contentType: 'application/json' });
+    if (error) throw error;
+    const s = await this.sb.storage.from(BUCKET).createSignedUrl(full, YEAR);
+    if (s.error || !s.data) throw s.error ?? new Error('sign');
+    // в ссылке — только путь и подпись, хост известен
+    const u = new URL(s.data.signedUrl);
+    return btoa(JSON.stringify({ p: full, t: u.searchParams.get('token') })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
   async removeCapsule(id: string) {
     await this.remove(id);
   }
@@ -183,4 +209,12 @@ export class CloudStore implements DiaryStore {
     if (data?.length) await this.sb.storage.from(BUCKET).remove(data.map((f) => `${this.uid}/${id}/${f.name}`));
     await this.sb.from('days').delete().eq('id', id);
   }
+}
+
+/** Открыть открытку по токену из ссылки (без входа) */
+export async function fetchPostcard(token: string) {
+  const j = JSON.parse(atob(token.replace(/-/g, '+').replace(/_/g, '/')));
+  const r = await fetch(`${URL_}/storage/v1/object/sign/${BUCKET}/${j.p}?token=${j.t}`);
+  if (!r.ok) throw new Error('postcard ' + r.status);
+  return (await r.json()) as { v: number; rec: DayRecord; note: string; photos: string[]; cover?: string; excerpt?: string; voice?: string; sentAt: string };
 }

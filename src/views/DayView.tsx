@@ -127,6 +127,74 @@ function SealPanel({ rec }: { rec: DayRecord }) {
   );
 }
 
+function SharePanel({ rec }: { rec: DayRecord }) {
+  const { store, toast } = useDiary();
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const [link, setLink] = useState('');
+  const [busy, setBusy] = useState(false);
+  const cloud = store?.kind === 'cloud';
+  if (!open)
+    return (
+      <button className="btn ghost small" onClick={() => setOpen(true)} disabled={!cloud} title={cloud ? '' : 'открытки работают в облачном режиме'}>
+        ✉ Открытка другу
+      </button>
+    );
+  const make = async () => {
+    if (!store || store.kind !== 'cloud') return;
+    setBusy(true);
+    try {
+      const tok = await (store as unknown as { sharePostcard: (r: DayRecord, n: string) => Promise<string> }).sharePostcard(rec, note.trim());
+      setLink(`${location.origin}/#/p/${tok}`);
+    } catch (e) {
+      console.error(e);
+      toast('Не получилось создать открытку');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="seal-panel" style={{ width: '100%' }}>
+      {!link ? (
+        <>
+          <div className="mono muted">пара слов на обороте</div>
+          <textarea className="inp pc-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Помнишь этот вечер?" maxLength={240} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn small" onClick={make} disabled={busy}>
+              {busy ? 'Наклеиваю марку…' : 'Отправить открытку'}
+            </button>
+            <button className="btn ghost small" onClick={() => setOpen(false)}>
+              Отмена
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="mono muted">ссылка на открытку — откроется без регистрации, живёт год</div>
+          <input className="inp" readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn small"
+              onClick={async () => {
+                if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) await navigator.share({ title: rec.title, text: note || rec.title, url: link }).catch(() => {});
+                else {
+                  await navigator.clipboard.writeText(link).catch(() => {});
+                  toast('Ссылка скопирована');
+                }
+              }}
+            >
+              Скопировать / поделиться
+            </button>
+            <a className="btn ghost small" href={link.replace(location.origin + '/', '')}>
+              Посмотреть
+            </a>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function DayPage({ id }: { id: string }) {
   const { store, days: allDays, covers, toast, reload, notebookOf, notebooks } = useDiary();
   const rec0 = allDays.find((d) => d.id === id) ?? null;
@@ -353,8 +421,11 @@ function DayPage({ id }: { id: string }) {
           {older ? <a href={`#/day/${older.id}`}>← {older.title}</a> : <span />}
           {newer ? <a href={`#/day/${newer.id}`} style={{ textAlign: 'right' }}>{newer.title} →</a> : <span />}
         </div>
+        <div style={{ marginTop: 30, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <SharePanel rec={rec} />
+        </div>
         {!rec.demo && (
-          <div style={{ marginTop: 30, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <SealPanel rec={rec} />
             <button className="btn ghost small" onClick={remove}>
               Удалить день

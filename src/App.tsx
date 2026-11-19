@@ -15,6 +15,7 @@ import CapsuleNew from './views/CapsuleNew';
 import CapsuleView from './views/CapsuleView';
 import Stamps from './views/Stamps';
 import FilmView from './views/FilmView';
+import PostcardView from './views/PostcardView';
 import StampAward from './components/StampAward';
 import { earnedStamps, type Earned } from './lib/stamps';
 
@@ -192,6 +193,7 @@ export default function App() {
   else if (parts[0] === 'year') view = <YearView />;
   else if (parts[0] === 'museum') view = <Museum />;
   else if (parts[0] === 'stamps') view = <Stamps />;
+  else if (parts[0] === 'p') view = <PostcardView token={parts[1]} key={route} />;
   else if (parts[0] === 'film') view = <FilmView kind={parts[1]} id={parts[2]} key={route} />;
   else if (parts[0] === 'capsule' && parts[1] === 'new') view = <CapsuleNew key={route} />;
   else if (parts[0] === 'capsule') view = <CapsuleView id={parts[1]} key={route} />;
@@ -228,7 +230,7 @@ export default function App() {
       </header>
       <main className="page">{view}</main>
       {msg && <div className="toast">{msg}</div>}
-      {awards.length > 0 && !hash.startsWith('#/new') && <StampAward list={awards} onClose={() => setAwards([])} />}
+      {awards.length > 0 && !hash.startsWith('#/new') && !hash.startsWith('#/p/') && <StampAward list={awards} onClose={() => setAwards([])} />}
     </Ctx.Provider>
   );
 }
