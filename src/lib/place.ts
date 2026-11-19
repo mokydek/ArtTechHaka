@@ -57,7 +57,9 @@ export function wmo(code: number): { label: string; tags: Weather[] } {
 export function weatherTags(p: PlaceInfo): Weather[] {
   const w = p.weather;
   if (!w) return [];
-  const tags = [...wmo(w.code).tags];
+  let tags = [...wmo(w.code).tags];
+  // морось почти без осадков — это пасмурно, а не дождь
+  if (w.code >= 51 && w.code <= 57 && w.precip != null && w.precip < 1) tags = ['clouds'];
   if (w.tmax != null && w.tmax <= 2) tags.push('cold');
   if (w.tmax != null && w.tmax >= 29) tags.push('hot');
   if (w.wind != null && w.wind >= 30) tags.push('wind');

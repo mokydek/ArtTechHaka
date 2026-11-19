@@ -21,11 +21,13 @@ export const AMB_NAMES: Record<AmbKind, string> = {
 /** Какие звуки были в дне — по словам, месту, погоде и форме */
 export function pickAmbience(a: DayAnalysis, d: DesignSpec, place?: PlaceInfo): AmbLayer[] {
   const t = a.text;
-  const w = new Set([...t.weather, ...(place ? weatherTags(place) : [])]);
+  // погода уже сведена в t.weather (данные о месте добавляются, только если в записи погоды нет)
+  const w = new Set(t.weather);
+  const fromData = (k: string) => !!place && weatherTags(place).includes(k as never) && !t.weatherWords?.[k as keyof typeof t.weatherWords];
   const has = (list: { key: string }[], ...keys: string[]) => list.some((p) => keys.includes(p.key));
   const out: AmbLayer[] = [];
   const add = (kind: AmbKind, gain: number, why: string) => !out.some((o) => o.kind === kind) && out.push({ kind, gain, why });
-  if (w.has('rain') || w.has('storm')) add('rain', 0.5, place?.weather && !t.weather.includes('rain') ? `дождь в ${place.name} по данным погоды` : 'в записи шёл дождь');
+  if (w.has('rain') || w.has('storm')) add('rain', 0.5, fromData('rain') ? `в этот день в ${place!.name} шёл дождь (данные погоды)` : 'в записи шёл дождь');
   if (has(t.places, 'sea', 'beach', 'shore', 'embankment', 'lake')) add('sea', 0.45, 'вода рядом — море, берег, озеро');
   if (has(t.objects, 'bonfire', 'fireplace', 'shashlik', 'candles')) add('fire', 0.42, 'огонь в записи — костёр, камин, шашлыки или свечи');
   if (w.has('wind') || w.has('snow') || has(t.places, 'steppe', 'mountains', 'roof')) add('wind', 0.35, w.has('snow') ? 'снег — глухой зимний ветер' : 'открытое место, ветер');
