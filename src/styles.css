@@ -1731,3 +1731,81 @@ a.tab {
 .place-pin {
   font-size: 16px;
 }
+
+/* голос и камера */
+.voice-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -8px 0 16px;
+}
+.rec-on {
+  background: #b5482a;
+  border-color: #b5482a;
+  animation: recpulse 1.2s ease-in-out infinite;
+}
+@keyframes recpulse {
+  50% {
+    opacity: 0.7;
+  }
+}
+.interim {
+  font-family: var(--hand);
+  font-size: 18px;
+  color: var(--ink-2);
+}
+.cam {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(10, 8, 6, 0.86);
+  display: grid;
+  place-items: center;
+}
+.cam-box {
+  position: relative;
+  width: min(760px, 94vw);
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cam-box video {
+  width: 100%;
+  display: block;
+  max-height: 72vh;
+  object-fit: cover;
+}
+.cam-err {
+  color: #f2e6d8;
+  padding: 60px 30px;
+  text-align: center;
+}
+.cam-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0.8;
+}
+.cam-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #0d0b0a;
+}
+.cam-light {
+  color: #f2e6d8 !important;
+  border-color: rgba(242, 230, 216, 0.5) !important;
+}
+.cam-shutter {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 4px solid #f2e6d8;
+  background: #f2e6d8;
+  box-shadow: inset 0 0 0 4px #0d0b0a;
+}
+.cam-shutter:active {
+  transform: scale(0.94);
+}

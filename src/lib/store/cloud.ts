@@ -83,6 +83,7 @@ export class CloudStore implements DiaryStore {
     m.cover = this.path(rec.id, 'cover.jpg', o);
     if (rec.hasExcerpt) m.excerpt = this.path(rec.id, 'excerpt.wav', o);
     if (rec.hasVideo) m.video = this.path(rec.id, rec.videoName ?? 'memory.webm', o);
+    if (rec.hasVoice) m.voice = this.path(rec.id, rec.voiceName ?? 'voice.webm', o);
     return m;
   }
 
@@ -94,7 +95,7 @@ export class CloudStore implements DiaryStore {
       const u = s[f[`photo-${i + 1}`]];
       if (u) photos.push(u);
     }
-    return { photos, cover: s[f.cover], excerpt: f.excerpt ? s[f.excerpt] : undefined, video: f.video ? s[f.video] : undefined };
+    return { photos, cover: s[f.cover], excerpt: f.excerpt ? s[f.excerpt] : undefined, video: f.video ? s[f.video] : undefined, voice: f.voice ? s[f.voice] : undefined };
   }
 
   async covers(recs: DayRecord[]) {

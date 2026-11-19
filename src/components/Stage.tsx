@@ -13,10 +13,12 @@ interface Props {
   autoplay?: boolean;
   onVideo?: (b: Blob) => void;
   extra?: React.ReactNode;
+  voiceUrl?: string; // свой голос вместо синтеза
 }
 
 /** Живая страница дня: звук, движение, голос, запись видео */
-export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, extra }: Props) {
+export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, extra, voiceUrl }: Props) {
+  const own = useRef<HTMLAudioElement | null>(null);
   const ref = useRef<HTMLCanvasElement>(null);
   const player = useRef<MemoryPlayer | null>(null);
   const [ready, setReady] = useState(false);
@@ -60,6 +62,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
     return () => {
       dead = true;
       stopSpeaking();
+      own.current?.pause();
       player.current?.destroy();
       player.current = null;
     };
@@ -88,6 +91,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
     const p = player.current;
     if (voice) {
       stopSpeaking();
+      own.current?.pause();
       setVoice(false);
       p?.duck(1);
       return;
@@ -97,6 +101,16 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
       setPlaying(true);
     }
     p?.duck(rec.design.voice.musicDuck);
+    if (voiceUrl) {
+      const a = new Audio(voiceUrl);
+      own.current = a;
+      a.onended = () => {
+        setVoice(false);
+        player.current?.duck(1);
+      };
+      a.play().then(() => setVoice(true)).catch(() => player.current?.duck(1));
+      return;
+    }
     const ok = speak(
       rec.text,
       rec.design.voice,
@@ -145,7 +159,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
       </div>
       <div className="ctrl">
         <button className="btn ghost small" onClick={listen} disabled={!ready || rec_ !== null}>
-          {voice ? '■ Остановить голос' : '◉ Слушать запись'}
+          {voice ? '■ Остановить голос' : voiceUrl ? '◉ Мой голос' : '◉ Слушать запись'}
         </button>
         {!!rec.ambience?.length && (
           <button

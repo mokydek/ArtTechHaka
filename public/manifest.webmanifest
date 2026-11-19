@@ -1,0 +1,15 @@
+{
+  "name": "Оттиск — дневник атмосферы",
+  "short_name": "Оттиск",
+  "description": "Дневник, который превращает день — текст, фото и песню — в живую страницу его атмосферы.",
+  "lang": "ru",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#efe9df",
+  "theme_color": "#efe9df",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

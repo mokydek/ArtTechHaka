@@ -262,6 +262,10 @@ export async function folderZip(rec: DayRecord, media: DayMedia, video?: Blob): 
   }
   const vid = video ?? (media.video ? await (await fetch(media.video)).blob() : undefined);
   if (vid) f.file(`воспоминание.${vid.type.includes('mp4') ? 'mp4' : 'webm'}`, vid);
+  if (media.voice) {
+    const vb = await (await fetch(media.voice)).blob();
+    f.file(`мой голос.${vb.type.includes('mp4') ? 'm4a' : 'webm'}`, vb);
+  }
   if (media.cover) f.file('обложка.jpg', await (await fetch(media.cover)).blob());
   f.file('озвучка.txt', `Голос: ${voiceLabel(rec.design.voice)}\nВысота ×${rec.design.voice.pitch.toFixed(2)}\nОзвучка синтезируется на устройстве по этому профилю (кнопка «Слушать запись» в дневнике).\n\nТекст:\n${rec.text}\n`);
   const d = rec.design;
@@ -291,4 +295,38 @@ export function download(blob: Blob, name: string) {
     URL.revokeObjectURL(a.href);
     a.remove();
   }, 2000);
+}
+
+/** Сторис 9:16: страница дня на размытом фоне своей же палитры */
+export async function renderStory(rec: DayRecord, bitmaps: ImageBitmap[], t?: number): Promise<Blob> {
+  const r = await makeRenderer(rec, bitmaps);
+  if (t != null) r.draw(t);
+  else r.draw(0, { still: true });
+  const W = 1080,
+    H = 1920;
+  const c = new OffscreenCanvas(W, H);
+  const g = c.getContext('2d')!;
+  const pal = rec.design.palette;
+  // фон: та же страница, сильно размытая и затемнённая палитрой
+  g.filter = 'blur(60px) saturate(1.2)';
+  const bs = H / r.canvas.height;
+  g.drawImage(r.canvas, (W - r.canvas.width * bs) / 2, 0, r.canvas.width * bs, H);
+  g.filter = 'none';
+  g.fillStyle = pal.colors[0] + '66';
+  g.fillRect(0, 0, W, H);
+  // страница
+  const pw = 960,
+    ph = (pw * r.canvas.height) / r.canvas.width;
+  const px = (W - pw) / 2,
+    py = (H - ph) / 2 - 20;
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,0.45)';
+  g.shadowBlur = 60;
+  g.shadowOffsetY = 24;
+  g.fillStyle = pal.paper;
+  g.fillRect(px, py, pw, ph);
+  g.restore();
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(r.canvas, px, py, pw, ph);
+  return c.convertToBlob({ type: 'image/png' });
 }

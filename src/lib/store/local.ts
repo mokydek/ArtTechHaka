@@ -62,6 +62,7 @@ export class LocalStore implements DiaryStore {
       cover: await blobUrl(`${rec.id}/cover`),
       excerpt: rec.hasExcerpt ? await blobUrl(`${rec.id}/excerpt`) : undefined,
       video: rec.hasVideo ? await blobUrl(`${rec.id}/video`) : undefined,
+      voice: rec.hasVoice ? await blobUrl(`${rec.id}/voice`) : undefined,
     };
   }
 

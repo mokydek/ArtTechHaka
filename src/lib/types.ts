@@ -192,6 +192,8 @@ export interface DayRecord {
   ownerId?: string; // владелец (для демо-дней в облаке)
   notebookId?: string; // тетрадь
   ambience?: AmbLayer[]; // звуки дня
+  hasVoice?: boolean; // свой голос
+  voiceName?: string;
   place?: PlaceInfo; // место и погода
   hasVideo?: boolean;
   videoName?: string;
@@ -206,6 +208,7 @@ export interface DayMedia {
   cover?: string;
   excerpt?: string; // фрагмент песни из файла
   video?: string;
+  voice?: string; // свой голос
 }
 
 export type CoverStyle = 'kraft' | 'marble' | 'guava' | 'birds' | 'linen' | 'night' | 'olive' | 'ransom' | 'collage';

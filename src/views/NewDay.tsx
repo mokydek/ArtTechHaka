@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDiary } from '../App';
 import { buildDay, renderCover, retitle, type BuiltDay, type MusicInput, type Step } from '../lib/pipeline';
 import { lookupTrack, resolveLink, searchTracks, type TrackCandidate } from '../lib/analysis/music';
@@ -7,6 +7,8 @@ import Why from '../components/Why';
 import { PROMPTS, PROMPT_STARTERS, dayPrompt } from '../lib/prompts';
 import { dayWeather, hereNow, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
 import type { PlaceInfo } from '../lib/types';
+import VoiceNote from '../components/VoiceNote';
+import Camera from '../components/Camera';
 
 const today = () => {
   const d = new Date();
@@ -22,6 +24,14 @@ export default function NewDay({ nb }: { nb?: string }) {
   }, [nbId, defaultNotebook]);
   const [date, setDate] = useState(today());
   const [place, setPlace] = useState<PlaceInfo | null>(null);
+  const [voice, setVoice] = useState<Blob | null>(null);
+  const voiceUrl = useMemo(() => (voice ? URL.createObjectURL(voice) : undefined), [voice]);
+  const dictate = (t: string) =>
+    setText((prev) => {
+      const base = prev.trimEnd();
+      const piece = t.charAt(0).toUpperCase() + t.slice(1);
+      return (base ? base + (/[.!?…]$/.test(base) ? ' ' : '. ') : '') + piece;
+    });
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
   const [music, setMusic] = useState<MusicInput | null>(null);
@@ -83,8 +93,13 @@ export default function NewDay({ nb }: { nb?: string }) {
     try {
       const rec = retitle(built.record, title || built.record.title);
       rec.notebookId = nbId || defaultNotebook;
+      if (voice) {
+        rec.hasVoice = true;
+        rec.voiceName = `voice.${voice.type.includes('mp4') ? 'mp4' : 'webm'}`;
+      }
       const cover = await renderCover(rec, built.bitmaps);
       await store.save(rec, { photos: built.photoBlobs, cover, excerpt: built.excerpt });
+      if (voice) await store.saveBlob(rec.id, 'voice', voice);
       if (video) {
         await store.saveBlob(rec.id, 'video', video);
         rec.hasVideo = true;
@@ -105,7 +120,7 @@ export default function NewDay({ nb }: { nb?: string }) {
   if ((phase === 'preview' || phase === 'save') && built) {
     return (
       <div className="day">
-        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay />
+        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay voiceUrl={voiceUrl} />
         <div className="panel">
           <div className="sec">
             <b>●</b> Папка дня — название придумала система, можно поправить
@@ -176,6 +191,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="inp" style={{ width: 170, padding: '6px 10px' }} />
           </div>
         </div>
+        <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
         <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
         <div className="sec">
           <b>02</b> // Фото
@@ -224,11 +240,14 @@ function Photos({ files, onChange, disabled }: { files: File[]; onChange: (f: Fi
   const inp = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [urls, setUrls] = useState<string[]>([]);
+  const [cam, setCam] = useState(false);
   useEffect(() => {
     const u = files.map((f) => URL.createObjectURL(f));
     setUrls(u);
     return () => u.forEach((x) => URL.revokeObjectURL(x));
   }, [files]);
+  const filesRef = useRef(files);
+  filesRef.current = files;
   const add = (list: FileList | null) => {
     if (!list) return;
     const imgs = [...list].filter((f) => f.type.startsWith('image/'));
@@ -256,6 +275,12 @@ function Photos({ files, onChange, disabled }: { files: File[]; onChange: (f: Fi
         </div>
         <input ref={inp} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
       </div>
+      {!disabled && !!navigator.mediaDevices?.getUserMedia && (
+        <button className="btn ghost small" style={{ marginTop: 10 }} onClick={() => setCam(true)}>
+          📷 Снять сейчас
+        </button>
+      )}
+      {cam && <Camera onShot={(f) => onChange([...filesRef.current, f].slice(0, 8))} onClose={() => setCam(false)} />}
       {!!files.length && (
         <div className="thumbs">
           {urls.map((u, i) => (

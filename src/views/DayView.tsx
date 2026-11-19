@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDiary } from '../App';
 import type { DayMedia, DayRecord } from '../lib/types';
-import { download, folderZip, loadAssets } from '../lib/pipeline';
+import { download, folderZip, loadAssets, renderStory } from '../lib/pipeline';
 import { humanDate } from '../lib/render/engine';
 import { keyName } from '../lib/analysis/audio';
 import { voiceLabel } from '../lib/voice';
@@ -24,6 +24,7 @@ export default function DayView({ id }: { id: string }) {
   const [assets, setAssets] = useState<{ bitmaps: ImageBitmap[]; audio: AudioBuffer | null } | null>(null);
   const [video, setVideo] = useState<Blob | null>(null);
   const [zipping, setZipping] = useState(false);
+  const [storyBusy, setStoryBusy] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -83,6 +84,20 @@ export default function DayView({ id }: { id: string }) {
     }
   };
 
+  const story = async () => {
+    if (!assets) return;
+    setStoryBusy(true);
+    try {
+      const b = await renderStory(rec, assets.bitmaps, 6);
+      const file = new File([b], `${rec.folder} — сторис.png`, { type: 'image/png' });
+      const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
+      if (nav.canShare?.({ files: [file] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) await nav.share({ files: [file], title: rec.title }).catch(() => download(b, file.name));
+      else download(b, file.name);
+    } finally {
+      setStoryBusy(false);
+    }
+  };
+
   const remove = async () => {
     if (!store || rec.demo) return;
     if (!confirm(`Удалить папку «${rec.folder}»? Это нельзя отменить.`)) return;
@@ -100,10 +115,16 @@ export default function DayView({ id }: { id: string }) {
           audio={assets.audio}
           autoplay
           onVideo={onVideo}
+          voiceUrl={media?.voice}
           extra={
-            <button className="btn ghost small" onClick={zip} disabled={zipping || !media}>
-              {zipping ? 'Собираю…' : '⇩ Папка дня .zip'}
-            </button>
+            <>
+              <button className="btn ghost small" onClick={zip} disabled={zipping || !media}>
+                {zipping ? 'Собираю…' : '⇩ Папка дня .zip'}
+              </button>
+              <button className="btn ghost small" onClick={story} disabled={storyBusy}>
+                {storyBusy ? '…' : '⇩ Сторис 9:16'}
+              </button>
+            </>
           }
         />
       ) : (
@@ -141,6 +162,7 @@ export default function DayView({ id }: { id: string }) {
           )}
           <div>├─ воспоминание.{rec.videoName?.split('.').pop() ?? 'webm'} <span className="k">— {rec.hasVideo || video ? 'сохранено' : 'нажмите «Сохранить видео»'}</span></div>
           <div>├─ обложка.jpg</div>
+          {rec.hasVoice && <div>├─ мой голос <span className="k">— запись автора</span></div>}
           <div>├─ озвучка <span className="k">— {rec.design.voice.character}</span></div>
           <div>└─ почему так.txt</div>
         </div>
