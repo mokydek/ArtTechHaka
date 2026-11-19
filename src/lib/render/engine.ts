@@ -1,4 +1,6 @@
 import type { AudioFeatures, DesignSpec, MusicMeta } from '../types';
+import { drawRansom } from './ransom';
+import { drawSticker, drawWashi, type StickerKind } from './stickers';
 import { clamp, mixHex, mulberry32, withAlpha } from '../color';
 import { keyName } from '../analysis/audio';
 import { MODES } from '../design/system';
@@ -44,6 +46,7 @@ export interface RenderInput {
   audio: AudioFeatures | null;
   label?: string; // «осень · вечер · дождь»
   place?: string; // «Астана −8°»
+  stickers?: StickerKind[]; // наклейки по предметам дня (коллаж, плёнка)
 }
 
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -576,6 +579,10 @@ export class MemoryRenderer {
       g.fillStyle = `rgba(0,0,0,${0.03 + 0.03 * Math.sin(tm.t * 31)})`;
       g.fillRect(x, y, w, h);
     }
+    this.drawStickers(tm, still, [
+      [x + w - 64, y + 70, 118, 0.22],
+      [x + 62, y + h - 74, 112, -0.18],
+    ]);
   }
 
   // ——— Ма ———
@@ -717,21 +724,29 @@ export class MemoryRenderer {
       g.shadowOffsetY = 9;
       g.drawImage(piece, -pw / 2, -ph / 2, pw, ph);
       g.shadowColor = 'transparent';
-      // скотч
-      g.fillStyle = 'rgba(238,226,196,0.62)';
-      g.save();
-      g.translate(-pw / 2 + 30, -ph / 2 + 12);
-      g.rotate(-0.6);
-      g.fillRect(-40, -12, 80, 24);
-      g.restore();
-      g.save();
-      g.translate(pw / 2 - 30, -ph / 2 + 12);
-      g.rotate(0.55);
-      g.fillRect(-40, -12, 80, 24);
-      g.restore();
+      // васи-скотч
+      const tc = [pal.accent, pal.colors[3], pal.colors[2], mixHex(pal.accent, '#ffffff', 0.4)];
+      drawWashi(g, -pw / 2 + 34, -ph / 2 + 10, 110, 30, -0.62, tc[s % tc.length], sp.seed + s * 13);
+      drawWashi(g, pw / 2 - 34, -ph / 2 + 10, 110, 30, 0.58, tc[(s + 1) % tc.length], sp.seed + s * 17);
       g.restore();
     }
     g.globalAlpha = 1;
+    this.drawStickers(tm, still, [
+      [x + w * 0.13, y + h * 0.86, 150, -0.2],
+      [x + w * 0.88, y + h * 0.13, 130, 0.25],
+      [x + w * 0.9, y + h * 0.88, 120, 0.1],
+    ]);
+  }
+
+  /** Наклейки дня приклеиваются одна за другой и чуть покачиваются в долю */
+  private drawStickers(tm: Timing, still: boolean, spots: [number, number, number, number][]) {
+    const list = this.input.stickers ?? [];
+    list.slice(0, spots.length).forEach((k, i) => {
+      const [sx, sy, size, rot] = spots[i];
+      const a = still ? 1 : Math.max(0, Math.min(1, (tm.t - this.introDur * 0.7 - i * 0.45) / 0.5));
+      const wob = still ? 0 : Math.sin(tm.t * 1.3 + i * 2) * 0.03 + ((tm.beatIdx + i) % 2 === 0 ? tm.pulse * 0.04 : 0);
+      drawSticker(this.g, k, sx, sy, size, rot + wob, a);
+    });
   }
 
   // ——— Ноктюрн ———
@@ -933,36 +948,15 @@ export class MemoryRenderer {
     const baseY = lines.length > 1 ? 1066 : 1094;
     g.textAlign = 'left';
     if (sp.mode === 'collage') {
-      // слова-наклейки
-      const words = text.split(' ');
-      let xx = L;
-      let yy = baseY;
-      const rnd = mulberry32(sp.seed + 77);
-      const bgs = [pal.accent, pal.ink, pal.colors[1], '#fbf8f1'];
-      words.forEach((wd, i) => {
-        const ww = g.measureText(wd).width;
-        if (xx + ww > L + FIELD.w) {
-          xx = L;
-          yy += size * 1.05;
-        }
-        const appear = still ? 1 : clamp((tm.t - 0.4 - i * 0.18) / 0.3);
-        if (appear <= 0) {
-          xx += ww + 22;
-          return;
-        }
-        const bgc = bgs[i % bgs.length];
-        g.save();
-        g.translate(xx + ww / 2, yy - size * 0.32);
-        g.rotate((rnd() - 0.5) * 0.08);
-        const s = 0.8 + 0.2 * easeOutBack(appear);
-        g.scale(s, s);
-        g.fillStyle = bgc;
-        g.fillRect(-ww / 2 - 10, -size * 0.55, ww + 20, size * 1.05);
-        g.fillStyle = bgc === '#fbf8f1' || bgc === pal.colors[1] ? pal.ink : '#fbf8f1';
-        g.fillText(wd, -ww / 2, size * 0.3);
-        g.restore();
-        xx += ww + 22;
-      });
+      // вырезанные буквы: наклеиваются по одной в долю
+      g.letterSpacing = '0px';
+      const per = Math.max(0.05, Math.min(0.12, this.beat / 3));
+      const n = [...text].length;
+      const appear = still ? 1 : clamp((tm.t - 0.4) / (n * per));
+      const light = [mixHex(pal.paper, '#ffffff', 0.5), mixHex(pal.colors[3], '#ffffff', 0.25), mixHex(pal.colors[4] ?? pal.paper, '#ffffff', 0.2), '#f3e3b5', '#fbf8f1'];
+      const rs = Math.min(60, size * 0.9);
+      const twoLines = n * rs * 0.92 > FIELD.w - 10;
+      drawRansom(g, title, { x: L, y: twoLines ? 1042 : 1086, size: twoLines ? rs * 0.92 : rs, maxWidth: FIELD.w - 10, seed: sp.seed + 77, palette: light, ink: pal.ink, appear });
       g.letterSpacing = '0px';
       return;
     }

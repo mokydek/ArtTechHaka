@@ -43,9 +43,9 @@ export default function Shelf() {
               <a className="btn" href="#/new">
                 {s.today ? '+ Ещё один день' : '+ Записать сегодняшний день'}
               </a>
-              <span className="streak" title="дней подряд с записью">
+              {s.count > 0 && <span className="streak" title="дней подряд с записью">
                 <span className="streak-n">{s.count}</span> {plural(s.count, 'день', 'дня', 'дней')} подряд
-              </span>
+              </span>}
             </div>
           </div>
         </div>
