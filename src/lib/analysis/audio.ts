@@ -153,9 +153,10 @@ export async function analyzeAudio(buf: AudioBuffer): Promise<AudioFeatures> {
     }
     env[t] = Math.max(0, flux[t] - s / c);
   }
-  let emax = 0;
-  for (let t = 0; t < frames; t++) emax = Math.max(emax, env[t]);
-  if (emax > 0) for (let t = 0; t < frames; t++) env[t] /= emax;
+  // нормируем по 95-му перцентилю, чтобы один удар не «съел» остальные
+  const sortedEnv = Float32Array.from(env).sort();
+  const p95 = sortedEnv[Math.floor(frames * 0.95)] || sortedEnv[frames - 1] || 1;
+  if (p95 > 0) for (let t = 0; t < frames; t++) env[t] = Math.min(1.5, env[t] / p95);
 
   // темп: автокорреляция с лог-нормальным приором около 115 BPM
   const minL = Math.floor((60 * fps) / 200);
@@ -171,7 +172,7 @@ export async function analyzeAudio(buf: AudioBuffer): Promise<AudioFeatures> {
   const scoreAt = (l: number) => {
     const bpm = (60 * fps) / l;
     const prior = Math.exp(-0.5 * (Math.log2(bpm / 115) / 0.85) ** 2);
-    const harm = ac[l] + 0.5 * (ac[Math.min(maxL + 1, l * 2)] ?? 0);
+    const harm = ac[l] + (l * 2 <= maxL + 1 ? 0.5 * ac[l * 2] : 0);
     return harm * prior;
   };
   for (let l = minL; l <= maxL; l++) {
@@ -223,7 +224,7 @@ export async function analyzeAudio(buf: AudioBuffer): Promise<AudioFeatures> {
   let acMean = 0;
   for (let l = minL; l <= maxL; l++) acMean += ac[l];
   acMean /= maxL - minL + 1;
-  const beatConfidence = clamp((ac[bestL] / (acMean + 1e-9) - 1) / 2);
+  const beatConfidence = clamp((ac[bestL] / (acMean + 1e-9) - 1) / 4);
 
   // фаза долей
   const period = lagUse;
@@ -263,7 +264,7 @@ export async function analyzeAudio(buf: AudioBuffer): Promise<AudioFeatures> {
   let cm = 0;
   for (let t = 0; t < frames; t++) cm += cent[t];
   cm /= frames;
-  const brightness = clamp((cm - 0.03) / 0.12);
+  const brightness = clamp((cm - 0.05) / 0.25);
   const dbs = Array.from(rms, (r) => 20 * Math.log10(r + 1e-6));
   const dbm = dbs.reduce((s, v) => s + v, 0) / dbs.length;
   const dbsd = Math.sqrt(dbs.reduce((s, v) => s + (v - dbm) ** 2, 0) / dbs.length);
@@ -271,12 +272,13 @@ export async function analyzeAudio(buf: AudioBuffer): Promise<AudioFeatures> {
 
   // плотность атак
   let onsets = 0;
-  for (let t = 1; t < frames - 1; t++) if (env[t] > 0.25 && env[t] > env[t - 1] && env[t] >= env[t + 1]) onsets++;
+  for (let t = 1; t < frames - 1; t++) if (env[t] > 0.3 && env[t] > env[t - 1] && env[t] >= env[t + 1]) onsets++;
   const duration = x.length / SR;
   const onsetRate = onsets / duration;
 
   const bpmN = clamp((bpm - 60) / 110);
-  const energy = clamp(0.38 * loudness + 0.27 * clamp(onsetRate / 5) + 0.2 * bpmN + 0.15 * brightness);
+  // энергия: громкость, плотность атак, темп, яркость тембра и выраженность пульса (барабаны)
+  const energy = clamp(0.32 * loudness + 0.18 * clamp((onsetRate - 1) / 5) + 0.15 * bpmN + 0.1 * brightness + 0.25 * beatConfidence);
 
   // дорожка: пики
   const P = 160;
