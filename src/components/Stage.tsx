@@ -3,6 +3,7 @@ import type { DayRecord } from '../lib/types';
 import { makeRenderer } from '../lib/pipeline';
 import { MemoryPlayer } from '../lib/render/player';
 import { speak, stopSpeaking } from '../lib/voice';
+import { AMB_NAMES, ambBuffer } from '../lib/ambience';
 
 interface Props {
   rec: DayRecord;
@@ -25,6 +26,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
   const [dur, setDur] = useState(30);
   const [voice, setVoice] = useState(false);
   const [rec_, setRec] = useState<number | null>(null);
+  const [amb, setAmb] = useState(true);
 
   useEffect(() => {
     let dead = false;
@@ -33,6 +35,10 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
       if (dead) return;
       const p = new MemoryPlayer(r, audio);
       p.onTime = (x) => setT(x);
+      if (rec.ambience?.length) {
+        const layers = rec.ambience;
+        Promise.all(layers.map((l) => ambBuffer(l.kind))).then((bufs) => !dead && p.setAmbience(bufs.map((buffer, i) => ({ buffer, gain: layers[i].gain }))));
+      }
       player.current = p;
       setDur(r.duration);
       r.draw(0);
@@ -141,6 +147,19 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
         <button className="btn ghost small" onClick={listen} disabled={!ready || rec_ !== null}>
           {voice ? '■ Остановить голос' : '◉ Слушать запись'}
         </button>
+        {!!rec.ambience?.length && (
+          <button
+            className={'btn small' + (amb ? '' : ' ghost')}
+            onClick={() => {
+              player.current?.setAmbOn(!amb);
+              setAmb(!amb);
+            }}
+            title={rec.ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')}
+            disabled={rec_ !== null}
+          >
+            ≋ {rec.ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')}
+          </button>
+        )}
         {onVideo && (
           <button className="btn ghost small" onClick={record} disabled={!ready || rec_ !== null}>
             {rec_ !== null ? `● Запись видео ${Math.round(rec_ * 100)}%` : '● Сохранить видео'}

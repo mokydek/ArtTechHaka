@@ -8,6 +8,8 @@ import { voiceLabel } from '../lib/voice';
 import Stage from '../components/Stage';
 import Why from '../components/Why';
 import { LocalStore } from '../lib/store/local';
+import { placeLine } from '../lib/place';
+import { AMB_NAMES } from '../lib/ambience';
 
 const demoLocal = new LocalStore();
 
@@ -120,6 +122,7 @@ export default function DayView({ id }: { id: string }) {
           <b>№ {String(rec.pageNo).padStart(3, '0')}</b> · {humanDate(rec.date)} {rec.demo && <span className="badge">пример</span>}
         </div>
         <h1>{rec.title}</h1>
+        {rec.place && <div className="place-stamp" style={{ margin: '0 0 14px' }}>⌖ {placeLine(rec.place)}</div>}
         <div className="tree">
           <div>
             <span className="folder-ic" style={{ display: 'inline-block', marginRight: 8, verticalAlign: '-1px' }} />
@@ -131,6 +134,11 @@ export default function DayView({ id }: { id: string }) {
             ├─ песня <span className="k">— {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}</span>
           </div>
           {rec.hasExcerpt && <div>├─ фрагмент песни.wav <span className="k">— 30 с</span></div>}
+          {!!rec.ambience?.length && (
+            <div>
+              ├─ звуки дня.wav <span className="k">— {rec.ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')}</span>
+            </div>
+          )}
           <div>├─ воспоминание.{rec.videoName?.split('.').pop() ?? 'webm'} <span className="k">— {rec.hasVideo || video ? 'сохранено' : 'нажмите «Сохранить видео»'}</span></div>
           <div>├─ обложка.jpg</div>
           <div>├─ озвучка <span className="k">— {rec.design.voice.character}</span></div>

@@ -1645,3 +1645,89 @@ body.ce-mode .brand small {
 a.tab {
   text-decoration: none;
 }
+
+/* подсказки в записи */
+.ask {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: -6px 0 10px;
+}
+.prompt-q {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--ink-2);
+}
+.ask-more {
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: var(--ink-2);
+  padding: 0 4px;
+}
+.starters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.starters .tab {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-family: var(--hand);
+  font-size: 17px;
+  padding: 2px 12px;
+}
+
+/* место и погода */
+.place {
+  margin-top: -6px;
+}
+.place-row {
+  display: flex;
+  gap: 8px;
+  position: relative;
+}
+.place-hits {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.45);
+  margin-top: 4px;
+}
+.place-hits button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 9px 14px;
+  font-size: 14px;
+}
+.place-hits button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.place-hits b {
+  font-weight: 600;
+}
+.place-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  border-radius: 3px;
+  font-family: 'PT Mono', var(--mono);
+  font-size: 13px;
+  transform: rotate(-1deg);
+}
+.place-pin {
+  font-size: 16px;
+}

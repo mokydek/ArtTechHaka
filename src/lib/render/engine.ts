@@ -43,6 +43,7 @@ export interface RenderInput {
   music: MusicMeta;
   audio: AudioFeatures | null;
   label?: string; // «осень · вечер · дождь»
+  place?: string; // «Астана −8°»
 }
 
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -799,7 +800,7 @@ export class MemoryRenderer {
     g.font = `500 19px ${FONTS.mono}`;
     g.letterSpacing = '3px';
     g.textAlign = 'left';
-    g.fillText(`№ ${String(inp.pageNo).padStart(3, '0')}`, L, 74);
+    g.fillText(`№ ${String(inp.pageNo).padStart(3, '0')}${inp.place ? '  ·  ' + inp.place.toUpperCase().slice(0, 22) : ''}`, L, 74);
     g.textAlign = 'right';
     g.fillText(humanDate(inp.date).toUpperCase(), R, 74);
     g.letterSpacing = '0px';

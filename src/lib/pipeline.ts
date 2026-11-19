@@ -1,5 +1,7 @@
 import JSZip from 'jszip';
-import type { AudioFeatures, DayMedia, DayRecord, MusicMeta, PhotoFeatures } from './types';
+import type { AudioFeatures, DayMedia, DayRecord, MusicMeta, PhotoFeatures, PlaceInfo } from './types';
+import { AMB_NAMES, pickAmbience, renderAmbience } from './ambience';
+import { placeLine, tempStr, weatherTags } from './place';
 import { analyzeText, folderName, makeTitle } from './analysis/text';
 import { analyzePhoto, loadImage, summarizePhotos } from './analysis/photo';
 import { analyzeAudio, bestExcerpt, excerptToWav, keyName } from './analysis/audio';
@@ -23,6 +25,7 @@ export interface DayInput {
   pageNo: number;
   id?: string;
   demo?: boolean;
+  place?: PlaceInfo;
 }
 
 export interface Step {
@@ -53,6 +56,12 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   // 1. Текст
   onStep({ key: 'text', label: 'Читаю запись' });
   const text = analyzeText(input.text, input.date);
+  const fromData = input.place ? weatherTags(input.place).filter((w) => !text.weather.includes(w)) : [];
+  if (fromData.length) {
+    // погода из записи главнее; данные только дополняют
+    const conflict = (w: string) => (w === 'sun' && text.weather.some((x) => x === 'rain' || x === 'snow' || x === 'clouds')) || (w === 'clouds' && text.weather.includes('sun'));
+    for (const w of fromData) if (!conflict(w)) text.weather.push(w);
+  }
   const found = [
     ...text.places.slice(0, 2).map((p) => p.nom),
     ...text.companions.slice(0, 2).map((p) => p.nom),
@@ -126,6 +135,12 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   const analysis = { text, photos, photoList, music };
   const design = designDay(analysis, input.date, input.text);
   const { title, pattern } = makeTitle(text, input.date, design.mood.energy, design.mood.valence);
+  if (input.place?.weather) {
+    const w = input.place.weather;
+    design.rules.unshift({ group: 'mix', from: `Место и погода: ${input.place.name}, ${tempStr(w)} ${w.label} (Open-Meteo за ${input.date})`, to: fromData.length ? `в день добавлено: ${fromData.map((x) => ({ rain: 'дождь', snow: 'снег', sun: 'солнце', fog: 'туман', wind: 'ветер', cold: 'холод', hot: 'жара', storm: 'гроза', clouds: 'облака' })[x]).join(', ')} — это видно в частицах, свете и звуке` : 'совпадает с записью — подтверждает погоду дня' });
+  }
+  const ambience = pickAmbience(analysis, design, input.place);
+  if (ambience.length) design.rules.push({ group: 'mix', from: `Звуки дня: ${ambience.map((a) => a.why).join('; ')}`, to: `под песней тихо звучит ${ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')} (синтез на устройстве)` });
   onStep({ key: 'design', label: `${MODES[design.mode].name} — ${MODES[design.mode].ref}`, detail: `папка «${title}»`, done: true });
 
   const record: DayRecord = {
@@ -144,6 +159,8 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
     demo: input.demo,
     hasExcerpt: !!excerpt,
     photoUrls: input.photoUrls,
+    place: input.place,
+    ambience,
   };
   return { record, bitmaps, audio, excerpt, photoBlobs };
 }
@@ -182,6 +199,7 @@ export async function makeRenderer(rec: DayRecord, bitmaps: ImageBitmap[], targe
     music: rec.music,
     audio: rec.analysis.music.audio,
     label: moodLabel(rec),
+    place: rec.place ? [rec.place.name, tempStr(rec.place.weather)].filter(Boolean).join(' ') : undefined,
   });
   await r.prepare(onStep);
   return r;
@@ -209,7 +227,7 @@ export async function renderCover(rec: DayRecord, bitmaps: ImageBitmap[], w = 72
 export async function folderZip(rec: DayRecord, media: DayMedia, video?: Blob): Promise<Blob> {
   const zip = new JSZip();
   const f = zip.folder(rec.folder)!;
-  f.file('запись.txt', `${rec.title}\n${rec.date}\n\n${rec.text}\n`);
+  f.file('запись.txt', `${rec.title}\n${rec.date}${rec.place ? '\n' + placeLine(rec.place) : ''}\n\n${rec.text}\n`);
   const photos = media.photos.length ? media.photos : (rec.photoUrls ?? []);
   const pf = f.folder('фото')!;
   await Promise.all(
@@ -236,6 +254,10 @@ export async function folderZip(rec: DayRecord, media: DayMedia, video?: Blob): 
       .join('\n'),
   );
   if (media.excerpt) f.file('фрагмент песни.wav', await (await fetch(media.excerpt)).blob());
+  if (rec.ambience?.length) {
+    const amb = await renderAmbience(rec.ambience, 30).catch(() => null);
+    if (amb) f.file('звуки дня.wav', await excerptToWav(amb, 0, amb.duration));
+  }
   const vid = video ?? (media.video ? await (await fetch(media.video)).blob() : undefined);
   if (vid) f.file(`воспоминание.${vid.type.includes('mp4') ? 'mp4' : 'webm'}`, vid);
   if (media.cover) f.file('обложка.jpg', await (await fetch(media.cover)).blob());

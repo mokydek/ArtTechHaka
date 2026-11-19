@@ -191,6 +191,7 @@ export interface DayRecord {
   demo?: boolean;
   ownerId?: string; // владелец (для демо-дней в облаке)
   notebookId?: string; // тетрадь
+  ambience?: AmbLayer[]; // звуки дня
   place?: PlaceInfo; // место и погода
   hasVideo?: boolean;
   videoName?: string;
@@ -230,4 +231,11 @@ export interface PlaceInfo {
     precip?: number;
     wind?: number;
   };
+}
+
+export type AmbKind = 'rain' | 'wind' | 'fire' | 'sea' | 'birds' | 'crickets' | 'city' | 'vinyl';
+export interface AmbLayer {
+  kind: AmbKind;
+  gain: number; // 0..1 относительно музыки
+  why: string;
 }

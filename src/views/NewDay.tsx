@@ -4,6 +4,9 @@ import { buildDay, renderCover, retitle, type BuiltDay, type MusicInput, type St
 import { lookupTrack, resolveLink, searchTracks, type TrackCandidate } from '../lib/analysis/music';
 import Stage from '../components/Stage';
 import Why from '../components/Why';
+import { PROMPTS, PROMPT_STARTERS, dayPrompt } from '../lib/prompts';
+import { dayWeather, hereNow, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
+import type { PlaceInfo } from '../lib/types';
 
 const today = () => {
   const d = new Date();
@@ -18,6 +21,7 @@ export default function NewDay({ nb }: { nb?: string }) {
     if (!nbId && defaultNotebook) setNbId(defaultNotebook);
   }, [nbId, defaultNotebook]);
   const [date, setDate] = useState(today());
+  const [place, setPlace] = useState<PlaceInfo | null>(null);
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
   const [music, setMusic] = useState<MusicInput | null>(null);
@@ -26,6 +30,21 @@ export default function NewDay({ nb }: { nb?: string }) {
   const [built, setBuilt] = useState<BuiltDay | null>(null);
   const [title, setTitle] = useState('');
   const [err, setErr] = useState('');
+  const [pi, setPi] = useState(-1);
+  const prompt = pi < 0 ? dayPrompt(date) : PROMPTS[pi % PROMPTS.length];
+  const ta = useRef<HTMLTextAreaElement>(null);
+  const addStarter = (st: string) => {
+    const base = text.trimEnd();
+    const next = (base ? base + (/[.!?…]$/.test(base) ? ' ' : '. ') : '') + st.replace('…', ' ');
+    setText(next);
+    requestAnimationFrame(() => {
+      const el = ta.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(next.length, next.length);
+      }
+    });
+  };
 
   const ready = text.trim().length > 10 && photos.length > 0 && !!music;
 
@@ -35,7 +54,7 @@ export default function NewDay({ nb }: { nb?: string }) {
     setSteps([]);
     try {
       const pageNo = Math.max(0, ...days.map((d) => d.pageNo)) + 1;
-      const b = await buildDay({ text, date, photos, music: music!, pageNo }, (s) =>
+      const b = await buildDay({ text, date, photos, music: music!, pageNo, place: place ?? undefined }, (s) =>
         setSteps((old) => {
           const i = old.findIndex((o) => o.key === s.key);
           if (i >= 0) {
@@ -131,8 +150,22 @@ export default function NewDay({ nb }: { nb?: string }) {
             </select>
           </div>
         )}
+        <div className="ask">
+          <span className="prompt-q">{prompt}</span>
+          <button className="ask-more" onClick={() => setPi((x) => (x < 0 ? Math.floor(Math.random() * PROMPTS.length) : x + 1))} title="другой вопрос" disabled={phase === 'build'}>
+            ↻
+          </button>
+        </div>
+        <div className="starters">
+          {PROMPT_STARTERS.map((st) => (
+            <button key={st} className="tab" onClick={() => addStarter(st)} disabled={phase === 'build'}>
+              {st}
+            </button>
+          ))}
+        </div>
         <div className="field">
           <textarea
+            ref={ta}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Пишите как близкому другу: погода, свет, запахи, звуки, кто был рядом, мелочи, которые запомнились…"
@@ -143,6 +176,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="inp" style={{ width: 170, padding: '6px 10px' }} />
           </div>
         </div>
+        <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
         <div className="sec">
           <b>02</b> // Фото
         </div>
@@ -356,6 +390,83 @@ function SongPicker({ value, onChange, disabled }: { value: MusicInput | null; o
           ♪ выбрано: {value.kind === 'track' ? `${value.track.artist} — ${value.track.title}` : value.kind === 'file' ? value.file.name : `${value.artist} — ${value.title}`}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlacePicker({ date, value, onChange, disabled }: { date: string; value: PlaceInfo | null; onChange: (p: PlaceInfo | null) => void; disabled?: boolean }) {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<PlaceHit[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const timer = useRef(0);
+  const pick = async (h: PlaceHit) => {
+    setHits([]);
+    setQ('');
+    setBusy(true);
+    setNote('');
+    const weather = await dayWeather(h.lat, h.lon, date).catch(() => undefined);
+    onChange({ name: h.name, country: h.country, lat: h.lat, lon: h.lon, weather });
+    if (!weather) setNote('Погоду за этот день найти не удалось — место сохранится без неё.');
+    setBusy(false);
+  };
+  // дата поменялась — погоду пересчитать
+  useEffect(() => {
+    if (!value) return;
+    let dead = false;
+    dayWeather(value.lat, value.lon, date)
+      .then((w) => !dead && onChange({ ...value, weather: w }))
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
+  const type = (v: string) => {
+    setQ(v);
+    clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => searchPlaces(v).then(setHits).catch(() => setHits([])), 280);
+  };
+  const here = async () => {
+    setBusy(true);
+    setNote('');
+    try {
+      await pick(await hereNow());
+    } catch {
+      setNote('Геолокация недоступна — впишите город.');
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="field place">
+      {value ? (
+        <div className="place-stamp">
+          <span className="place-pin">⌖</span>
+          <span>{placeLine(value)}</span>
+          {!disabled && (
+            <button className="ask-more" onClick={() => onChange(null)} title="убрать место">
+              ×
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="place-row">
+          <input className="inp" value={q} onChange={(e) => type(e.target.value)} placeholder="Где это было? Город или место — подтянем погоду дня" disabled={disabled || busy} />
+          <button className="btn ghost small" onClick={here} disabled={disabled || busy}>
+            {busy ? '…' : '⌖ Я здесь'}
+          </button>
+          {!!hits.length && (
+            <div className="place-hits">
+              {hits.map((h, i) => (
+                <button key={i} onClick={() => pick(h)}>
+                  <b>{h.name}</b> <span className="muted">{[h.admin, h.country].filter(Boolean).join(', ')}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {note && <div className="hint">{note}</div>}
     </div>
   );
 }

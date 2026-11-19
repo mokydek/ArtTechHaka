@@ -20,6 +20,10 @@ export class MemoryPlayer {
   private duckTo = 1;
   private stopAtEnd = false;
   private endCb: (() => void) | null = null;
+  private amb: { buffer: AudioBuffer; gain: number }[] = [];
+  private ambSrc: AudioBufferSourceNode[] = [];
+  private ambGain: GainNode | null = null;
+  ambOn = true;
 
   constructor(r: MemoryRenderer, buffer: AudioBuffer | null) {
     this.r = r;
@@ -35,6 +39,49 @@ export class MemoryPlayer {
     this.data = new Float32Array(this.analyser.fftSize) as Float32Array<ArrayBuffer>;
     this.gain.connect(this.analyser);
     this.analyser.connect(this.ac.destination);
+    this.ambGain = this.ac.createGain();
+    this.ambGain.gain.value = this.ambOn ? 1 : 0;
+    this.ambGain.connect(this.ac.destination);
+  }
+
+  /** «Звуки дня» — петли под песней (не влияют на пульсацию кадра) */
+  setAmbience(layers: { buffer: AudioBuffer; gain: number }[]) {
+    this.amb = layers;
+    if (this.playing) {
+      this.stopAmb();
+      this.startAmb();
+    }
+  }
+  setAmbOn(on: boolean) {
+    this.ambOn = on;
+    if (this.ambGain && this.ac) this.ambGain.gain.setTargetAtTime(on ? 1 : 0, this.ac.currentTime, 0.3);
+  }
+  private startAmb() {
+    if (!this.amb.length) return;
+    this.ensureAudio();
+    const ac = this.ac!;
+    this.ambSrc = this.amb.map((l) => {
+      const src = ac.createBufferSource();
+      src.buffer = l.buffer;
+      src.loop = true;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0, ac.currentTime);
+      g.gain.linearRampToValueAtTime(l.gain, ac.currentTime + 1.2);
+      src.connect(g);
+      g.connect(this.ambGain!);
+      if (this.recDest && this.ambOn) g.connect(this.recDest);
+      src.start(0, (this.offset % l.buffer.duration) || 0);
+      return src;
+    });
+  }
+  private stopAmb() {
+    for (const s of this.ambSrc)
+      try {
+        s.stop();
+      } catch {
+        /* */
+      }
+    this.ambSrc = [];
   }
 
   get time(): number {
@@ -58,6 +105,7 @@ export class MemoryPlayer {
     } else {
       this.wallStart = performance.now() - this.offset * 1000;
     }
+    this.startAmb();
     this.playing = true;
     this.loop();
   }
@@ -72,6 +120,7 @@ export class MemoryPlayer {
       /* уже остановлен */
     }
     this.src = null;
+    this.stopAmb();
     cancelAnimationFrame(this.raf);
   }
 
@@ -136,7 +185,7 @@ export class MemoryPlayer {
     this.pause();
     this.offset = 0;
     const stream = this.r.canvas.captureStream(30);
-    if (this.buffer) {
+    if (this.buffer || (this.amb.length && this.ambOn)) {
       this.ensureAudio();
       this.recDest = this.ac!.createMediaStreamDestination();
       this.recDest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
