@@ -57,12 +57,9 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   // 1. Текст
   onStep({ key: 'text', label: 'Читаю запись' });
   const text = analyzeText(input.text, input.date);
-  const fromData = input.place ? weatherTags(input.place).filter((w) => !text.weather.includes(w)) : [];
-  if (fromData.length) {
-    // погода из записи главнее; данные только дополняют
-    const conflict = (w: string) => (w === 'sun' && text.weather.some((x) => x === 'rain' || x === 'snow' || x === 'clouds')) || (w === 'clouds' && text.weather.includes('sun'));
-    for (const w of fromData) if (!conflict(w)) text.weather.push(w);
-  }
+  // погода из записи главнее: данные о погоде добавляются, только если в тексте её нет совсем
+  const fromData = input.place && !text.weather.length ? weatherTags(input.place) : [];
+  text.weather.push(...fromData);
   const found = [
     ...text.places.slice(0, 2).map((p) => p.nom),
     ...text.companions.slice(0, 2).map((p) => p.nom),
@@ -138,7 +135,7 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   const { title, pattern } = makeTitle(text, input.date, design.mood.energy, design.mood.valence);
   if (input.place?.weather) {
     const w = input.place.weather;
-    design.rules.unshift({ group: 'mix', from: `Место и погода: ${input.place.name}, ${tempStr(w)} ${w.label} (Open-Meteo за ${input.date})`, to: fromData.length ? `в день добавлено: ${fromData.map((x) => ({ rain: 'дождь', snow: 'снег', sun: 'солнце', fog: 'туман', wind: 'ветер', cold: 'холод', hot: 'жара', storm: 'гроза', clouds: 'облака' })[x]).join(', ')} — это видно в частицах, свете и звуке` : 'совпадает с записью — подтверждает погоду дня' });
+    design.rules.unshift({ group: 'mix', from: `Место и погода: ${input.place.name}, ${tempStr(w)} ${w.label} (Open-Meteo за ${input.date})`, to: fromData.length ? `в записи погоды нет — взята из данных: ${fromData.map((x) => ({ rain: 'дождь', snow: 'снег', sun: 'солнце', fog: 'туман', wind: 'ветер', cold: 'холод', hot: 'жара', storm: 'гроза', clouds: 'облака' })[x]).join(', ')} — это видно в частицах, свете и звуке` : 'в записи своя погода — она главнее, данные только для штампа места' });
   }
   const ambience = pickAmbience(analysis, design, input.place);
   if (ambience.length) design.rules.push({ group: 'mix', from: `Звуки дня: ${ambience.map((a) => a.why).join('; ')}`, to: `под песней тихо звучит ${ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')} (синтез на устройстве)` });
