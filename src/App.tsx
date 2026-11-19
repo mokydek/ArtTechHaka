@@ -13,6 +13,9 @@ import Seed from './views/Seed';
 import Museum from './views/Museum';
 import CapsuleNew from './views/CapsuleNew';
 import CapsuleView from './views/CapsuleView';
+import Stamps from './views/Stamps';
+import StampAward from './components/StampAward';
+import { earnedStamps, type Earned } from './lib/stamps';
 
 export const DEMO_NOTEBOOK: Notebook = {
   id: 'demo',
@@ -144,6 +147,30 @@ export default function App() {
     [store],
   );
 
+  // вручение марок: только за свои дни, по одной
+  const [awards, setAwards] = useState<Earned[]>([]);
+  useEffect(() => {
+    if (loading) return;
+    const own = days.filter((d) => !d.demo);
+    const e = earnedStamps(own, capsules);
+    let known: string[] | null = null;
+    try {
+      known = JSON.parse(localStorage.getItem('ottisk:stamps') ?? 'null');
+    } catch {
+      known = null;
+    }
+    if (known === null) {
+      // первый запуск: уже заработанное не вручаем повторно
+      localStorage.setItem('ottisk:stamps', JSON.stringify(e.map((x) => x.def.id)));
+      return;
+    }
+    const fresh = e.filter((x) => !known!.includes(x.def.id));
+    if (!fresh.length) return;
+    localStorage.setItem('ottisk:stamps', JSON.stringify([...known, ...fresh.map((x) => x.def.id)]));
+    // даём странице дня проявиться, потом вручаем
+    setTimeout(() => setAwards((a) => [...a, ...fresh]), 2600);
+  }, [days, capsules, loading]);
+
   const saveCapsule = useCallback(
     async (c: Capsule) => {
       if (!store) return;
@@ -163,6 +190,7 @@ export default function App() {
   else if (parts[0] === 'nb') view = <NotebookView id={parts[1]} tab={parts[2] ?? 'timeline'} key={parts[1]} />;
   else if (parts[0] === 'year') view = <YearView />;
   else if (parts[0] === 'museum') view = <Museum />;
+  else if (parts[0] === 'stamps') view = <Stamps />;
   else if (parts[0] === 'capsule' && parts[1] === 'new') view = <CapsuleNew key={route} />;
   else if (parts[0] === 'capsule') view = <CapsuleView id={parts[1]} key={route} />;
   else if (parts[0] === 'system') view = <SystemPage />;
@@ -185,6 +213,9 @@ export default function App() {
           <a className={on('/museum')} href="#/museum">
             Мелочи
           </a>
+          <a className={on('/stamps')} href="#/stamps">
+            Марки
+          </a>
           <a className={on('/system')} href="#/system">
             Визуальная система
           </a>
@@ -195,6 +226,7 @@ export default function App() {
       </header>
       <main className="page">{view}</main>
       {msg && <div className="toast">{msg}</div>}
+      {awards.length > 0 && !hash.startsWith('#/new') && <StampAward list={awards} onClose={() => setAwards([])} />}
     </Ctx.Provider>
   );
 }
