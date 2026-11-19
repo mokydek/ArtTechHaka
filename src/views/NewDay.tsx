@@ -86,8 +86,8 @@ export default function NewDay() {
             <b>●</b> Папка дня — название придумала система, можно поправить
           </div>
           <input className="title-edit" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} />
-          <div className="mono muted" style={{ margin: '8px 0 18px' }}>
-            📁 {date} {title}
+          <div className="mono muted" style={{ margin: '8px 0 18px', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="folder-ic" style={{ marginTop: 0 }} /> {date} {title}
           </div>
           <div className="ctrl" style={{ marginTop: 0 }}>
             <button className="btn" onClick={() => save()} disabled={phase === 'save' || !title.trim()}>

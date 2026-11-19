@@ -40,6 +40,15 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
       if (autoplay) {
         p.play();
         setPlaying(true);
+        // если браузер не дал запустить звук без жеста — покажем паузу и обложку
+        setTimeout(() => {
+          if (p.blocked()) {
+            p.pause();
+            p.seek(0);
+            r.draw(0, { still: true });
+            setPlaying(false);
+          }
+        }, 600);
       } else r.draw(0, { still: true });
     })();
     return () => {

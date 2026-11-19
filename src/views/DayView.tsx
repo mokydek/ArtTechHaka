@@ -92,6 +92,7 @@ export default function DayView({ id }: { id: string }) {
           rec={rec}
           bitmaps={assets.bitmaps}
           audio={assets.audio}
+          autoplay
           onVideo={onVideo}
           extra={
             <button className="btn ghost small" onClick={zip} disabled={zipping || !media}>
@@ -118,7 +119,7 @@ export default function DayView({ id }: { id: string }) {
           <div>├─ запись.txt <span className="k">— {t.wordCount} слов</span></div>
           <div>├─ фото/ <span className="k">— {rec.photoCount} шт.</span></div>
           <div>
-            ├─ песня <span className="k">— {rec.music.artist} · {rec.music.title}</span>
+            ├─ песня <span className="k">— {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}</span>
           </div>
           {rec.hasExcerpt && <div>├─ фрагмент песни.wav <span className="k">— 30 с</span></div>}
           <div>├─ воспоминание.{rec.videoName?.split('.').pop() ?? 'webm'} <span className="k">— {rec.hasVideo || video ? 'сохранено' : 'нажмите «Сохранить видео»'}</span></div>
@@ -137,7 +138,7 @@ export default function DayView({ id }: { id: string }) {
           <div className="kv">
             <span className="k">трек</span>
             <span>
-              {rec.music.artist} — {rec.music.title}
+              {[rec.music.artist, rec.music.title].filter(Boolean).join(' — ')}
               {rec.music.year ? `, ${rec.music.year}` : ''}
             </span>
             {rec.music.genre && (

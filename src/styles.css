@@ -803,3 +803,18 @@ button {
     margin-left: 0;
   }
 }
+
+@media (max-width: 600px) {
+  .brand {
+    font-size: 28px;
+  }
+  .brand small {
+    display: none;
+  }
+  .nav a {
+    font-size: 11px;
+  }
+  .nav .btn {
+    padding: 8px 14px;
+  }
+}

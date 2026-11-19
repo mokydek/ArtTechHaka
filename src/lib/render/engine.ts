@@ -537,18 +537,19 @@ export class MemoryRenderer {
       }
       g.restore();
       // номер кадра на кромке
-      g.font = `500 15px ${FONTS.mono}`;
+      g.font = `500 12px ${FONTS.mono}`;
       g.textAlign = 'left';
       g.fillStyle = '#e8873a';
-      g.fillText(`${(k + 14) % 40}  ▸  ${(k + 14) % 40}A`, fx + 10, y + h - 14);
-      g.fillText('ОТТИСК 400', fx + fw - 110, y + h - 14);
+      g.fillText(`${(k + 14) % 40}  ▸  ${(k + 14) % 40}A`, fx + 10, y + h - 3);
+      g.textAlign = 'right';
+      g.fillText('ОТТИСК 400', fx + fw - 10, y + h - 3);
     }
     // перфорация
     const step = 46;
     const off = ((pos * (fw + gap)) % step) - weaveX;
     g.fillStyle = mixHex(this.spec.palette.paper, '#ffffff', 0.3);
     for (let px = x - step - off; px < x + w + step; px += step) {
-      for (const py of [y + 16, y + h - band + 12]) {
+      for (const py of [y + 14, y + h - band + 10]) {
         g.beginPath();
         g.roundRect(px, py, 22, 30, 4);
         g.fill();

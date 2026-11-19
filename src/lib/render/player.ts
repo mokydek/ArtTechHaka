@@ -89,6 +89,11 @@ export class MemoryPlayer {
     if (was) this.play();
   }
 
+  /** звук заблокирован политикой автозапуска */
+  blocked(): boolean {
+    return !!this.buffer && !!this.ac && this.ac.state !== 'running';
+  }
+
   duck(v: number) {
     this.duckTo = v;
     if (this.gain && this.ac) this.gain.gain.setTargetAtTime(v, this.ac.currentTime, 0.4);
