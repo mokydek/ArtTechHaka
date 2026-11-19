@@ -94,10 +94,11 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
   const scores: Record<ModeId, number> = {
     impression: gauss(energy, 0.36, 0.2) * sig(valence + 0.05) * (0.45 + 0.4 * natureish + 0.2 * Math.max(0, warmth)) * (night ? 0.45 : 1),
     construct: sig(energy - 0.56, 10) * (0.35 + 0.65 * Math.max(tension, m.electronic ? 0.9 : 0, t.work ? 1 : 0)),
-    film: (0.25 + nostalgia * 0.9 + (t.companions.some((c) => c.kind === 'group') ? 0.2 : 0) + (t.season === 'summer' ? 0.15 : 0) + (t.events.some((e) => e.kind === 'trip') ? 0.2 : 0)) * gauss(energy, 0.55, 0.22) * (night ? 0.7 : 1),
+    film: (0.25 + nostalgia * 0.9 + (t.companions.some((c) => c.kind === 'group') ? 0.2 : 0) + (t.season === 'summer' ? 0.15 : 0) + (t.events.some((e) => e.kind === 'trip') ? 0.2 : 0)) * gauss(energy, 0.55, 0.22) * (t.night ? 0.7 : night ? 0.85 : 1),
     ma: sig(0.36 - energy, 9) * (0.35 + (valence < 0.25 ? 0.25 : 0) + (t.solitude ? 0.3 : 0) + (t.weather.some((w) => w === 'rain' || w === 'snow' || w === 'fog') ? 0.25 : 0) + Math.max(0, minor) * 0.25 + (t.timeOfDay === 'morning' ? 0.15 : 0)),
     collage: sig(energy - 0.55, 9) * sig(valence - 0.1, 7) * (0.35 + 0.3 * clamp((p.count - 1) / 3) + (t.celebration ? 0.5 : 0)),
-    nocturne: (night ? 1 : 0.08) * (0.55 + 0.45 * gauss(energy, 0.32, 0.25)) + p.lights * 0.25,
+    // ноктюрн — для тихих ночей; шумный вечер с огнями остаётся «живым» приёмом
+    nocturne: (night ? 1 : 0.08) * (0.25 + 0.75 * gauss(energy, 0.3, 0.22)) + p.lights * 0.25,
   };
   const ranked = (Object.keys(scores) as ModeId[]).sort((x, y) => scores[y] - scores[x]);
   const mode = ranked[0];
@@ -171,7 +172,7 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
     rate: clamp(0.8 + 0.4 * energy, 0.75, 1.25),
     pitch: clamp(0.9 + 0.2 * ((valence + 1) / 2) - (night ? 0.05 : 0), 0.8, 1.15),
     pauseMs: Math.round(220 + 900 * (1 - energy) * (0.5 + air * 0.5)),
-    gender: tension > 0.45 || (night && energy > 0.4) ? 'male' : 'female',
+    gender: tension > 0.45 || (t.night && energy > 0.4) ? 'male' : 'female',
     character: { cp: 'тихий и тёплый', ep: 'живой и звонкий', cn: 'медленный, приглушённый', en: 'собранный, отрывистый' }[q],
     musicDuck: clamp(0.22 + 0.25 * energy, 0.2, 0.5),
   };
