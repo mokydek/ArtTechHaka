@@ -55,7 +55,7 @@ export function drawRansom(g: CanvasRenderingContext2D, text: string, o: RansomO
   glyphs.forEach((gl) => {
     if (gl.ch === ' ') {
       flush();
-      lines[lines.length - 1].push({ ...gl, w: space - gl.pad * 2 });
+      lines[lines.length - 1].push({ ...gl, w: space });
       return;
     }
     word.push(gl);

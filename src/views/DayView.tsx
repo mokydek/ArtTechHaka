@@ -135,7 +135,7 @@ export default function DayView({ id }: { id: string }) {
       )}
       <div className="panel">
         {nb && (
-          <a className="mono muted" href={`#/nb/${nb.id}`} style={{ display: 'inline-block', marginBottom: 10 }}>
+          <a className="mono muted" href={`#/nb/${nb.id}`} style={{ display: 'inline-block', marginBottom: 10, textDecoration: 'none' }}>
             ← {nb.title}
           </a>
         )}
