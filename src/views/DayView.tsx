@@ -25,6 +25,17 @@ export default function DayView({ id }: { id: string }) {
   const [video, setVideo] = useState<Blob | null>(null);
   const [zipping, setZipping] = useState(false);
   const [storyBusy, setStoryBusy] = useState(false);
+  // в первый раз день проявляется как полароид
+  const [firstView] = useState(() => {
+    try {
+      const seen = JSON.parse(localStorage.getItem('ottisk:seen') ?? '[]') as string[];
+      if (seen.includes(id)) return false;
+      localStorage.setItem('ottisk:seen', JSON.stringify([...seen, id].slice(-500)));
+      return true;
+    } catch {
+      return false;
+    }
+  });
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -116,6 +127,7 @@ export default function DayView({ id }: { id: string }) {
           autoplay
           onVideo={onVideo}
           voiceUrl={media?.voice}
+          develop={firstView}
           extra={
             <>
               <button className="btn ghost small" onClick={zip} disabled={zipping || !media}>

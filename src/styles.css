@@ -1809,3 +1809,24 @@ a.tab {
 .cam-shutter:active {
   transform: scale(0.94);
 }
+
+/* проявка */
+.dev-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  background: rgba(20, 18, 16, 0.62);
+  color: #f6f2ea;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: devpulse 2.4s ease-in-out infinite;
+}
+@keyframes devpulse {
+  50% {
+    opacity: 0.55;
+  }
+}

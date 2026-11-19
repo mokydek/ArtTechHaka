@@ -12,6 +12,8 @@ interface P {
   ph: number;
   c: string;
   life: number;
+  ix: number; // импульс от касания и дыхания
+  iy: number;
 }
 
 export interface Rect {
@@ -51,7 +53,7 @@ export class Particles {
   spawn(initial: boolean): P {
     const r = this.rnd,
       R = this.rect;
-    const p: P = { x: R.x + r() * R.w, y: R.y + r() * R.h, vx: 0, vy: 0, r: 1, rot: r() * 6.28, vr: (r() - 0.5) * 2, ph: r() * 6.28, c: this.colors[Math.floor(r() * this.colors.length)], life: 1 };
+    const p: P = { x: R.x + r() * R.w, y: R.y + r() * R.h, vx: 0, vy: 0, r: 1, rot: r() * 6.28, vr: (r() - 0.5) * 2, ph: r() * 6.28, c: this.colors[Math.floor(r() * this.colors.length)], life: 1, ix: 0, iy: 0 };
     switch (this.kind) {
       case 'leaves':
         p.r = 9 + r() * 12;
@@ -109,10 +111,41 @@ export class Particles {
     return p;
   }
 
+  private gustV = 0;
+
+  /** касание: частицы разлетаются от пальца */
+  poke(x: number, y: number, s = 1) {
+    const R2 = 190;
+    for (const p of this.ps) {
+      const dx = p.x - x,
+        dy = p.y - y;
+      const d = Math.hypot(dx, dy);
+      if (d > R2 || d < 0.01) continue;
+      const f = (1 - d / R2) * s * 520;
+      p.ix += (dx / d) * f;
+      p.iy += (dy / d) * f;
+    }
+  }
+
+  /** дыхание в микрофон — порыв ветра */
+  gust(level: number) {
+    this.gustV = Math.max(this.gustV, level);
+  }
+
   update(dt: number, t: number, wind: number) {
     const R = this.rect;
+    const k = Math.exp(-dt * 2.6);
+    this.gustV *= Math.exp(-dt * 1.8);
     for (let i = 0; i < this.ps.length; i++) {
       const p = this.ps[i];
+      if (this.gustV > 0.02) {
+        p.ix += this.gustV * (380 + ((i * 37) % 200)) * dt;
+        p.iy -= this.gustV * (60 + ((i * 53) % 90)) * dt;
+      }
+      p.x += p.ix * dt;
+      p.y += p.iy * dt;
+      p.ix *= k;
+      p.iy *= k;
       const sway = Math.sin(t * 1.3 + p.ph);
       switch (this.kind) {
         case 'leaves':

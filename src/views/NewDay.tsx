@@ -120,7 +120,7 @@ export default function NewDay({ nb }: { nb?: string }) {
   if ((phase === 'preview' || phase === 'save') && built) {
     return (
       <div className="day">
-        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay voiceUrl={voiceUrl} />
+        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay voiceUrl={voiceUrl} develop />
         <div className="panel">
           <div className="sec">
             <b>●</b> Папка дня — название придумала система, можно поправить

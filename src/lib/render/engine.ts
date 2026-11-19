@@ -297,6 +297,138 @@ export class MemoryRenderer {
 
     this.drawChrome(tm, still);
     g.restore();
+    this.drawFx();
+  }
+
+  // ——— Живое касание: круги от пальца, запотевшее стекло, проявка ———
+  develop: number | null = null; // 0..1 — полароид проявляется
+  private ripples: { x: number; y: number; t: number }[] = [];
+  private breath: OffscreenCanvas | null = null;
+  private breathG: OffscreenCanvasRenderingContext2D | null = null;
+  private fogAmt = 0;
+  private wipeLast: { x: number; y: number } | null = null;
+  private wall = performance.now();
+
+  touch(x: number, y: number) {
+    this.particles.poke(x, y, 0.6);
+  }
+  tap(x: number, y: number) {
+    this.ripples.push({ x, y, t: performance.now() });
+    this.particles.poke(x, y, 2.2);
+  }
+  blow(level: number) {
+    this.particles.gust(level);
+    this.breathe(level);
+  }
+  /** дыхание оседает на «стекле» над страницей */
+  private lastBreath = 0;
+  breathe(a: number) {
+    const now = performance.now();
+    if (now - this.lastBreath < 90 || this.fogAmt > 0.9) return;
+    this.lastBreath = now;
+    if (!this.breath) {
+      this.breath = new OffscreenCanvas(this.canvas.width, this.canvas.height);
+      this.breathG = this.breath.getContext('2d')!;
+    }
+    const f = this.breathG!;
+    const W = this.canvas.width,
+      H = this.canvas.height;
+    for (let i = 0; i < 3; i++) {
+      const cx = W * (0.3 + this.rnd() * 0.4),
+        cy = H * (0.45 + this.rnd() * 0.4);
+      const r = 260 + this.rnd() * 360;
+      const grd = f.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grd.addColorStop(0, `rgba(236,240,242,${0.07 * a})`);
+      grd.addColorStop(0.6, `rgba(236,240,242,${0.04 * a})`);
+      grd.addColorStop(1, 'rgba(236,240,242,0)');
+      f.fillStyle = grd;
+      f.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+    this.fogAmt = Math.min(1, this.fogAmt + a * 0.04);
+  }
+  /** провести пальцем по запотевшему стеклу */
+  wipe(x: number, y: number) {
+    if (!this.breathG || this.fogAmt < 0.02) return;
+    const f = this.breathG;
+    f.save();
+    f.globalCompositeOperation = 'destination-out';
+    f.strokeStyle = 'rgba(0,0,0,0.9)';
+    f.lineWidth = 46;
+    f.lineCap = 'round';
+    f.lineJoin = 'round';
+    f.beginPath();
+    const a = this.wipeLast ?? { x, y };
+    f.moveTo(a.x, a.y);
+    f.lineTo(x + 0.01, y);
+    f.stroke();
+    f.restore();
+    this.wipeLast = { x, y };
+  }
+  wipeEnd() {
+    this.wipeLast = null;
+  }
+  get fxActive() {
+    return this.ripples.length > 0 || this.fogAmt > 0.01 || (this.develop != null && this.develop < 1);
+  }
+
+  private drawFx() {
+    const g = this.g;
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.wall) / 1000);
+    this.wall = now;
+    const W = this.canvas.width,
+      H = this.canvas.height;
+    // круги на воде
+    this.ripples = this.ripples.filter((r) => now - r.t < 1300);
+    for (const r of this.ripples) {
+      const a = (now - r.t) / 1300;
+      for (let k = 0; k < 2; k++) {
+        const aa = a - k * 0.18;
+        if (aa <= 0) continue;
+        g.strokeStyle = withAlpha(this.spec.palette.paper, (1 - aa) * 0.75);
+        g.lineWidth = 4 * (1 - aa) + 0.5;
+        g.beginPath();
+        g.arc(r.x, r.y, 14 + aa * 240, 0, Math.PI * 2);
+        g.stroke();
+      }
+    }
+    // запотевшее стекло испаряется за ~20 с
+    if (this.breath && this.fogAmt > 0.005) {
+      const f = this.breathG!;
+      f.save();
+      f.globalCompositeOperation = 'destination-out';
+      f.fillStyle = `rgba(0,0,0,${dt * 0.05})`;
+      f.fillRect(0, 0, W, H);
+      f.restore();
+      this.fogAmt = Math.max(0, this.fogAmt - dt * 0.05);
+      g.globalAlpha = 0.88;
+      g.drawImage(this.breath, 0, 0);
+      g.globalAlpha = 1;
+    }
+    // проявка полароида: сначала серо-синяя вуаль, потом свет, потом цвет
+    if (this.develop != null && this.develop < 1) {
+      const d = this.develop;
+      const sm = (a: number, b: number) => {
+        const x = clamp((d - a) / (b - a));
+        return x * x * (3 - 2 * x);
+      };
+      const light = sm(0, 0.7),
+        color = sm(0.3, 1);
+      g.save();
+      g.globalCompositeOperation = 'saturation';
+      g.globalAlpha = 1 - color;
+      g.fillStyle = '#808080';
+      g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'source-over';
+      g.globalAlpha = (1 - light) * 0.97;
+      g.fillStyle = '#5d6a66';
+      g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'soft-light';
+      g.globalAlpha = Math.sin(Math.PI * d) * 0.5;
+      g.fillStyle = '#d9b98a';
+      g.fillRect(0, 0, W, H);
+      g.restore();
+    }
   }
 
   // ——— Импрессия: кадры «перекрашиваются» мазками ———
