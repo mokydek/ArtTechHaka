@@ -3,6 +3,7 @@ import type { AudioFeatures, DayMedia, DayRecord, MusicMeta, PhotoFeatures, Plac
 import { AMB_NAMES, pickAmbience, renderAmbience } from './ambience';
 import { placeLine, tempStr, weatherTags } from './place';
 import { stickersFor } from './render/stickers';
+import { moonPhase } from './sky';
 import { analyzeText, folderName, makeTitle } from './analysis/text';
 import { analyzePhoto, loadImage, summarizePhotos } from './analysis/photo';
 import { analyzeAudio, bestExcerpt, excerptToWav, keyName } from './analysis/audio';
@@ -198,6 +199,7 @@ export async function makeRenderer(rec: DayRecord, bitmaps: ImageBitmap[], targe
     audio: rec.analysis.music.audio,
     label: moodLabel(rec),
     stickers: stickersFor(rec.analysis.text),
+    moon: moonPhase(rec.date),
     place: rec.place ? [rec.place.name, tempStr(rec.place.weather)].filter(Boolean).join(' ') : undefined,
   });
   await r.prepare(onStep);

@@ -10,6 +10,7 @@ import Why from '../components/Why';
 import { LocalStore } from '../lib/store/local';
 import { placeLine } from '../lib/place';
 import { AMB_NAMES } from '../lib/ambience';
+import SkyBox from '../components/Sky';
 
 const demoLocal = new LocalStore();
 
@@ -230,6 +231,8 @@ export default function DayView({ id }: { id: string }) {
             )}
           </div>
         </div>
+
+        <SkyBox rec={rec} />
 
         <Why rec={rec} />
 

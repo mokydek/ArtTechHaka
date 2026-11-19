@@ -1,6 +1,7 @@
 import type { AudioFeatures, DesignSpec, MusicMeta } from '../types';
 import { drawRansom } from './ransom';
 import { drawSticker, drawWashi, type StickerKind } from './stickers';
+import { drawMoon } from '../sky';
 import { clamp, mixHex, mulberry32, withAlpha } from '../color';
 import { keyName } from '../analysis/audio';
 import { MODES } from '../design/system';
@@ -47,6 +48,7 @@ export interface RenderInput {
   label?: string; // «осень · вечер · дождь»
   place?: string; // «Астана −8°»
   stickers?: StickerKind[]; // наклейки по предметам дня (коллаж, плёнка)
+  moon?: { illum: number; waxing: boolean }; // луна того вечера
 }
 
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -949,7 +951,12 @@ export class MemoryRenderer {
     g.textAlign = 'left';
     g.fillText(`№ ${String(inp.pageNo).padStart(3, '0')}${inp.place ? '  ·  ' + inp.place.toUpperCase().slice(0, 22) : ''}`, L, 74);
     g.textAlign = 'right';
-    g.fillText(humanDate(inp.date).toUpperCase(), R, 74);
+    const dateStr = humanDate(inp.date).toUpperCase();
+    g.fillText(dateStr, R, 74);
+    if (inp.moon) {
+      const dw = g.measureText(dateStr).width;
+      drawMoon(g, R - dw - 26, 67, 10, inp.moon, withAlpha(pal.ink, 0.78), withAlpha(pal.ink, 0.14));
+    }
     g.letterSpacing = '0px';
     g.fillStyle = withAlpha(pal.ink, 0.22);
     g.fillRect(L, 96, FIELD.w, 1.2);

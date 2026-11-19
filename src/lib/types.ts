@@ -233,6 +233,9 @@ export interface PlaceInfo {
     tmin?: number;
     precip?: number;
     wind?: number;
+    sunrise?: string; // «08:12» по местному времени
+    sunset?: string;
+    daylight?: number; // секунд
   };
 }
 

@@ -1830,3 +1830,27 @@ a.tab {
     opacity: 0.55;
   }
 }
+
+/* небо того дня */
+.sky-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.sky-moon {
+  padding: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #1f2740 55%, #2e3a5c);
+  box-shadow: 0 0 24px -6px rgba(240, 225, 170, 0.5);
+}
+.fb-date {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fb-moon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

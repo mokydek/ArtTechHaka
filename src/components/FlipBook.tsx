@@ -4,6 +4,8 @@ import { useDiary } from '../App';
 import { useCoverUrl } from './Book';
 import { humanDate } from '../lib/render/engine';
 import { MODES } from '../lib/design/system';
+import { MoonGlyph } from './Sky';
+import { moonPhase } from '../lib/sky';
 
 // Шелест страницы — короткий отфильтрованный шум, без файлов
 let ac: AudioContext | null = null;
@@ -38,7 +40,12 @@ function TextPage({ d }: { d: DayRecord }) {
   const pal = d.design.palette;
   return (
     <div className="fb-text">
-      <div className="pt muted">{humanDate(d.date)}</div>
+      <div className="pt muted fb-date">
+        <span>{humanDate(d.date)}</span>
+        <span className="fb-moon">
+          <MoonGlyph date={d.date} size={14} light="#3a3530" dark="#e4ddcf" /> {Math.round(moonPhase(d.date).illum * 100)}%{d.place?.weather?.sunset ? ` · закат ${d.place.weather.sunset}` : ''}
+        </span>
+      </div>
       <div className="fb-title">{d.title}</div>
       {ph && (
         <div className="fb-polaroid">

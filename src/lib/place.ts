@@ -71,7 +71,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 /** Погода в месте за конкретный день (прошлое — архив, недавнее — прогнозная модель) */
 export async function dayWeather(lat: number, lon: number, date: string): Promise<PlaceInfo['weather'] | undefined> {
   const daysAgo = (Date.now() - new Date(date + 'T12:00:00').getTime()) / 86400000;
-  const daily = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max';
+  const daily = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,sunrise,sunset,daylight_duration';
   const q = `latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=${daily}&timezone=auto`;
   const urls = daysAgo > 80 ? [`https://archive-api.open-meteo.com/v1/archive?${q}`] : [`https://api.open-meteo.com/v1/forecast?${q}`, `https://archive-api.open-meteo.com/v1/archive?${q}`];
   if (daysAgo < -15) return undefined;
@@ -90,6 +90,9 @@ export async function dayWeather(lat: number, lon: number, date: string): Promis
         tmin: d.temperature_2m_min?.[0] ?? undefined,
         precip: d.precipitation_sum?.[0] ?? undefined,
         wind: d.wind_speed_10m_max?.[0] ?? undefined,
+        sunrise: d.sunrise?.[0]?.slice(11, 16) || undefined,
+        sunset: d.sunset?.[0]?.slice(11, 16) || undefined,
+        daylight: d.daylight_duration?.[0] ?? undefined,
       };
     } catch {
       /* следующий источник */
