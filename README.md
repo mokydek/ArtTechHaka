@@ -1,32 +1,47 @@
-# React + TypeScript + Vite
+# Оттиск — дневник атмосферы
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> Фото помнят, как выглядел день. Оттиск — как он ощущался.
 
-Currently, two official plugins are available:
+Кейс **ArtTech: Make the Invisible Visible** (Genesis Hackathon, 2026).
+Человек пишет пару строк о дне, добавляет фото и песню — система читает настроение, свет и музыку и «проявляет» день как живую страницу дневника: со своей палитрой, обработкой фото, ритмом под песню, «погодой внутри», рукописной подписью и голосом. Каждый день лежит в отдельной папке с названием, которое система придумала по записи.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Что умеет прототип
 
-## React Compiler
+- **Запись дня**: текст, 1–8 фото, песня — ссылкой (Spotify, YouTube, Apple Music), поиском по названию или своим аудиофайлом.
+- **Анализ на устройстве**, без облачных нейросетей:
+  - текст — собственный русский лексикон: время суток, сезон, погода, места, люди, события, слова настроения (с отрицаниями и усилителями), сенсорные детали;
+  - фото — доминирующие цвета (k-means в CIELab), свет, тепло, контраст, детали, «небо», огни в темноте;
+  - музыка — темп (автокорреляция огибающей атак + октавная проверка), фаза долей, тональность (хромаграмма + профили Крумхансла–Кесслер), громкость, яркость тембра, плотность атак, пульс.
+- **Воспоминание** — живая страница 4:5 (1080×1350): звучит песня, кадры меняются в долю, формы пульсируют от громкости, подпись пишется от руки. Можно сохранить как видео (WebM/MP4 со звуком).
+- **Шесть художественных приёмов**: Импрессия (Моне), Конструкция (Кандинский), Плёнка, Ма (японская пустота), Коллаж (Матисс), Ноктюрн (Уистлер) — выбираются по сумме признаков, параметры непрерывные.
+- **«Почему так»** — для каждого дня видно, какое правило что изменило: «минорная песня → больше воздуха и приглушённый цвет».
+- **Папка дня** с названием в 3–7 слов («Осенний парк и какао», «Ночь в офисе перед сдачей»): запись, фото, песня, воспоминание, обложка, озвучка, объяснение — можно скачать .zip.
+- **Озвучка** голосом, подобранным правилами (темп, высота, паузы, мужской/женский), музыка при этом приглушается.
+- **Архив**: лента, фильтр по приёмам, поиск, **карта настроений** (тепло × энергия).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Запуск
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # сборка в dist/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Облако — Supabase (анонимный вход + RLS, каждый видит только свои дни). Ключи по умолчанию прописаны в `src/lib/store/cloud.ts` (публикуемый ключ, безопасен для браузера); свои можно задать в `.env` (см. `.env.example`). Схема — `supabase/schema.sql`. Если облако недоступно, дневник работает локально (IndexedDB).
+
+## Структура
+
+```
+src/lib/analysis   text.ts, lexicon.ts — язык; photo.ts — цвет и свет; audio.ts — аудиоанализ; music.ts — каталог и жанры
+src/lib/design     system.ts — правила «настроение → форма» и объяснения
+src/lib/render     engine.ts — страница и 6 приёмов; treatments.ts — мазки, постеризация, плёнка, тушь, коллаж, ноктюрн;
+                   particles.ts — «погода внутри»; player.ts — звук, синхронизация, запись видео
+src/lib/store      cloud.ts (Supabase), local.ts (IndexedDB)
+src/views          лента/карта, запись дня, папка дня, визуальная система
+```
+
+## Использованные инструменты
+
+React 19, Vite, TypeScript, Supabase (Postgres, Auth, Storage), JSZip; шрифты Cormorant Garamond, Caveat, JetBrains Mono, Manrope (Fontsource, OFL); Web Audio API, Canvas 2D, MediaRecorder, Web Speech API; iTunes Search API (официальные 30-секундные фрагменты, песня целиком не хранится), oEmbed Spotify и noembed (название по ссылке). Демо-фото — Unsplash (Unsplash License). Генеративные модели не используются: весь анализ и графика — собственный код команды.
+
+Настроение — художественная интерпретация записи, а не психологическая или медицинская оценка.
