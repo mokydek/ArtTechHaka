@@ -29,6 +29,7 @@ export interface TextFeatures {
   seasonFromText: boolean;
   timeOfDay: TimeOfDay | null;
   weather: Weather[];
+  weatherWords?: Partial<Record<Weather, string>>; // какое слово дало погоду
   places: Phrase[];
   companions: Phrase[];
   objects: Phrase[];

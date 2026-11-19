@@ -148,8 +148,11 @@ export function genrePrior(genre?: string): GenrePrior {
   return GENRES.find((x) => x.re.test(g)) ?? { re: /./, energy: 0.5, valence: 0.2, warmth: 0.1, label: 'жанр не определён' };
 }
 
-export function musicFeatures(meta: MusicMeta, audio: AudioFeatures | null): MusicFeatures {
+export function musicFeatures(meta: MusicMeta, audioIn: AudioFeatures | null): MusicFeatures {
   const gp = genrePrior(meta.genre);
+  // спокойные жанры (классика, эмбиент, фолк): быстрый темп почти всегда — удвоение из-за арпеджио
+  let audio = audioIn;
+  if (audio && gp.energy <= 0.35 && audio.bpm > 115 && audio.bpm / 2 >= 55) audio = { ...audio, bpm: Math.round((audio.bpm / 2) * 10) / 10 };
   const era = meta.year ? clamp((2026 - meta.year) / 60) : 0.15;
   let energy = gp.energy,
     valence = gp.valence,

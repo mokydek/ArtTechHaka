@@ -207,7 +207,8 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
   const coldOut = t.weather.includes('cold') || t.weather.includes('snow') || t.weather.includes('rain');
   const warmIn = t.objects.some((o) => (o.warmth ?? 0) > 0.5) || t.companions.some((c) => (c.warmth ?? 0) > 0.3);
   if (coldOut && warmIn) {
-    const w1 = t.weather.includes('cold') ? '«холодно»' : t.weather.includes('snow') ? '«снег»' : '«дождь»';
+    const wk = t.weather.includes('cold') ? 'cold' : t.weather.includes('snow') ? 'snow' : 'rain';
+    const w1 = `«${t.weatherWords?.[wk] ?? { cold: 'холодно', snow: 'снег', rain: 'дождь' }[wk]}»`;
     const w2 = (t.objects.find((o) => (o.warmth ?? 0) > 0.5) ?? t.companions[0]).nom;
     rules.push({ group: 'text', from: `${w1} и «${w2}» в одном дне`, to: 'холод снаружи, тепло внутри: тёплая палитра кадра, но холодный воздух в частицах и тенях' });
   }

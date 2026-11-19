@@ -154,10 +154,13 @@ export function analyzeText(raw: string, dateISO: string): TextFeatures {
   }
 
   const weather: Weather[] = [];
+  const weatherWords: Partial<Record<Weather, string>> = {};
   let weatherWarmth = 0;
   for (const c of WEATHER_CUES) {
-    if (tokens.some((t) => startsAny(t, c.stems))) {
+    const tok = tokens.find((t) => startsAny(t, c.stems));
+    if (tok) {
       weather.push(c.w);
+      weatherWords[c.w] = tok;
       weatherWarmth += c.warmth;
     }
   }
@@ -227,6 +230,7 @@ export function analyzeText(raw: string, dateISO: string): TextFeatures {
     seasonFromText,
     timeOfDay,
     weather,
+    weatherWords,
     places,
     companions,
     objects,

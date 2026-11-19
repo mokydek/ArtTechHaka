@@ -546,6 +546,11 @@ button {
   margin-top: 16px;
   flex-wrap: wrap;
 }
+.stage .ctrl {
+  width: min(100%, calc((100vh - 200px) * 0.8));
+  margin-left: auto;
+  margin-right: auto;
+}
 .bar {
   flex: 1;
   min-width: 120px;
