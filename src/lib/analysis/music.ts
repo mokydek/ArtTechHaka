@@ -150,9 +150,10 @@ export function genrePrior(genre?: string): GenrePrior {
 
 export function musicFeatures(meta: MusicMeta, audioIn: AudioFeatures | null): MusicFeatures {
   const gp = genrePrior(meta.genre);
-  // спокойные жанры (классика, эмбиент, фолк): быстрый темп почти всегда — удвоение из-за арпеджио
+  // классика, эмбиент, lo-fi: «быстрый» темп почти всегда — удвоение из-за арпеджио
   let audio = audioIn;
-  if (audio && gp.energy <= 0.35 && audio.bpm > 115 && audio.bpm / 2 >= 55) audio = { ...audio, bpm: Math.round((audio.bpm / 2) * 10) / 10 };
+  if (audio && /classical|soundtrack|score|orchestral|piano|ambient|new age|lo-?fi|chill|классик|эмбиент/i.test(meta.genre ?? '') && audio.bpm > 115 && audio.bpm / 2 >= 55)
+    audio = { ...audio, bpm: Math.round((audio.bpm / 2) * 10) / 10 };
   const era = meta.year ? clamp((2026 - meta.year) / 60) : 0.15;
   let energy = gp.energy,
     valence = gp.valence,
