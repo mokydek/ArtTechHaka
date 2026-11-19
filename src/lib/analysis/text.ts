@@ -9,6 +9,7 @@ import {
   MONTH_ADJ,
   MOOD,
   MOOD_ADJ,
+  NATURE_FORMS,
   NATURE_STEMS,
   NEGATIONS,
   NOSTALGIA_STEMS,
@@ -123,7 +124,7 @@ export function analyzeText(raw: string, dateISO: string): TextFeatures {
 
   const work = has(WORK_STEMS);
   const celebration = has(CELEBRATION_STEMS) || BIGRAM_EVENTS.some((b) => b.kind === 'celebration' && b.re.test(norm));
-  const nature = has(NATURE_STEMS);
+  const nature = has(NATURE_STEMS) || tokens.some((t) => NATURE_FORMS.includes(t));
   const nostalgiaHits = NOSTALGIA_STEMS.filter((s) => (s.includes(' ') ? norm.includes(s) : tokens.some((t) => t.startsWith(s)))).length;
 
   // ——— Сезон / время суток / погода ———
