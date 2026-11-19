@@ -229,7 +229,7 @@ export const SEASON_CUES: { season: 'winter' | 'spring' | 'summer' | 'autumn'; s
 
 export const TIME_CUES: { time: 'morning' | 'day' | 'evening' | 'night'; stems: string[] }[] = [
   { time: 'morning', stems: ['утр', 'рассвет', 'проснул', 'завтрак', 'спозаранку'] },
-  { time: 'day', stems: ['днем', 'полдень', 'обед', 'днём'] },
+  { time: 'day', stems: ['днем', 'полдень', 'обед', 'днём', 'весь день', 'целый день'] },
   { time: 'evening', stems: ['вечер', 'закат', 'ужин', 'сумерк'] },
   { time: 'night', stems: ['ноч', 'полноч', 'луна', 'луной', 'до утра', 'звездн'] },
 ];
@@ -242,7 +242,7 @@ export const WEATHER_CUES: { w: 'rain' | 'snow' | 'sun' | 'fog' | 'wind' | 'cold
   { w: 'wind', stems: ['ветер', 'ветрен', 'ветра', 'ветром'], warmth: -0.25 },
   { w: 'cold', stems: ['холод', 'мороз', 'зябк', 'замерз', 'продрог'], warmth: -0.5 },
   { w: 'hot', stems: ['жарк', 'жара', 'зной', 'душн', 'пекло'], warmth: 0.7 },
-  { w: 'storm', stems: ['гроз', 'гром', 'молни'], warmth: -0.2 },
+  { w: 'storm', stems: ['гроз', 'молни', 'громыха', 'гремел'], warmth: -0.2 },
   { w: 'clouds', stems: ['пасмурн', 'облачн', 'тучи', 'хмур'], warmth: -0.2 },
 ];
 

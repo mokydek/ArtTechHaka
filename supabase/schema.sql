@@ -39,3 +39,11 @@ create policy "diary: read own" on storage.objects for select to authenticated u
 create policy "diary: insert own" on storage.objects for insert to authenticated with check (bucket_id = 'diary' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "diary: update own" on storage.objects for update to authenticated using (bucket_id = 'diary' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "diary: delete own" on storage.objects for delete to authenticated using (bucket_id = 'diary' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Демо-дни (примеры для жюри): видны всем, редактирует только владелец
+alter table public.days add column if not exists is_demo boolean not null default false;
+drop policy if exists "days: read demo" on public.days;
+create policy "days: read demo" on public.days for select to authenticated using (is_demo);
+drop policy if exists "diary: read demo" on storage.objects;
+create policy "diary: read demo" on storage.objects for select to authenticated
+  using (bucket_id = 'diary' and exists (select 1 from public.days d where d.is_demo and d.id::text = (storage.foldername(name))[2]));

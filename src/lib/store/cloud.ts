@@ -37,14 +37,14 @@ export class CloudStore implements DiaryStore {
     return new CloudStore(sb, uid);
   }
 
-  private path(id: string, name: string) {
-    return `${this.uid}/${id}/${name}`;
+  private path(id: string, name: string, owner?: string) {
+    return `${owner ?? this.uid}/${id}/${name}`;
   }
 
   async list(): Promise<DayRecord[]> {
-    const { data, error } = await this.sb.from('days').select('record').order('day_date', { ascending: false }).order('created_at', { ascending: false });
+    const { data, error } = await this.sb.from('days').select('record, is_demo, user_id').order('day_date', { ascending: false }).order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((r) => r.record as DayRecord);
+    return (data ?? []).map((r) => ({ ...(r.record as DayRecord), demo: !!r.is_demo || !!(r.record as DayRecord).demo, ownerId: r.user_id as string }));
   }
 
   async get(id: string) {
@@ -78,10 +78,11 @@ export class CloudStore implements DiaryStore {
   private files(rec: DayRecord): Record<string, string> {
     // имена файлов с расширениями храним в record.analysis? — нет, держим простую схему
     const m: Record<string, string> = {};
-    for (let i = 0; i < rec.photoCount; i++) m[`photo-${i + 1}`] = this.path(rec.id, `photo-${i + 1}.jpg`);
-    m.cover = this.path(rec.id, 'cover.jpg');
-    if (rec.hasExcerpt) m.excerpt = this.path(rec.id, 'excerpt.wav');
-    if (rec.hasVideo) m.video = this.path(rec.id, rec.videoName ?? 'memory.webm');
+    const o = rec.ownerId;
+    if (!rec.photoUrls?.length) for (let i = 0; i < rec.photoCount; i++) m[`photo-${i + 1}`] = this.path(rec.id, `photo-${i + 1}.jpg`, o);
+    m.cover = this.path(rec.id, 'cover.jpg', o);
+    if (rec.hasExcerpt) m.excerpt = this.path(rec.id, 'excerpt.wav', o);
+    if (rec.hasVideo) m.video = this.path(rec.id, rec.videoName ?? 'memory.webm', o);
     return m;
   }
 
@@ -97,7 +98,7 @@ export class CloudStore implements DiaryStore {
   }
 
   async covers(recs: DayRecord[]) {
-    const paths = recs.map((r) => this.path(r.id, 'cover.jpg'));
+    const paths = recs.map((r) => this.path(r.id, 'cover.jpg', r.ownerId));
     const s = await this.sign(paths);
     const out: Record<string, string> = {};
     recs.forEach((r, i) => s[paths[i]] && (out[r.id] = s[paths[i]]));
@@ -118,7 +119,9 @@ export class CloudStore implements DiaryStore {
   }
 
   async update(rec: DayRecord) {
-    const { error } = await this.sb.from('days').upsert({ id: rec.id, user_id: this.uid, day_date: rec.date, title: rec.title, folder: rec.folder, page_no: rec.pageNo, record: rec });
+    const { ownerId: _o, ...clean } = rec;
+    void _o;
+    const { error } = await this.sb.from('days').upsert({ id: rec.id, user_id: this.uid, day_date: rec.date, title: rec.title, folder: rec.folder, page_no: rec.pageNo, record: clean });
     if (error) throw error;
   }
 

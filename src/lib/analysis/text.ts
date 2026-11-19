@@ -129,8 +129,10 @@ export function analyzeText(raw: string, dateISO: string): TextFeatures {
   // ——— Сезон / время суток / погода ———
   let season: Season | null = null;
   let best = 0;
+  const monthSeason = SEASON_BY_MONTH[month];
   for (const c of SEASON_CUES) {
-    const n = tokens.filter((t) => startsAny(t, c.stems) || (c.forms ?? []).includes(t)).length;
+    let n = tokens.filter((t) => startsAny(t, c.stems) || (c.forms ?? []).includes(t)).length;
+    if (n > 0 && c.season === monthSeason) n += 0.5; // при равенстве верим дате
     if (n > best) {
       best = n;
       season = c.season;
@@ -256,6 +258,7 @@ export function pickCaption(text: string): string {
     let score = 0;
     for (const t of toks) {
       if (startsAny(t, SENSORY_STEMS)) score += 2;
+      if (startsAny(t, ['запах', 'пахл', 'пахн', 'аромат', 'шурш', 'хруст', 'стрекот'])) score += 1;
       if (MOOD.some((m) => startsAny(t, m.stems))) score += 1.2;
       if (PLACES.some((p) => p.forms.includes(t)) || OBJECTS.some((o) => o.forms.includes(t))) score += 0.8;
     }
@@ -328,7 +331,7 @@ export function makeTitle(t: TextFeatures, dateISO: string, energy: number, vale
   if (place && objS && place.gender && place.key !== 'home') add(`${adj(sStem, sDecl, place.gender)} ${place.nom} и ${objS.nom}`, 4.8 + (t.seasonFromText ? 0.5 : 0) + objS.hits * 0.3, 'сезон + место + деталь');
   if (w && WEATHER_ADJ[w] && place) {
     const [ws, wd] = WEATHER_ADJ[w];
-    add(`${adj(ws, wd, time.g)} ${time.nom} ${place.loc}`, 4 + tw, 'погода + время + где');
+    add(`${adj(ws, wd, time.g)} ${time.nom} ${place.loc}`, 4.2 + tw, 'погода + время + где');
   }
   if (obj && obj2 && place) add(`${obj.nom} и ${obj2.nom} ${place.loc}`, 3.6, 'детали + где');
   if (comp) add(`${adj(mStem, mDecl, time.g)} ${time.nom} ${comp.inst}`, 3.5 + tw * 0.5, 'настроение + время + с кем');

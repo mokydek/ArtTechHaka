@@ -6,13 +6,14 @@ import Archive from './views/Archive';
 import NewDay from './views/NewDay';
 import DayView from './views/DayView';
 import SystemPage from './views/SystemPage';
+import Seed from './views/Seed';
 
 interface Diary {
   store: DiaryStore | null;
   days: DayRecord[];
   covers: Record<string, string>;
   loading: boolean;
-  reload: () => Promise<void>;
+  reload: () => Promise<DayRecord[]>;
   setCover: (id: string, url: string) => void;
   toast: (s: string) => void;
 }
@@ -49,16 +50,21 @@ export default function App() {
   const reload = useCallback(async () => {
     const s = await getStore();
     setStore(s);
-    const list = (await s.list()).filter((d) => !d.demo);
+    const list = await s.list();
     setMine(list);
     const c = await s.covers(list);
     setCovers((old) => ({ ...old, ...c }));
+    return list;
   }, []);
 
   useEffect(() => {
     (async () => {
-      await reload().catch((e) => console.error(e));
+      const list = await reload().catch((e) => {
+        console.error(e);
+        return [] as DayRecord[];
+      });
       setLoading(false);
+      if (list.some((d) => d.demo)) return; // демо-дни уже лежат в облаке
       const d = await loadDemo((rec, c) => {
         setDemo((old) => (old.some((x) => x.id === rec.id) ? old : [...old, rec]));
         if (c) setCovers((old) => ({ ...old, [rec.id]: c }));
@@ -69,7 +75,7 @@ export default function App() {
   }, [reload]);
 
   const days = useMemo(
-    () => [...mine, ...demo].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+    () => [...mine, ...demo.filter((d) => !mine.some((m) => m.id === d.id))].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     [mine, demo],
   );
   const setCover = useCallback((id: string, url: string) => setCovers((o) => ({ ...o, [id]: url })), []);
@@ -80,6 +86,7 @@ export default function App() {
   else if (route.startsWith('/day/')) view = <DayView id={decodeURIComponent(route.slice(5))} key={route} />;
   else if (route.startsWith('/system')) view = <SystemPage />;
   else if (route.startsWith('/map')) view = <Archive map />;
+  else if (route.startsWith('/seed')) view = <Seed />;
 
   const on = (p: string) => (route === p || (p !== '/' && route.startsWith(p)) ? 'on' : '');
   return (

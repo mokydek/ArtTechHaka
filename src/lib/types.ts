@@ -188,6 +188,7 @@ export interface DayRecord {
   photoCount: number;
   pageNo: number;
   demo?: boolean;
+  ownerId?: string; // владелец (для демо-дней в облаке)
   hasVideo?: boolean;
   videoName?: string;
   photoUrls?: string[]; // для демо-дней: внешние ссылки на фото
