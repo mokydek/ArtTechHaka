@@ -2466,3 +2466,46 @@ a.tab {
   max-width: 900px;
   line-height: 1.15;
 }
+
+/* фильм */
+.film {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.film-head {
+  align-self: stretch;
+  margin-bottom: 18px;
+}
+.film-stage {
+  width: min(560px, 100%);
+}
+.film-box {
+  position: relative;
+  aspect-ratio: 1080 / 1350;
+  background: #e8e1d6;
+  border-radius: 2px;
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.film-holder {
+  position: absolute;
+  inset: 0;
+}
+.film-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+.film-wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  text-align: center;
+}
+.film-btn {
+  display: inline-flex;
+}

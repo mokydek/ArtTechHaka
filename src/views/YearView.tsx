@@ -62,6 +62,18 @@ export default function YearView() {
         </div>
       </div>
       <div className="sec" style={{ marginTop: 46 }}>
+        Фильмы месяцев
+      </div>
+      <div className="tabs">
+        {Object.entries(days.reduce<Record<string, number>>((a, d) => ((a[d.date.slice(0, 7)] = (a[d.date.slice(0, 7)] ?? 0) + 1), a), {}))
+          .sort((a, b) => b[0].localeCompare(a[0]))
+          .map(([m, n]) => (
+            <a key={m} className="tab" href={`#/film/m/${m}`}>
+              ▶ {['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'][+m.slice(5, 7) - 1]} {m.slice(0, 4)} · {n}
+            </a>
+          ))}
+      </div>
+      <div className="sec" style={{ marginTop: 46 }}>
         Карта настроений
       </div>
       <MoodMap days={days} covers={covers} />

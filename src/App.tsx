@@ -14,6 +14,7 @@ import Museum from './views/Museum';
 import CapsuleNew from './views/CapsuleNew';
 import CapsuleView from './views/CapsuleView';
 import Stamps from './views/Stamps';
+import FilmView from './views/FilmView';
 import StampAward from './components/StampAward';
 import { earnedStamps, type Earned } from './lib/stamps';
 
@@ -191,6 +192,7 @@ export default function App() {
   else if (parts[0] === 'year') view = <YearView />;
   else if (parts[0] === 'museum') view = <Museum />;
   else if (parts[0] === 'stamps') view = <Stamps />;
+  else if (parts[0] === 'film') view = <FilmView kind={parts[1]} id={parts[2]} key={route} />;
   else if (parts[0] === 'capsule' && parts[1] === 'new') view = <CapsuleNew key={route} />;
   else if (parts[0] === 'capsule') view = <CapsuleView id={parts[1]} key={route} />;
   else if (parts[0] === 'system') view = <SystemPage />;

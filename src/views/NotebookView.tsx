@@ -50,16 +50,23 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
             {all.length} {plural(all.length, 'запись', 'записи', 'записей')}
             {all.length > 0 && ` · ${all[all.length - 1].date.slice(0, 7).split('-').reverse().join('.')} — ${all[0].date.slice(0, 7).split('-').reverse().join('.')}`}
           </div>
-          {!nb.demo && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-              <a className="btn" href={`#/new/${nb.id}`}>
-                + Записать день
+          <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+            {!nb.demo && (
+              <>
+                <a className="btn" href={`#/new/${nb.id}`}>
+                  + Записать день
+                </a>
+                <a className="btn ghost" href={`#/nb/${nb.id}/cover`}>
+                  Обложка и название
+                </a>
+              </>
+            )}
+            {all.length >= 2 && (
+              <a className="btn ghost" href={`#/film/nb/${nb.id}`}>
+                ▶ Фильм тетради
               </a>
-              <a className="btn ghost" href={`#/nb/${nb.id}/cover`}>
-                Обложка и название
-              </a>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </section>
 
