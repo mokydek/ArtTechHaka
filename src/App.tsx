@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { DayRecord, Notebook } from './lib/types';
+import type { Capsule, DayRecord, Notebook } from './lib/types';
 import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
 import Shelf from './views/Shelf';
@@ -11,6 +11,8 @@ import SystemPage from './views/SystemPage';
 import YearView from './views/YearView';
 import Seed from './views/Seed';
 import Museum from './views/Museum';
+import CapsuleNew from './views/CapsuleNew';
+import CapsuleView from './views/CapsuleView';
 
 export const DEMO_NOTEBOOK: Notebook = {
   id: 'demo',
@@ -35,6 +37,9 @@ interface Diary {
   loadPhotos: (recs: DayRecord[]) => void;
   saveNotebook: (nb: Notebook) => Promise<void>;
   defaultNotebook: string;
+  capsules: Capsule[];
+  saveCapsule: (c: Capsule) => Promise<void>;
+  sealed: DayRecord[]; // запечатанные дни (ещё не вскрытые)
 }
 const Ctx = createContext<Diary>(null!);
 export const useDiary = () => useContext(Ctx);
@@ -61,6 +66,7 @@ export default function App() {
   const [covers, setCovers] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
+  const [capsules, setCapsules] = useState<Capsule[]>([]);
   const [msg, setMsg] = useState('');
   const asked = useRef(new Set<string>());
 
@@ -81,6 +87,9 @@ export default function App() {
     setOwn(nbs);
     const list = await s.list();
     setMine(list);
+    s.listCapsules()
+      .then(setCapsules)
+      .catch(() => {});
     const c = await s.covers(list);
     setCovers((old) => ({ ...old, ...c }));
     return list;
@@ -103,10 +112,12 @@ export default function App() {
     })();
   }, [reload]);
 
-  const days = useMemo(
+  const everything = useMemo(
     () => [...mine, ...demo.filter((d) => !mine.some((m) => m.id === d.id))].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     [mine, demo],
   );
+  const days = useMemo(() => everything.filter((d) => !d.sealedUntil), [everything]);
+  const sealed = useMemo(() => everything.filter((d) => !!d.sealedUntil), [everything]);
   const defaultNotebook = own[0]?.id ?? '';
   const notebooks = useMemo(() => [...own, DEMO_NOTEBOOK], [own]);
   const notebookOf = useCallback((d: DayRecord) => (d.demo ? DEMO_NOTEBOOK.id : d.notebookId && own.some((n) => n.id === d.notebookId) ? d.notebookId : defaultNotebook), [own, defaultNotebook]);
@@ -133,6 +144,15 @@ export default function App() {
     [store],
   );
 
+  const saveCapsule = useCallback(
+    async (c: Capsule) => {
+      if (!store) return;
+      await store.saveCapsule(c);
+      setCapsules((o) => (o.some((x) => x.id === c.id) ? o.map((x) => (x.id === c.id ? c : x)) : [...o, c]));
+    },
+    [store],
+  );
+
   const route = hash.replace(/^#/, '');
   const parts = route.split('/').filter(Boolean);
   let view = <Shelf />;
@@ -143,12 +163,14 @@ export default function App() {
   else if (parts[0] === 'nb') view = <NotebookView id={parts[1]} tab={parts[2] ?? 'timeline'} key={parts[1]} />;
   else if (parts[0] === 'year') view = <YearView />;
   else if (parts[0] === 'museum') view = <Museum />;
+  else if (parts[0] === 'capsule' && parts[1] === 'new') view = <CapsuleNew key={route} />;
+  else if (parts[0] === 'capsule') view = <CapsuleView id={parts[1]} key={route} />;
   else if (parts[0] === 'system') view = <SystemPage />;
   else if (parts[0] === 'seed') view = <Seed />;
 
   const on = (p: string) => (p === '/' ? (!parts.length || parts[0] === 'nb' ? 'on' : '') : route.startsWith(p) ? 'on' : '');
   return (
-    <Ctx.Provider value={{ store, days, notebooks, covers, photos, loading, reload, setCover, toast, notebookOf, daysOf, loadPhotos, saveNotebook, defaultNotebook }}>
+    <Ctx.Provider value={{ store, days, notebooks, covers, photos, loading, reload, setCover, toast, notebookOf, daysOf, loadPhotos, saveNotebook, defaultNotebook, capsules, saveCapsule, sealed }}>
       <header className="top">
         <a className="brand" href="#/">
           Оттиск<small>дневник атмосферы</small>

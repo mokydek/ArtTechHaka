@@ -192,6 +192,9 @@ export interface DayRecord {
   ownerId?: string; // владелец (для демо-дней в облаке)
   notebookId?: string; // тетрадь
   ambience?: AmbLayer[]; // звуки дня
+  sealedUntil?: string; // запечатан до (ISO)
+  sealedAt?: string;
+  unsealedAt?: string;
   hasVoice?: boolean; // свой голос
   voiceName?: string;
   place?: PlaceInfo; // место и погода
@@ -244,4 +247,17 @@ export interface AmbLayer {
   kind: AmbKind;
   gain: number; // 0..1 относительно музыки
   why: string;
+}
+
+/** Капсула времени: письмо себе в будущее */
+export interface Capsule {
+  kind: 'capsule';
+  id: string;
+  createdAt: string;
+  openAt: string; // ISO — когда можно вскрыть
+  text: string;
+  context: { date: string; moon?: string; lastDay?: string; song?: string; place?: string };
+  openedAt?: string;
+  hasVoice?: boolean;
+  voiceName?: string;
 }

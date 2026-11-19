@@ -8,6 +8,8 @@ import { voiceLabel } from '../lib/voice';
 import Stage from '../components/Stage';
 import Why from '../components/Why';
 import { LocalStore } from '../lib/store/local';
+import Envelope, { countdown, useNow } from '../components/Envelope';
+import { stamp } from '../lib/sfx';
 import { placeLine } from '../lib/place';
 import { AMB_NAMES } from '../lib/ambience';
 import SkyBox from '../components/Sky';
@@ -15,6 +17,117 @@ import SkyBox from '../components/Sky';
 const demoLocal = new LocalStore();
 
 export default function DayView({ id }: { id: string }) {
+  const { sealed } = useDiary();
+  const s = sealed.find((d) => d.id === id);
+  if (s) return <SealedDay rec={s} />;
+  return <DayPage id={id} />;
+}
+
+/** Запечатанный день: до срока — только конверт; в срок — ломаем печать, и день проявляется заново */
+function SealedDay({ rec }: { rec: DayRecord }) {
+  const { store, reload, toast } = useDiary();
+  const now = useNow(1000);
+  const cd = countdown(rec.sealedUntil!, now);
+  return (
+    <div className="cap-view">
+      <a className="mono muted" href="#/" style={{ textDecoration: 'none' }}>
+        ← полка
+      </a>
+      <div className="cap-big">
+        <Envelope
+          due={cd.done}
+          tint="#d8c3a0"
+          label={`день · ${rec.date.split('-').reverse().join('.')}`}
+          onOpened={async () => {
+            if (!store) return;
+            const { sealedUntil: _s, ...rest } = rec;
+            void _s;
+            try {
+              const seen = (JSON.parse(localStorage.getItem('ottisk:seen') ?? '[]') as string[]).filter((x) => x !== rec.id);
+              localStorage.setItem('ottisk:seen', JSON.stringify(seen));
+            } catch {
+              /* */
+            }
+            await store.update({ ...rest, unsealedAt: new Date().toISOString() } as DayRecord);
+            await reload();
+            toast('День вскрыт');
+          }}
+        />
+      </div>
+      {cd.done ? (
+        <p className="cap-msg">Пора вспомнить. Сломайте печать.</p>
+      ) : (
+        <>
+          <p className="cap-msg">Этот день запечатан. Откроется через</p>
+          <div className="cap-count">{cd.text}</div>
+          <p className="mono muted">запечатан {rec.sealedAt ? new Date(rec.sealedAt).toLocaleDateString('ru-RU') : ''} · откроется {new Date(rec.sealedUntil!).toLocaleDateString('ru-RU')}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+const SEAL_PRESETS: [string, () => Date][] = [
+  ['через месяц', () => addMonths(1)],
+  ['через полгода', () => addMonths(6)],
+  ['в годовщину', () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    d.setHours(9, 0, 0, 0);
+    return d;
+  }],
+  ['через минуту — попробовать', () => new Date(Date.now() + 60_000)],
+];
+function addMonths(n: number) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + n);
+  d.setHours(9, 0, 0, 0);
+  return d;
+}
+
+function SealPanel({ rec }: { rec: DayRecord }) {
+  const { store, reload, toast } = useDiary();
+  const [open, setOpen] = useState(false);
+  const [i, setI] = useState(2);
+  if (!open)
+    return (
+      <button className="btn ghost small" onClick={() => setOpen(true)}>
+        ✉ Запечатать день
+      </button>
+    );
+  return (
+    <div className="seal-panel">
+      <div className="mono muted">день исчезнет из тетради и вернётся под сургучом</div>
+      <div className="cap-presets">
+        {SEAL_PRESETS.map(([l], j) => (
+          <button key={l} className={'tab' + (i === j ? ' on' : '')} onClick={() => setI(j)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          className="btn small"
+          onClick={async () => {
+            if (!store) return;
+            const until = SEAL_PRESETS[i][1]();
+            stamp();
+            await store.update({ ...rec, sealedUntil: until.toISOString(), sealedAt: new Date().toISOString() });
+            await reload();
+            toast(`Запечатано до ${until.toLocaleDateString('ru-RU')}`);
+          }}
+        >
+          Запечатать
+        </button>
+        <button className="btn ghost small" onClick={() => setOpen(false)}>
+          Отмена
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DayPage({ id }: { id: string }) {
   const { store, days: allDays, covers, toast, reload, notebookOf, notebooks } = useDiary();
   const rec0 = allDays.find((d) => d.id === id) ?? null;
   const nbId = rec0 ? notebookOf(rec0) : '';
@@ -241,11 +354,12 @@ export default function DayView({ id }: { id: string }) {
           {newer ? <a href={`#/day/${newer.id}`} style={{ textAlign: 'right' }}>{newer.title} →</a> : <span />}
         </div>
         {!rec.demo && (
-          <p style={{ marginTop: 30 }}>
+          <div style={{ marginTop: 30, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <SealPanel rec={rec} />
             <button className="btn ghost small" onClick={remove}>
               Удалить день
             </button>
-          </p>
+          </div>
         )}
         <p className="hint" style={{ marginTop: 24 }}>
           Настроение здесь — художественная интерпретация записи, а не психологическая оценка.

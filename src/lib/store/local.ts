@@ -1,4 +1,4 @@
-import type { DayMedia, DayRecord, Notebook } from '../types';
+import type { Capsule, DayMedia, DayRecord, Notebook } from '../types';
 import type { DayFiles, DiaryStore } from './index';
 
 const DB = 'ottisk';
@@ -43,7 +43,7 @@ export class LocalStore implements DiaryStore {
   kind = 'local' as const;
 
   async list(): Promise<DayRecord[]> {
-    const all = await tx<DayRecord[]>('days', 'readonly', (s) => s.getAll());
+    const all = (await tx<DayRecord[]>('days', 'readonly', (s) => s.getAll())).filter((r) => (r as unknown as { kind?: string }).kind !== 'capsule');
     return all.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   }
 
@@ -119,6 +119,19 @@ export class LocalStore implements DiaryStore {
 
   async removeNotebook(id: string) {
     await tx('notebooks', 'readwrite', (s) => s.delete(id));
+  }
+
+  async listCapsules(): Promise<Capsule[]> {
+    const all = await tx<(DayRecord | Capsule)[]>('days', 'readonly', (s) => s.getAll());
+    return all.filter((r): r is Capsule => (r as Capsule).kind === 'capsule').sort((a, b) => a.openAt.localeCompare(b.openAt));
+  }
+
+  async saveCapsule(c: Capsule) {
+    await tx('days', 'readwrite', (s) => s.put(c));
+  }
+
+  async removeCapsule(id: string) {
+    await this.remove(id);
   }
 
   async remove(id: string) {

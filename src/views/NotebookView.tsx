@@ -18,7 +18,7 @@ const TABS: [string, string][] = [
 ];
 
 export default function NotebookView({ id, tab }: { id: string; tab: string }) {
-  const { notebooks, daysOf, covers, loading } = useDiary();
+  const { notebooks, daysOf, covers, loading, sealed, notebookOf } = useDiary();
   const nb = notebooks.find((n) => n.id === id);
   const all = nb ? daysOf(nb.id) : [];
   const [q, setQ] = useState('');
@@ -103,7 +103,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
       ) : tab === 'map' ? (
         <MoodMap days={all} covers={covers} />
       ) : (
-        <Timeline days={days} />
+        <Timeline days={days} sealed={sealed.filter((d) => notebookOf(d) === id)} />
       )}
     </>
   );

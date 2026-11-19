@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { DayMedia, DayRecord, Notebook } from '../types';
+import type { Capsule, DayMedia, DayRecord, Notebook } from '../types';
 import type { DayFiles, DiaryStore } from './index';
 
 // Публикуемый (publishable) ключ рассчитан на браузер: доступ ограничен RLS-политиками (см. supabase/schema.sql)
@@ -44,7 +44,25 @@ export class CloudStore implements DiaryStore {
   async list(): Promise<DayRecord[]> {
     const { data, error } = await this.sb.from('days').select('record, is_demo, user_id').order('day_date', { ascending: false }).order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((r) => ({ ...(r.record as DayRecord), demo: !!r.is_demo || !!(r.record as DayRecord).demo, ownerId: r.user_id as string }));
+    return (data ?? [])
+      .filter((r) => (r.record as { kind?: string }).kind !== 'capsule')
+      .map((r) => ({ ...(r.record as DayRecord), demo: !!r.is_demo || !!(r.record as DayRecord).demo, ownerId: r.user_id as string }));
+  }
+
+  // капсулы времени живут в той же таблице (record.kind = 'capsule') — RLS уже защищает их
+  async listCapsules(): Promise<Capsule[]> {
+    const { data, error } = await this.sb.from('days').select('record').eq('user_id', this.uid).eq('record->>kind', 'capsule').order('day_date');
+    if (error) throw error;
+    return (data ?? []).map((r) => r.record as Capsule);
+  }
+
+  async saveCapsule(c: Capsule) {
+    const { error } = await this.sb.from('days').upsert({ id: c.id, user_id: this.uid, day_date: c.openAt.slice(0, 10), title: 'капсула времени', folder: 'капсула', page_no: 0, record: c });
+    if (error) throw error;
+  }
+
+  async removeCapsule(id: string) {
+    await this.remove(id);
   }
 
   async get(id: string) {

@@ -1,4 +1,4 @@
-import type { DayMedia, DayRecord, Notebook } from '../types';
+import type { Capsule, DayMedia, DayRecord, Notebook } from '../types';
 import { LocalStore } from './local';
 import { CloudStore } from './cloud';
 
@@ -22,6 +22,9 @@ export interface DiaryStore {
   listNotebooks(): Promise<Notebook[]>;
   saveNotebook(nb: Notebook): Promise<void>;
   removeNotebook(id: string): Promise<void>;
+  listCapsules(): Promise<Capsule[]>;
+  saveCapsule(c: Capsule): Promise<void>;
+  removeCapsule(id: string): Promise<void>;
 }
 
 let storePromise: Promise<DiaryStore> | null = null;
