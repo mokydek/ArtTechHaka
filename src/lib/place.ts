@@ -19,10 +19,8 @@ export async function searchPlaces(q: string): Promise<PlaceHit[]> {
   return (j.results ?? []).map((x: { name: string; country?: string; admin1?: string; latitude: number; longitude: number }) => ({ name: x.name, country: x.country, admin: x.admin1, lat: x.latitude, lon: x.longitude }));
 }
 
-/** «Я здесь»: геолокация браузера + название места */
-export async function hereNow(): Promise<PlaceHit> {
-  const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 }));
-  const { latitude: lat, longitude: lon } = pos.coords;
+/** Название места по координатам */
+export async function nameAt(lat: number, lon: number): Promise<PlaceHit> {
   let name = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
   let country: string | undefined;
   try {
@@ -34,6 +32,12 @@ export async function hereNow(): Promise<PlaceHit> {
     /* остаются координаты */
   }
   return { name, country, lat, lon };
+}
+
+/** «Я здесь»: геолокация браузера + название места */
+export async function hereNow(): Promise<PlaceHit> {
+  const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 }));
+  return nameAt(pos.coords.latitude, pos.coords.longitude);
 }
 
 // WMO weather codes → подпись и «погода» системы

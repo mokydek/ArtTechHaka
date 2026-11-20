@@ -5,7 +5,9 @@ import { lookupTrack, resolveLink, searchTracks, type TrackCandidate } from '../
 import Stage from '../components/Stage';
 import Why from '../components/Why';
 import { PROMPTS, PROMPT_STARTERS, dayPrompt } from '../lib/prompts';
-import { dayWeather, hereNow, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
+import { dayWeather, hereNow, nameAt, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
+import { readShot } from '../lib/scene/context';
+import type { ShotMeta } from '../lib/types';
 import type { PlaceInfo } from '../lib/types';
 import VoiceNote from '../components/VoiceNote';
 import Camera from '../components/Camera';
@@ -38,6 +40,37 @@ export default function NewDay({ nb }: { nb?: string }) {
     });
   const [text, setText] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
+  // EXIF фото: где и когда снято — подставляем место и дату, если их не задали
+  const [metas, setMetas] = useState<(ShotMeta | null)[]>([]);
+  const [fromPhoto, setFromPhoto] = useState('');
+  const dateTouched = useRef(false);
+  useEffect(() => {
+    let dead = false;
+    Promise.all(photos.map((f) => readShot(f))).then(async (ms) => {
+      if (dead) return;
+      setMetas(ms);
+      const g = ms.find((m) => m?.lat != null);
+      const t = ms.find((m) => m?.local);
+      const notes: string[] = [];
+      if (t?.local && !dateTouched.current && t.local.slice(0, 10) !== date) {
+        setDate(t.local.slice(0, 10));
+        notes.push('дата');
+      }
+      if (g && !place) {
+        const hit = await nameAt(g.lat!, g.lon!);
+        const w = await dayWeather(hit.lat, hit.lon, (t?.local ?? date).slice(0, 10)).catch(() => undefined);
+        if (!dead) {
+          setPlace({ name: hit.name, country: hit.country, lat: hit.lat, lon: hit.lon, weather: w });
+          notes.push('место');
+        }
+      }
+      if (!dead && notes.length) setFromPhoto(notes.join(' и ') + ' — из фото');
+    });
+    return () => {
+      dead = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos]);
   const [music, setMusic] = useState<MusicInput | null>(null);
   const [phase, setPhase] = useState<'form' | 'build' | 'preview' | 'save'>('form');
   const [steps, setSteps] = useState<Step[]>([]);
@@ -98,6 +131,7 @@ export default function NewDay({ nb }: { nb?: string }) {
       const rec = retitle(built.record, title || built.record.title);
       rec.notebookId = nbId || defaultNotebook;
       rec.live3d = live;
+      if (metas.some(Boolean)) rec.photoMeta = metas;
       if (cuts.length) rec.cutouts = cuts.map((c) => ({ id: c.rt.id, kind: c.kind, x: c.rt.x, y: c.rt.y, s: c.rt.s, rot: c.rt.rot }));
       if (voice) {
         rec.hasVoice = true;
@@ -202,10 +236,20 @@ export default function NewDay({ nb }: { nb?: string }) {
           />
           <div className="hint" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <span>Система ищет в тексте время суток, сезон, погоду, места, людей и слова настроения.</span>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="inp" style={{ width: 170, padding: '6px 10px' }} />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                dateTouched.current = true;
+                setDate(e.target.value);
+              }}
+              className="inp"
+              style={{ width: 170, padding: '6px 10px' }}
+            />
           </div>
         </div>
         <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
+        {fromPhoto && <div className="mono muted" style={{ margin: '-6px 0 10px' }}>⌖ {fromPhoto}</div>}
         <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
         <div className="sec">
           <b>02</b> // Фото

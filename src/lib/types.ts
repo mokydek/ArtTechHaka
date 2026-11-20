@@ -198,6 +198,7 @@ export interface DayRecord {
   hasVoice?: boolean; // свой голос
   live3d?: boolean; // фото оживлено в 3D
   cutouts?: CutoutRef[]; // свои вклейки поверх страницы
+  photoMeta?: (ShotMeta | null)[]; // EXIF фото: где, когда, куда смотрела камера
   voiceName?: string;
   place?: PlaceInfo; // место и погода
   hasVideo?: boolean;
@@ -273,4 +274,16 @@ export interface CutoutRef {
   y: number;
   s: number; // ширина на странице
   rot: number;
+}
+
+/** Что телефон записал в фото */
+export interface ShotMeta {
+  lat?: number;
+  lon?: number;
+  local?: string; // местное время съёмки «2026-11-20T18:42:05»
+  offset?: string; // «+05:00»
+  heading?: number; // куда смотрела камера, градусы от севера
+  f35?: number; // фокусное в эквиваленте 35 мм
+  alt?: number;
+  camera?: string;
 }
