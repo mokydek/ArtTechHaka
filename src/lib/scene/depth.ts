@@ -218,6 +218,8 @@ export interface SceneLayers {
   fg: HTMLCanvasElement | null; // объект с альфой
   fgBox: { x: number; y: number; w: number; h: number } | null; // в долях
   ground: string; // средний цвет земли
+  skyImg: HTMLCanvasElement; // небо самого снимка (альфа — маска неба)
+  sun: { u: number; v: number } | null; // солнце в кадре, если видно
 }
 
 /** Разложить фото на слои для 3D-сцены */
@@ -304,9 +306,21 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
     sm.data[i * 4 + 3] = sky[i] ? 255 : 0;
   }
   sg.putImageData(sm, 0, 0);
+  const blurPx = `blur(${Math.max(2, Math.round(W / 220))}px)`;
+  // небо самого снимка — отдельным слоем: в минуту съёмки оно остаётся как было, при сдвиге времени тает
+  const skyImg = document.createElement('canvas');
+  skyImg.width = W;
+  skyImg.height = H;
+  const skg = skyImg.getContext('2d')!;
+  skg.drawImage(bg, 0, 0);
+  skg.globalCompositeOperation = 'destination-in';
+  skg.filter = blurPx;
+  skg.imageSmoothingQuality = 'high';
+  skg.drawImage(sc, 0, 0, W, H);
+  skg.filter = 'none';
   const bgg = bg.getContext('2d')!;
   bgg.globalCompositeOperation = 'destination-out';
-  bgg.filter = `blur(${Math.max(2, Math.round(W / 220))}px)`;
+  bgg.filter = blurPx;
   bgg.imageSmoothingQuality = 'high';
   bgg.drawImage(sc, 0, 0, W, H);
   bgg.filter = 'none';
@@ -339,5 +353,56 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
     fg: has ? applyMask(src, cut.mask, W, H) : null,
     fgBox: has ? cut.box : null,
     ground,
+    skyImg,
+    sun: findSun(src, sky, gw, gh, horizon),
   };
+}
+
+/** Солнце в кадре: маленькое ярчайшее пятно у неба. По нему восстанавливаем направление камеры и время */
+export function findSun(src: Src, sky: Uint8Array, gw: number, gh: number, horizon: number): { u: number; v: number } | null {
+  const w = 96,
+    h = Math.max(32, Math.round((96 * src.height) / src.width));
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(src, 0, 0, w, h);
+  const px = g.getImageData(0, 0, w, h).data;
+  const lum = new Float32Array(w * h);
+  let mx = 0;
+  for (let i = 0; i < w * h; i++) {
+    lum[i] = (0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2]) / 255;
+    if (lum[i] > mx) mx = lum[i];
+  }
+  if (mx < 0.88) return null;
+  const t = Math.max(0.86, mx - 0.04);
+  let n = 0,
+    sx = 0,
+    sy = 0,
+    x0 = w,
+    x1 = 0,
+    y0 = h,
+    y1 = 0;
+  for (let i = 0; i < w * h; i++) {
+    if (lum[i] < t) continue;
+    const x = i % w,
+      y = (i / w) | 0;
+    n++;
+    sx += x;
+    sy += y;
+    x0 = Math.min(x0, x);
+    x1 = Math.max(x1, x);
+    y0 = Math.min(y0, y);
+    y1 = Math.max(y1, y);
+  }
+  // засвеченное небо или белая стена — это не солнце
+  if (n / (w * h) > 0.025 || (x1 - x0) / w > 0.22 || (y1 - y0) / h > 0.22) return null;
+  const u = (sx / n + 0.5) / w,
+    v = (sy / n + 0.5) / h;
+  if (v > horizon + 0.06) return null;
+  // рядом (над ним или на нём) должно быть небо
+  const gx = Math.min(gw - 1, Math.floor(u * gw));
+  let near = false;
+  for (let y = Math.max(0, Math.floor(v * gh) - 4); y <= Math.min(gh - 1, Math.floor(v * gh)); y++) if (sky[y * gw + gx]) near = true;
+  return near ? { u, v } : null;
 }

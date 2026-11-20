@@ -30,6 +30,7 @@ export class World {
   private sun = new THREE.DirectionalLight(0xffffff, 2);
   private hemi = new THREE.HemisphereLight(0xbfd4ff, 0x4a3b2a, 0.6);
   private photoMats: THREE.MeshBasicMaterial[] = [];
+  private skyMats: THREE.MeshBasicMaterial[] = [];
   private shadowMat = new THREE.ShadowMaterial({ opacity: 0.35, depthWrite: false });
   private groundMat: THREE.MeshBasicMaterial;
   private groundCol: THREE.Color;
@@ -131,6 +132,7 @@ export class World {
     this.scene.add(this.photoMesh(L, tanV));
     const ring = this.ringMesh(L, tanV);
     if (ring) this.scene.add(ring);
+    if (L.sky.some((v) => v)) this.scene.add(this.photoSkyMesh(L, tanV));
     if (L.fg && L.fgBox) this.scene.add(this.subjectMesh(L, tanV));
 
     // ——— погода ———
@@ -313,25 +315,29 @@ export class World {
     const rest = Math.PI * 2 - hfov;
     let k = Math.max(1, Math.round((rest / hfov - 1) / 2) * 2 + 1); // нечётное: края совпадают с краями фото
     if (k > 9) k = 9;
-    const W = 512,
-      H = Math.round(W / this.o.photoAspect);
-    const c = document.createElement('canvas');
-    c.width = W * k;
-    c.height = H;
-    const g = c.getContext('2d')!;
-    g.filter = `blur(${Math.round(W / 70)}px) saturate(0.75) brightness(0.92)`;
-    for (let i = 0; i < k; i++) {
-      g.save();
-      if (i % 2 === 0) {
-        g.translate(W * (i + 1), 0);
-        g.scale(-1, 1);
-        g.drawImage(L.bg, 0, 0, W, H);
-      } else g.drawImage(L.bg, W * i, 0, W, H);
-      g.restore();
-    }
-    g.filter = 'none';
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
+    const mirror = (src: HTMLCanvasElement) => {
+      const W = 512,
+        H = Math.round(W / this.o.photoAspect);
+      const c = document.createElement('canvas');
+      c.width = W * k;
+      c.height = H;
+      const g = c.getContext('2d')!;
+      g.filter = `blur(${Math.round(W / 70)}px) saturate(0.75) brightness(0.92)`;
+      for (let i = 0; i < k; i++) {
+        g.save();
+        if (i % 2 === 0) {
+          g.translate(W * (i + 1), 0);
+          g.scale(-1, 1);
+          g.drawImage(src, 0, 0, W, H);
+        } else g.drawImage(src, W * i, 0, W, H);
+        g.restore();
+      }
+      g.filter = 'none';
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    };
+    const tex = mirror(L.bg);
     const R = L.sky.some((s) => s) ? 55 : 10;
     const cols = 24 * k,
       rows = 24;
@@ -371,7 +377,57 @@ export class World {
     this.photoMats.push(m);
     const mesh = new THREE.Mesh(geo, m);
     mesh.renderOrder = 0;
+    // то же кольцо, но с небом снимка — видно в минуту съёмки
+    if (L.sky.some((v) => v)) {
+      const sm = new THREE.MeshBasicMaterial({ map: mirror(L.skyImg), transparent: true, side: THREE.DoubleSide, toneMapped: false, depthWrite: false, fog: false });
+      this.skyMats.push(sm);
+      const sk = new THREE.Mesh(geo, sm);
+      sk.renderOrder = -1;
+      this.scene.add(sk);
+    }
     return mesh;
+  }
+
+  /** Небо самого снимка: далеко, за всем; прозрачность — насколько мы в минуте съёмки */
+  private photoSkyMesh(L: SceneLayers, tanV: number) {
+    const { gw, gh } = L;
+    const D = 400;
+    const pos = new Float32Array(gw * gh * 3);
+    const uv = new Float32Array(gw * gh * 2);
+    for (let y = 0; y < gh; y++)
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        const u = x / (gw - 1),
+          v = y / (gh - 1);
+        const p = this.ray(u, v, tanV).normalize().multiplyScalar(D);
+        pos.set([p.x, p.y + EYE, p.z], i * 3);
+        uv.set([u, 1 - v], i * 2);
+      }
+    const idx: number[] = [];
+    for (let y = 0; y < gh - 1; y++)
+      for (let x = 0; x < gw - 1; x++) {
+        const a = y * gw + x;
+        idx.push(a, a + gw, a + 1, a + 1, a + gw, a + gw + 1);
+      }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    const tex = new THREE.CanvasTexture(L.skyImg);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, toneMapped: false, depthWrite: false, fog: false });
+    this.skyMats.push(m);
+    const mesh = new THREE.Mesh(g, m);
+    mesh.renderOrder = -1;
+    return mesh;
+  }
+
+  /** 1 — небо как на фото, 0 — небо выбранного часа */
+  setPhotoSky(a: number) {
+    for (const m of this.skyMats) {
+      m.opacity = a;
+      m.visible = a > 0.01;
+    }
   }
 
   private makeClouds() {

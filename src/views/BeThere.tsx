@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDiary } from '../App';
 import { loadImage } from '../lib/analysis/photo';
 import { nameAt, searchPlaces, wmo, type PlaceHit } from '../lib/place';
-import { dayHours, readShot, shotContext, skyAt, toUtc, type HourWeather, type ShotContext, type SkyState } from '../lib/scene/context';
+import { dayHours, fromSun, readShot, shotContext, skyAt, toUtc, type HourWeather, type ShotContext, type SkyState } from '../lib/scene/context';
 import type { SceneLayers } from '../lib/scene/depth';
 import type { PlaceSound } from '../lib/scene/sound';
 import type { World } from '../lib/scene/world';
@@ -61,6 +61,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const compass = useRef<HTMLDivElement>(null);
   const facing = useRef<HTMLSpanElement>(null);
   const lastHour = useRef(-1);
+  const photoLocal = useRef('');
   const back = dayId ? `#/day/${dayId}` : '#/';
 
   // 1. источник: фото дня или своё
@@ -102,10 +103,19 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
         const { buildLayers } = await import('../lib/scene/depth');
         const L = await buildLayers(src.bmp, (s) => !dead && setStep(s));
         if (dead) return;
-        const c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
+        let c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
         setStep('поднимаю архив погоды того дня');
         const h = await Promise.race([dayHours(c.lat, c.lon, c.local.slice(0, 10)), new Promise<null>((r) => setTimeout(() => r(null), 9000))]).catch(() => null);
         if (dead) return;
+        // солнце в кадре: по нему — направление камеры и, если время неизвестно, минута
+        if (L.sun && (c.source.heading !== 'exif' || c.source.time !== 'exif')) {
+          setStep('ищу, где стояло солнце');
+          const ho = h?.[0]?.utcOffset;
+          const lonOff = Math.round(c.lon / 15) * 3600;
+          const utcOf = (local: string) => toUtc(local, ho ?? (src.meta?.offset ? undefined : lonOff), src.meta?.offset);
+          c = fromSun(c, L.sun, L.horizon, src.bmp.width / src.bmp.height, utcOf, src.rec?.analysis.text.timeOfDay ?? undefined);
+        }
+        photoLocal.current = c.local;
         setHours(h);
         setLayers(L);
         setCtx(c);
@@ -189,6 +199,11 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       w.setWeather(weather);
     }
     w.setSky(sky);
+    // небо снимка — в минуту съёмки; чем дальше по времени, тем больше небо того часа
+    const p = photoLocal.current;
+    const pm = +p.slice(11, 13) * 60 + +p.slice(14, 16);
+    const same = ctx?.local.slice(0, 10) === p.slice(0, 10);
+    w.setPhotoSky(same ? 1 - Math.min(1, Math.max(0, (Math.abs(minute - pm) - 10) / 80)) : 0);
     audio.current?.set(weather, sky.sunAlt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sky, hour, ready, hours]);
@@ -337,7 +352,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
             {where && <WherePicker onPick={setPlace} />}
             <div>
               <input className="there-date mono" type="date" value={ctx.local.slice(0, 10)} onChange={(e) => setDate(e.target.value)} /> <b>{hm(minute)}</b>{' '}
-              <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок — ${hm(photoMin)}`}</small>
+              <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок — ${hm(photoMin)}`}</small>
             </div>
             <div>
               {weather ? (
@@ -356,7 +371,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
               {sky.sunAlt > 0 ? `солнце ${Math.round(sky.sunAlt)}° над горизонтом, ${rumb(sky.sunAz)} ${Math.round(sky.sunAz)}°` : `солнце за горизонтом (${Math.round(sky.sunAlt)}°)`} · луна {Math.round(sky.moonFrac * 100)}%
             </div>
             <div>
-              взгляд: <span ref={facing}>—</span> <small>{src0?.heading === 'exif' ? 'компас снимка' : 'направление угадано'}</small>
+              взгляд: <span ref={facing}>—</span> <small>{src0?.heading === 'exif' ? 'компас снимка' : src0?.heading === 'sun' ? 'по солнцу на фото' : 'направление угадано'}</small>
             </div>
           </div>
           <div className="there-bar">

@@ -119,7 +119,7 @@ export interface ShotContext {
   local: string; // «2026-11-20T18:40»
   hour: number;
   heading: number; // куда смотрела камера (0 — север)
-  source: { place: 'gps' | 'day' | 'default'; time: 'exif' | 'text' | 'default'; heading: 'exif' | 'guess' };
+  source: { place: 'gps' | 'day' | 'default'; time: 'exif' | 'text' | 'default' | 'sun'; heading: 'exif' | 'guess' | 'sun' };
   fovV: number;
 }
 
@@ -174,4 +174,61 @@ export function toUtc(local: string, offsetSec?: number, exifOffset?: string) {
   }
   const base = Date.parse(local + ':00Z');
   return new Date(base - (off ?? 5 * 3600) * 1000);
+}
+
+/**
+ * Солнце видно в кадре → откуда и когда снято.
+ * Высота солнца над горизонтом в кадре даёт время (утро/вечер — по записи), а его сдвиг от центра — куда смотрела камера.
+ */
+export function fromSun(
+  c: ShotContext,
+  sun: { u: number; v: number },
+  horizon: number,
+  aspect: number,
+  utcOf: (local: string) => Date,
+  timeOfDay?: string,
+): ShotContext {
+  const R = 180 / Math.PI;
+  const tanV = Math.tan(c.fovV / 2 / R);
+  const pitch0 = -Math.atan((1 - 2 * horizon) * tanV);
+  const elev = (Math.atan((1 - 2 * sun.v) * tanV) + pitch0) * R;
+  const off = Math.atan((2 * sun.u - 1) * tanV * aspect) * R; // вправо от центра — плюс
+  const date = c.local.slice(0, 10);
+  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  let local = c.local;
+  const src = { ...c.source };
+  if (c.source.time !== 'exif') {
+    const alts: number[] = [];
+    for (let m = 0; m < 1440; m += 2) alts.push(skyAt(utcOf(`${date}T${hm(m)}`), c.lat, c.lon).sunAlt);
+    const noon = alts.indexOf(Math.max(...alts));
+    const best = (from: number, to: number) => {
+      let bi = -1,
+        be = 99;
+      for (let i = from; i < to; i++) {
+        const e = Math.abs(alts[i] - elev);
+        if (e < be) {
+          be = e;
+          bi = i;
+        }
+      }
+      return { m: bi * 2, e: be };
+    };
+    const am = best(0, noon),
+      pm = best(noon, alts.length);
+    const wantAm = timeOfDay === 'morning' || (timeOfDay === 'day' && Math.abs(am.m - 14 * 60) < Math.abs(pm.m - 14 * 60));
+    const pick = timeOfDay ? (wantAm ? am : pm) : pm.e <= am.e + 1 ? pm : am;
+    if (pick.m >= 0 && pick.e < 4) {
+      local = `${date}T${hm(pick.m)}`;
+      src.time = 'sun';
+    }
+  }
+  let heading = c.heading;
+  if (c.source.heading !== 'exif') {
+    const s = skyAt(utcOf(local), c.lat, c.lon);
+    if (s.sunAlt > -4) {
+      heading = Math.round((((s.sunAz - off) % 360) + 360) % 360);
+      src.heading = 'sun';
+    }
+  }
+  return { ...c, local, hour: +local.slice(11, 13), heading, source: src };
 }
