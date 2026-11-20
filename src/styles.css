@@ -1,4 +1,24 @@
+/* цвета следуют за атмосферой дневника — переменные зарегистрированы, чтобы переход был плавным */
+@property --paper {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #efe9df;
+}
+@property --paper-2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f6f2ea;
+}
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #b5482a;
+}
 :root {
+  transition:
+    --paper 1.6s ease,
+    --paper-2 1.6s ease,
+    --accent 1.6s ease;
   --paper: #efe9df;
   --paper-2: #f6f2ea;
   --ink: #1d1b1f;
@@ -62,8 +82,8 @@ button {
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--paper) 92%, transparent);
-  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  backdrop-filter: blur(10px);
   z-index: 10;
 }
 .brand {
@@ -3052,4 +3072,216 @@ a.tab {
   color: #fff;
   font-family: var(--mono);
   font-size: 9px;
+}
+
+/* ——— Атмосфера дневника ——— */
+.atmos {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+}
+.brand-wrap {
+  display: inline-flex;
+  align-items: baseline;
+}
+.brand-wrap > small {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-left: 12px;
+}
+.atmos-chip {
+  position: relative;
+  margin-left: 12px;
+}
+.atmos-chip > button {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  display: inline-flex;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.atmos-chip > button > span {
+  display: inline-block;
+  animation: atmos-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.atmos-chip > button > span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--accent);
+}
+@keyframes atmos-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+}
+.atmos-pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+  width: 280px;
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.35);
+  font-family: var(--sans);
+  font-size: 13px;
+  animation: atmos-in 0.35s ease both;
+}
+.atmos-pop b {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+}
+.atmos-pop small {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.atmos-row {
+  position: relative;
+  padding: 3px 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  isolation: isolate;
+}
+.atmos-row i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  animation: atmos-bar 0.9s ease both;
+}
+@keyframes atmos-bar {
+  from {
+    width: 0;
+  }
+}
+/* подсказка движением: кнопка «дышит», пока не записан первый день */
+.btn.hint {
+  position: relative;
+}
+.btn.hint::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent);
+  animation: hint-ring 2.2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes hint-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+/* что система уже «услышала» в тексте — всплывает по мере письма */
+.heard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 26px;
+  margin-top: 8px;
+}
+.heard span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper-2));
+  color: var(--accent);
+  animation: heard-pop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes heard-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.6);
+  }
+}
+/* жест-подсказка: «рука» показывает, что тянуть */
+.gesture {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  pointer-events: none;
+  animation: gesture-drag 2.4s ease-in-out 3 both;
+}
+.gesture::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.18);
+}
+@keyframes gesture-drag {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  45% {
+    transform: translateX(-90px);
+  }
+  75% {
+    transform: translateX(90px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.hint::after,
+  .gesture {
+    animation: none;
+    display: none;
+  }
+}
+
+/* страницы появляются мягко, как проявляется снимок */
+.page-in {
+  animation: page-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-in {
+    animation: none;
+  }
 }

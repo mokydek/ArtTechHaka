@@ -12,6 +12,8 @@ import type { PlaceInfo } from '../lib/types';
 import VoiceNote from '../components/VoiceNote';
 import Camera from '../components/Camera';
 import CutoutPicker, { type NewCut } from '../components/CutoutPicker';
+import { analyzeText } from '../lib/analysis/text';
+import { MOTIF_NAMES, dayMotifs, type Motif } from '../lib/atmos';
 
 const today = () => {
   const d = new Date();
@@ -19,13 +21,14 @@ const today = () => {
 };
 
 export default function NewDay({ nb }: { nb?: string }) {
-  const { store, days, reload, setCover, toast, notebooks, defaultNotebook } = useDiary();
+  const { store, days, reload, setCover, toast, notebooks, defaultNotebook, setDraft } = useDiary();
   const own = notebooks.filter((n) => !n.demo);
   const [nbId, setNbId] = useState(nb && own.some((n) => n.id === nb) ? nb : defaultNotebook);
   useEffect(() => {
     if (!nbId && defaultNotebook) setNbId(defaultNotebook);
   }, [nbId, defaultNotebook]);
   const [date, setDate] = useState(today());
+
   const [place, setPlace] = useState<PlaceInfo | null>(null);
   const [voice, setVoice] = useState<Blob | null>(null);
   const [live, setLive] = useState(false);
@@ -39,6 +42,22 @@ export default function NewDay({ nb }: { nb?: string }) {
       return (base ? base + (/[.!?…]$/.test(base) ? ' ' : '. ') : '') + piece;
     });
   const [text, setText] = useState('');
+  // пока человек пишет — сайт подстраивается под то, что он вспоминает
+  const [heard, setHeard] = useState<Motif[]>([]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (text.trim().length < 8) {
+        setDraft(null);
+        setHeard([]);
+        return;
+      }
+      const m = dayMotifs(analyzeText(text, date), text);
+      setDraft(m);
+      setHeard((Object.keys(m) as Motif[]).filter((k) => (m[k] ?? 0) >= 0.5).sort((a, b) => (m[b] ?? 0) - (m[a] ?? 0)));
+    }, 350);
+    return () => clearTimeout(id);
+  }, [text, date, setDraft]);
+  useEffect(() => () => setDraft(null), [setDraft]);
   const [photos, setPhotos] = useState<File[]>([]);
   // EXIF фото: где и когда снято — подставляем место и дату, если их не задали
   const [metas, setMetas] = useState<(ShotMeta | null)[]>([]);
@@ -234,6 +253,11 @@ export default function NewDay({ nb }: { nb?: string }) {
             placeholder="Пишите как близкому другу: погода, свет, запахи, звуки, кто был рядом, мелочи, которые запомнились…"
             disabled={phase === 'build'}
           />
+          <div className="heard" aria-live="polite">
+            {heard.map((k) => (
+              <span key={k}>✦ {MOTIF_NAMES[k]}</span>
+            ))}
+          </div>
           <div className="hint" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <span>Система ищет в тексте время суток, сезон, погоду, места, людей и слова настроения.</span>
             <input

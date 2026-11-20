@@ -55,6 +55,16 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(true);
   const [where, setWhere] = useState(false);
+  // жест-подсказка «тяни, чтобы оглядеться» — только в первые разы
+  const [hinted] = useState(() => {
+    try {
+      const n = +(localStorage.getItem('ottisk:hint-there') ?? 0);
+      localStorage.setItem('ottisk:hint-there', String(n + 1));
+      return n >= 2;
+    } catch {
+      return false;
+    }
+  });
   const holder = useRef<HTMLDivElement>(null);
   const world = useRef<World | null>(null);
   const audio = useRef<PlaceSound | null>(null);
@@ -307,6 +317,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   return (
     <div className="there">
       <div ref={holder} className="there-gl" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
+      {ready && !hinted && <div className="gesture" aria-hidden />}
       <div ref={stick} className="there-stick">
         <i />
       </div>

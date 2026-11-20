@@ -18,6 +18,8 @@ import Stamps from './views/Stamps';
 import FilmView from './views/FilmView';
 import PostcardView from './views/PostcardView';
 import StampAward from './components/StampAward';
+import { AtmosBackdrop, AtmosChip, useAtmosColors } from './components/Atmosphere';
+import { computeAtmos, type Motif } from './lib/atmos';
 import { earnedStamps, type Earned } from './lib/stamps';
 
 export const DEMO_NOTEBOOK: Notebook = {
@@ -46,6 +48,7 @@ interface Diary {
   capsules: Capsule[];
   saveCapsule: (c: Capsule) => Promise<void>;
   sealed: DayRecord[]; // запечатанные дни (ещё не вскрытые)
+  setDraft: (m: Partial<Record<Motif, number>> | null) => void; // черновик записи: фон подстраивается, пока человек пишет
 }
 const Ctx = createContext<Diary>(null!);
 export const useDiary = () => useContext(Ctx);
@@ -203,13 +206,24 @@ export default function App() {
   else if (parts[0] === 'system') view = <SystemPage />;
   else if (parts[0] === 'seed') view = <Seed />;
 
+  // атмосфера: свои дни (а пока их нет — дни-примеры) + черновик, который пишут прямо сейчас
+  const [draft, setDraft] = useState<Partial<Record<Motif, number>> | null>(null);
+  const ownDays = useMemo(() => days.filter((d) => !d.demo), [days]);
+  const atmos = useMemo(() => computeAtmos(ownDays.length ? ownDays : days, draft ? { motifs: draft, weight: ownDays.length ? 0.9 : 3 } : null), [ownDays, days, draft]);
+  useAtmosColors(atmos);
+  const strength = parts[0] === 'day' || parts[0] === 'new' ? 0.7 : 1;
+
   const on = (p: string) => (p === '/' ? (!parts.length || parts[0] === 'nb' ? 'on' : '') : route.startsWith(p) ? 'on' : '');
   return (
-    <Ctx.Provider value={{ store, days, notebooks, covers, photos, loading, reload, setCover, toast, notebookOf, daysOf, loadPhotos, saveNotebook, defaultNotebook, capsules, saveCapsule, sealed }}>
+    <Ctx.Provider value={{ store, days, notebooks, covers, photos, loading, reload, setCover, toast, notebookOf, daysOf, loadPhotos, saveNotebook, defaultNotebook, capsules, saveCapsule, sealed, setDraft }}>
+      <AtmosBackdrop atmos={atmos} strength={strength} />
       <header className="top">
-        <a className="brand" href="#/">
-          Оттиск<small>дневник атмосферы</small>
-        </a>
+        <span className="brand-wrap">
+          <a className="brand" href="#/">
+            Оттиск
+          </a>
+          <AtmosChip atmos={atmos} />
+        </span>
         <nav className="nav">
           <a className={on('/')} href="#/">
             Полка
@@ -229,12 +243,16 @@ export default function App() {
           <a className={on('/system')} href="#/system">
             Визуальная система
           </a>
-          <a className="btn" href="#/new">
+          <a className={'btn' + (!loading && !ownDays.length && parts[0] !== 'new' ? ' hint' : '')} href="#/new">
             + Записать день
           </a>
         </nav>
       </header>
-      <main className="page">{view}</main>
+      <main className="page">
+        <div className={['there', 'p', 'film'].includes(parts[0]) ? undefined : 'page-in'} key={parts[0] ?? 'shelf'}>
+          {view}
+        </div>
+      </main>
       {msg && <div className="toast">{msg}</div>}
       {awards.length > 0 && !hash.startsWith('#/new') && !hash.startsWith('#/p/') && !hash.startsWith('#/there') && <StampAward list={awards} onClose={() => setAwards([])} />}
     </Ctx.Provider>
