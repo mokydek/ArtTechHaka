@@ -205,10 +205,11 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
         if (!maskCache.has(b)) maskCache.set(b, (await L.cutout(b)).mask);
         masks.push(maskCache.get(b) ?? null);
       }
-      setLiveMsg('склеиваю слои');
+      setLiveMsg('дорисовываю фон за объектом');
       await new Promise((r) => setTimeout(r, 0));
       if (player.current !== p) return;
-      p.r.buildLive(masks, (img, m) => L.applyMask(img, m), (img, m) => L.inpaint(img, m));
+      await p.r.buildLive(masks, (img, m) => L.applyMask(img, m), (img, m) => L.fill(img, m));
+      if (player.current !== p) return;
       p.r.setLive(true);
       setLiveState('on');
       if (save) onLive?.(true);

@@ -1,7 +1,7 @@
 // Глубина одного кадра и слои сцены: фон с дорисовкой, объект, небо, линия горизонта.
 // FastDepth (MIT) + U²-Netp (Apache-2.0) — обе работают в браузере.
 
-import { applyMask, cutout, inpaint, model } from '../live/segment';
+import { applyMask, cutout, fill, inpaint, model } from '../live/segment';
 
 type Src = CanvasImageSource & { width: number; height: number };
 const D = 224; // вход FastDepth
@@ -320,7 +320,7 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
   // фон без объекта
   const W = Math.min(1600, src.width),
     H = Math.round(W / aspect);
-  const bg = has ? inpaint(src, cut.mask, W, H) : (() => {
+  const bg = has ? await fill(src, cut.mask, W, H) : (() => {
     const c = document.createElement('canvas');
     c.width = W;
     c.height = H;

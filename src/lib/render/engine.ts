@@ -392,12 +392,13 @@ export class MemoryRenderer {
   private liveLayers: LiveLayer[] | null = null;
 
   /** Слои для каждого фото: обработка стиля дня, вырезанный объект, дорисованный фон */
-  buildLive(masks: (Cnv | null)[], cut: (img: Cnv, mask: Cnv) => Cnv, fill: (img: Cnv, mask: Cnv) => Cnv) {
+  async buildLive(masks: (Cnv | null)[], cut: (img: Cnv, mask: Cnv) => Cnv, fill: (img: Cnv, mask: Cnv) => Promise<Cnv> | Cnv) {
     const { spec, photos } = this.input;
     const W = FIELD.w,
       H = FIELD.h;
     const layers: LiveLayer[] = [];
-    photos.forEach((ph, i) => {
+    for (let i = 0; i < photos.length; i++) {
+      const ph = photos[i];
       let treated: Cnv;
       if (spec.mode === 'impression' && this.painted[i]) treated = this.painted[i];
       else if ((spec.mode === 'construct' || spec.mode === 'nocturne') && this.imgs[i]) treated = this.imgs[i];
@@ -440,8 +441,8 @@ export class MemoryRenderer {
         g.drawImage(m!, 0, 0);
         g.filter = 'none';
       }
-      layers.push({ bg: has ? fill(treated, m!) : treated, fg: has ? cut(treated, m!) : null, shadow, cx, cy, area });
-    });
+      layers.push({ bg: has ? await fill(treated, m!) : treated, fg: has ? cut(treated, m!) : null, shadow, cx, cy, area });
+    }
     this.liveLayers = layers;
   }
 
