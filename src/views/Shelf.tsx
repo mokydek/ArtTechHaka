@@ -19,7 +19,7 @@ function usePerRow() {
 }
 
 export default function Shelf() {
-  const { notebooks, daysOf, days, covers, store, capsules, sealed } = useDiary();
+  const { notebooks, daysOf, days, covers, store, capsules, sealed, defaultNotebook, loading } = useDiary();
   const now = useNow(1000);
   const [rw, setRw] = useState<DayRecord | null>(null);
   const travel = () => {
@@ -38,6 +38,8 @@ export default function Shelf() {
   const today = todayISO();
   const s = streak(days, today);
   const otd = onThisDay(days.filter((d) => d.date !== today), today);
+  const own = days.filter((d) => !d.demo);
+  const recent = [...own].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
   const items = [...notebooks.map((nb) => ({ nb })), { nb: null }];
   const rows: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += perRow) rows.push(items.slice(i, i + perRow));
@@ -51,9 +53,13 @@ export default function Shelf() {
             <Dater date={today} />
             {store && <span className="muted">{store.kind === 'cloud' ? 'хранится в облаке' : 'хранится на этом устройстве'}</span>}
           </div>
-          <h1 className="h1">
-            Фото помнят, как выглядел день. <em>Оттиск</em> — как он ощущался.
-          </h1>
+          {own.length ? (
+            <h1 className="h1">{greeting()}</h1>
+          ) : (
+            <h1 className="h1">
+              Фото помнят, как выглядел день. <em>Оттиск</em> — как он ощущался.
+            </h1>
+          )}
           <div className="prompt-card">
             <div className="mono muted">о чём написать сегодня</div>
             <div className="prompt">{dayPrompt(today)}</div>
@@ -84,9 +90,75 @@ export default function Shelf() {
         )}
       </section>
 
-      <div className="sec" style={{ marginTop: 38 }}>
-        Капсулы времени
+      {recent.length > 0 ? (
+        <section className="recent">
+          <div className="recent-head">
+            <h2 className="h2">Недавние дни</h2>
+            {defaultNotebook && (
+              <a className="recent-all" href={`#/nb/${defaultNotebook}`}>
+                Все дни
+              </a>
+            )}
+          </div>
+          <div className="recent-row">
+            {recent.map((d) => (
+              <a key={d.id} className="recent-card" href={`#/day/${encodeURIComponent(d.id)}`}>
+                {covers[d.id] ? (
+                  <img src={covers[d.id]} alt="" loading="lazy" />
+                ) : (
+                  <span className="recent-ph" style={{ background: `linear-gradient(160deg, ${d.design.palette.colors[1]}, ${d.design.palette.colors[3]})` }} />
+                )}
+                <b>{d.title}</b>
+                <small>{humanDate(d.date)}</small>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : (
+        !loading && (
+          <section className="how">
+            <h2 className="h2">Как это работает</h2>
+            <ol>
+              <li>
+                <b>1</b>
+                <span>Напиши пару строк о дне — как близкому другу.</span>
+              </li>
+              <li>
+                <b>2</b>
+                <span>Добавь фото и песню, которые были в этот день.</span>
+              </li>
+              <li>
+                <b>3</b>
+                <span>Оттиск проявит живую страницу: цвета, движение и звук дня.</span>
+              </li>
+            </ol>
+          </section>
+        )
+      )}
+
+      <h2 className="h2 home-h">
+        Тетради <small>{notebooks.length}</small>
+      </h2>
+      <div className="shelf">
+        {rows.map((row, i) => (
+          <div className="shelf-row" key={i} style={{ gridTemplateColumns: `repeat(${perRow}, 1fr)` }}>
+            {row.map((it, j) =>
+              it.nb ? (
+                <Book key={it.nb.id} nb={it.nb} count={daysOf(it.nb.id).length} />
+              ) : (
+                <a key={'new' + j} className="book book-new" href="#/nb/new">
+                  <div className="book-cover">
+                    <span>+ новая тетрадь</span>
+                  </div>
+                  <div className="ledge" />
+                </a>
+              ),
+            )}
+          </div>
+        ))}
       </div>
+
+      <h2 className="h2 home-h">Капсулы времени</h2>
       <div className="caps">
         {sealed.map((d) => {
           const cd = countdown(d.sealedUntil!, now);
@@ -116,30 +188,13 @@ export default function Shelf() {
           <span>+ письмо себе в будущее</span>
         </a>
       </div>
-
-      <div className="sec" style={{ marginTop: 38 }}>
-        Полка · {notebooks.length} {plural(notebooks.length, 'тетрадь', 'тетради', 'тетрадей')}
-      </div>
-      <div className="shelf">
-        {rows.map((row, i) => (
-          <div className="shelf-row" key={i} style={{ gridTemplateColumns: `repeat(${perRow}, 1fr)` }}>
-            {row.map((it, j) =>
-              it.nb ? (
-                <Book key={it.nb.id} nb={it.nb} count={daysOf(it.nb.id).length} />
-              ) : (
-                <a key={'new' + j} className="book book-new" href="#/nb/new">
-                  <div className="book-cover">
-                    <span>+ новая тетрадь</span>
-                  </div>
-                  <div className="ledge" />
-                </a>
-              ),
-            )}
-          </div>
-        ))}
-      </div>
     </>
   );
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';
 }
 
 const MON = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'];

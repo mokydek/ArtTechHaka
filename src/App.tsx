@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Capsule, DayRecord, Notebook } from './lib/types';
 import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
+import Mascot from './components/Mascot';
 import Shelf from './views/Shelf';
 import NotebookView from './views/NotebookView';
 import CoverEditor from './views/CoverEditor';
@@ -261,6 +262,7 @@ export default function App() {
         </div>
       </main>
       {msg && <div className="toast">{msg}</div>}
+      <Mascot route={parts[0] ?? ''} />
       {awards.length > 0 && !hash.startsWith('#/new') && !hash.startsWith('#/p/') && !hash.startsWith('#/there') && <StampAward list={awards} onClose={() => setAwards([])} />}
     </Ctx.Provider>
   );

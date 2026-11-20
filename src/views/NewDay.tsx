@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { bunnySay } from '../components/Mascot';
+import type { Pose } from '../components/Bunny';
 import { useDiary } from '../App';
 import { TAIL, buildDay, fragment, renderCover, retitle, type BuiltDay, type MusicInput, type Step } from '../lib/pipeline';
 import { lookupTrack, recommendSongs, resolveLink, searchTracks, type Ranked, type TrackCandidate } from '../lib/analysis/music';
@@ -122,6 +124,28 @@ export default function NewDay({ nb }: { nb?: string }) {
   if (!music) missing.push(['song', 'Выберите песню.']);
   const ready = !missing.length;
   const secs = useRef<Record<string, HTMLElement | null>>({});
+  /* зайчик подсказывает следующий шаг (не перебивая, пока человек печатает) */
+  const stepKey = phase === 'build' ? 'build' : phase === 'preview' ? 'preview' : (missing[0]?.[0] ?? 'ready');
+  useEffect(() => {
+    if (phase === 'save') return;
+    const H: Record<string, [string, Pose]> = {
+      text: ['Начни с пары слов о дне. Можно нажать подсказку «Свет был…» — я подхвачу.', 'point'],
+      photo: ['Теперь фото дня — хотя бы одно. Перетащи его или сними прямо сейчас.', 'point'],
+      song: ['И песню, которая звучала в этот день. Найду её по названию.', 'point'],
+      ready: ['Всё на месте! Жми «Проявить день».', 'happy'],
+      build: ['Проявляю твой день, как в фотолаборатории…', 'think'],
+      preview: ['Красиво получилось! Можно поправить название и сохранить в дневник.', 'happy'],
+    };
+    const [text, pose] = H[stepKey];
+    let tries = 0;
+    let t = 0;
+    const go = () => {
+      if (document.activeElement?.tagName === 'TEXTAREA' && stepKey !== 'text' && tries++ < 30) return void (t = window.setTimeout(go, 1500));
+      bunnySay({ key: 'new-' + stepKey, text, pose });
+    };
+    t = window.setTimeout(go, stepKey === 'text' ? 1800 : 1000);
+    return () => clearTimeout(t);
+  }, [stepKey, phase]);
   const [nudge, setNudge] = useState(false);
   /** кнопка всегда нажимается: если чего-то не хватает — ведём к этому месту */
   const go = () => {
