@@ -243,12 +243,12 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
   // над ровной линией моря/степи небо — всё от верха до линии, кроме тёмных силуэтов (мыс, пальмы, люди)
   if (byLine && seed > gw * gh * 0.04) {
     const ly = Math.floor(horizon * gh) - 1;
-    for (let x = 0; x < gw; x++)
-      for (let y = 0; y < ly; y++) {
-        const i = y * gw + x;
-        if (lum[i] < 0.3) break;
-        sky[i] = 1;
-      }
+    // силуэт растёт от линии вверх, пока тёмный; всё выше — небо (тёмные тучи наверху тоже)
+    for (let x = 0; x < gw; x++) {
+      let top = ly;
+      while (top > 0 && lum[(top - 1) * gw + x] < 0.3) top--;
+      for (let y = 0; y < top; y++) sky[y * gw + x] = 1;
+    }
   }
   // небо идёт сплошной полосой от верха в каждом столбце
   columns();
