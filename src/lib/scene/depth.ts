@@ -219,16 +219,13 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
         b = px[i * 4 + 2];
       const mx = Math.max(r, g, b),
         mn = Math.min(r, g, b);
-      if (lum[i] > 0.62 && (mx - mn) / mx < 0.22 && b >= r * 0.95) return true;
-      // над ровной линией моря/степи всё светлое и гладкое — небо (закатные облака тоже)
-      return byLine && y < horizon * gh - 1 && lum[i] > 0.28;
+      return lum[i] > 0.62 && (mx - mn) / mx < 0.22 && b >= r * 0.95;
     };
     const smoothAt = (i: number) => {
       const x = i % gw,
         y = (i / gw) | 0;
       if (x < 1 || y < 1 || x >= gw - 1 || y >= gh - 1) return true;
-      const gr = Math.abs(lum[i + 1] - lum[i - 1]) + Math.abs(lum[i + gw] - lum[i - gw]);
-      return gr < (byLine && y < horizon * gh - 1 ? 0.14 : 0.07);
+      return Math.abs(lum[i + 1] - lum[i - 1]) + Math.abs(lum[i + gw] - lum[i - gw]) < 0.07;
     };
     const q2: number[] = [];
     for (let i = 0; i < gw * gh; i++) if (sky[i]) q2.push(i);
@@ -242,6 +239,16 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
           q2.push(j);
         }
     }
+  }
+  // над ровной линией моря/степи небо — всё от верха до линии, кроме тёмных силуэтов (мыс, пальмы, люди)
+  if (byLine && seed > gw * gh * 0.04) {
+    const ly = Math.floor(horizon * gh) - 1;
+    for (let x = 0; x < gw; x++)
+      for (let y = 0; y < ly; y++) {
+        const i = y * gw + x;
+        if (lum[i] < 0.2) break;
+        sky[i] = 1;
+      }
   }
   // небо идёт сплошной полосой от верха в каждом столбце
   columns();
