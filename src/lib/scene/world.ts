@@ -244,7 +244,7 @@ export class World {
     const tex = new THREE.CanvasTexture(L.bg);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
-    const m = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide, toneMapped: false });
+    const m = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide, toneMapped: false, fog: false });
     this.photoMats.push(m);
     const mesh = new THREE.Mesh(g, m);
     mesh.renderOrder = 1;
@@ -298,7 +298,7 @@ export class World {
     g.setIndex(idx);
     const tex = new THREE.CanvasTexture(L.fg!);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.15, side: THREE.DoubleSide, toneMapped: false });
+    const m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.15, side: THREE.DoubleSide, toneMapped: false, fog: false });
     this.photoMats.push(m);
     const mesh = new THREE.Mesh(g, m);
     mesh.castShadow = true;
@@ -373,7 +373,7 @@ export class World {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
     geo.setIndex(idx);
-    const m = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide, toneMapped: false, depthWrite: false });
+    const m = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide, toneMapped: false, depthWrite: false, fog: false });
     this.photoMats.push(m);
     const mesh = new THREE.Mesh(geo, m);
     mesh.renderOrder = 0;
