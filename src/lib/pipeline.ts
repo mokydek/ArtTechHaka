@@ -9,7 +9,7 @@ import { analyzePhoto, loadImage, summarizePhotos } from './analysis/photo';
 import { analyzeAudio, bestExcerpt, excerptToWav, keyName } from './analysis/audio';
 import { decodeUrl, lookupTrack, musicFeatures, searchTracks, type TrackCandidate } from './analysis/music';
 import { designDay, MODES, PARTICLE_NAMES } from './design/system';
-import { MemoryRenderer } from './render/engine';
+import { MemoryRenderer, type CutoutRt } from './render/engine';
 import { newId } from './store';
 import { voiceLabel } from './voice';
 
@@ -214,8 +214,9 @@ export function moodLabel(rec: DayRecord) {
   return [t.season ? SEASON_W[t.season] : '', t.timeOfDay ? TIME_W[t.timeOfDay] : '', t.weather[0] ? WEATHER_W[t.weather[0]] : ''].filter(Boolean).join(' · ');
 }
 
-export async function renderCover(rec: DayRecord, bitmaps: ImageBitmap[], w = 720): Promise<Blob> {
+export async function renderCover(rec: DayRecord, bitmaps: ImageBitmap[], w = 720, cutouts: CutoutRt[] = []): Promise<Blob> {
   const r = await makeRenderer(rec, bitmaps);
+  r.setCutouts(cutouts);
   r.draw(0, { still: true });
   const c = new OffscreenCanvas(w, Math.round((w * r.canvas.height) / r.canvas.width));
   const g = c.getContext('2d')!;
@@ -261,6 +262,11 @@ export async function folderZip(rec: DayRecord, media: DayMedia, video?: Blob): 
   }
   const vid = video ?? (media.video ? await (await fetch(media.video)).blob() : undefined);
   if (vid) f.file(`воспоминание.${vid.type.includes('mp4') ? 'mp4' : 'webm'}`, vid);
+  const cuts = Object.entries(media.cutouts ?? {});
+  if (cuts.length) {
+    const cf = f.folder('вклейки')!;
+    await Promise.all(cuts.map(async ([id, u], i) => cf.file(`${String(i + 1).padStart(2, '0')}-${id.slice(0, 6)}.png`, await (await fetch(u)).blob())));
+  }
   if (media.voice) {
     const vb = await (await fetch(media.voice)).blob();
     f.file(`мой голос.${vb.type.includes('mp4') ? 'm4a' : 'webm'}`, vb);
@@ -297,8 +303,9 @@ export function download(blob: Blob, name: string) {
 }
 
 /** Сторис 9:16: страница дня на размытом фоне своей же палитры */
-export async function renderStory(rec: DayRecord, bitmaps: ImageBitmap[], t?: number): Promise<Blob> {
+export async function renderStory(rec: DayRecord, bitmaps: ImageBitmap[], t?: number, cutouts: CutoutRt[] = []): Promise<Blob> {
   const r = await makeRenderer(rec, bitmaps);
+  r.setCutouts(cutouts);
   if (t != null) r.draw(t);
   else r.draw(0, { still: true });
   const W = 1080,

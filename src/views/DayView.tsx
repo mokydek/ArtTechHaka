@@ -13,6 +13,8 @@ import { stamp } from '../lib/sfx';
 import { placeLine } from '../lib/place';
 import { AMB_NAMES } from '../lib/ambience';
 import SkyBox from '../components/Sky';
+import CutoutPicker from '../components/CutoutPicker';
+import type { CutoutRt } from '../lib/render/engine';
 
 const demoLocal = new LocalStore();
 
@@ -204,6 +206,7 @@ function DayPage({ id }: { id: string }) {
   const rec = days.find((d) => d.id === id) ?? null;
   const [media, setMedia] = useState<DayMedia | null>(null);
   const [assets, setAssets] = useState<{ bitmaps: ImageBitmap[]; audio: AudioBuffer | null } | null>(null);
+  const [cuts, setCuts] = useState<CutoutRt[]>([]);
   const [video, setVideo] = useState<Blob | null>(null);
   const [zipping, setZipping] = useState(false);
   const [storyBusy, setStoryBusy] = useState(false);
@@ -228,6 +231,22 @@ function DayPage({ id }: { id: string }) {
         const m: DayMedia = rec.demo ? { photos: [], cover: covers[rec.id] } : await store.media(rec);
         if (dead) return;
         setMedia(m);
+        // вклейки: картинки из папки дня + раскладка из записи
+        const rts: CutoutRt[] = [];
+        for (const c of rec.cutouts ?? []) {
+          const u = m.cutouts?.[c.id];
+          if (!u) continue;
+          try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = u;
+            await img.decode();
+            rts.push({ id: c.id, img, x: c.x, y: c.y, s: c.s, rot: c.rot });
+          } catch {
+            /* пропускаем */
+          }
+        }
+        if (!dead) setCuts(rts);
         const a = await loadAssets(rec, m);
         if (!dead) setAssets(a);
       } catch (e) {
@@ -281,7 +300,7 @@ function DayPage({ id }: { id: string }) {
     if (!assets) return;
     setStoryBusy(true);
     try {
-      const b = await renderStory(rec, assets.bitmaps, 6);
+      const b = await renderStory(rec, assets.bitmaps, 6, cuts);
       const file = new File([b], `${rec.folder} — сторис.png`, { type: 'image/png' });
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
       if (nav.canShare?.({ files: [file] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) await nav.share({ files: [file], title: rec.title }).catch(() => download(b, file.name));
@@ -310,6 +329,18 @@ function DayPage({ id }: { id: string }) {
           onVideo={onVideo}
           voiceUrl={media?.voice}
           develop={firstView}
+          cutouts={cuts}
+          onCutouts={
+            rec.demo
+              ? undefined
+              : async (list) => {
+                  setCuts(list);
+                  if (!store) return;
+                  const kinds = new Map((rec.cutouts ?? []).map((c) => [c.id, c.kind]));
+                  await store.update({ ...rec, cutouts: list.map((c) => ({ id: c.id, kind: kinds.get(c.id) ?? 'cut', x: c.x, y: c.y, s: c.s, rot: c.rot })) });
+                  await reload();
+                }
+          }
           live={!!rec.live3d}
           onLive={async (on) => {
             if (rec.demo || !store) return;
@@ -429,6 +460,21 @@ function DayPage({ id }: { id: string }) {
         </div>
         <div style={{ marginTop: 30, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <SharePanel rec={rec} />
+          {!rec.demo && (
+            <CutoutPicker
+              compact
+              count={cuts.length}
+              onAdded={async (c) => {
+                if (!store) return;
+                await store.saveBlob(rec.id, `cutout-${c.rt.id}`, c.blob);
+                const next = [...cuts, c.rt];
+                setCuts(next);
+                await store.update({ ...rec, cutouts: [...(rec.cutouts ?? []), { id: c.rt.id, kind: c.kind, x: c.rt.x, y: c.rt.y, s: c.rt.s, rot: c.rt.rot }] });
+                await reload();
+                toast('Вклейка на странице — её можно разложить');
+              }}
+            />
+          )}
         </div>
         {!rec.demo && (
           <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>

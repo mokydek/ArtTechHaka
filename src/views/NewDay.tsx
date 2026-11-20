@@ -9,6 +9,7 @@ import { dayWeather, hereNow, placeLine, searchPlaces, type PlaceHit } from '../
 import type { PlaceInfo } from '../lib/types';
 import VoiceNote from '../components/VoiceNote';
 import Camera from '../components/Camera';
+import CutoutPicker, { type NewCut } from '../components/CutoutPicker';
 
 const today = () => {
   const d = new Date();
@@ -26,6 +27,8 @@ export default function NewDay({ nb }: { nb?: string }) {
   const [place, setPlace] = useState<PlaceInfo | null>(null);
   const [voice, setVoice] = useState<Blob | null>(null);
   const [live, setLive] = useState(false);
+  const [cuts, setCuts] = useState<NewCut[]>([]);
+  const cutRts = useMemo(() => cuts.map((c) => c.rt), [cuts]);
   const voiceUrl = useMemo(() => (voice ? URL.createObjectURL(voice) : undefined), [voice]);
   const dictate = (t: string) =>
     setText((prev) => {
@@ -95,13 +98,15 @@ export default function NewDay({ nb }: { nb?: string }) {
       const rec = retitle(built.record, title || built.record.title);
       rec.notebookId = nbId || defaultNotebook;
       rec.live3d = live;
+      if (cuts.length) rec.cutouts = cuts.map((c) => ({ id: c.rt.id, kind: c.kind, x: c.rt.x, y: c.rt.y, s: c.rt.s, rot: c.rt.rot }));
       if (voice) {
         rec.hasVoice = true;
         rec.voiceName = `voice.${voice.type.includes('mp4') ? 'mp4' : 'webm'}`;
       }
-      const cover = await renderCover(rec, built.bitmaps);
+      const cover = await renderCover(rec, built.bitmaps, 720, cutRts);
       await store.save(rec, { photos: built.photoBlobs, cover, excerpt: built.excerpt });
       if (voice) await store.saveBlob(rec.id, 'voice', voice);
+      for (const c of cuts) await store.saveBlob(rec.id, `cutout-${c.rt.id}`, c.blob);
       if (video) {
         await store.saveBlob(rec.id, 'video', video);
         rec.hasVideo = true;
@@ -122,7 +127,14 @@ export default function NewDay({ nb }: { nb?: string }) {
   if ((phase === 'preview' || phase === 'save') && built) {
     return (
       <div className="day">
-        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay voiceUrl={voiceUrl} develop live={live} onLive={setLive} />
+        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay
+          voiceUrl={voiceUrl}
+          develop
+          live={live}
+          onLive={setLive}
+          cutouts={cutRts}
+          onCutouts={(list) => setCuts((cs) => list.map((rt) => cs.find((c) => c.rt.id === rt.id)!).filter(Boolean))}
+        />
         <div className="panel">
           <div className="sec">
             <b>●</b> Папка дня — название придумала система, можно поправить
@@ -199,6 +211,23 @@ export default function NewDay({ nb }: { nb?: string }) {
           <b>02</b> // Фото
         </div>
         <Photos files={photos} onChange={setPhotos} disabled={phase === 'build'} />
+        <div className="sec" style={{ marginTop: 6 }}>
+          <b>02+</b> // Вклейки — свои моменты поверх страницы
+        </div>
+        <div className="field">
+          <CutoutPicker count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
+          {!!cuts.length && (
+            <div className="cut-list">
+              {cuts.map((c) => (
+                <div key={c.rt.id} className="cut-item">
+                  <img src={(c.rt.img as HTMLCanvasElement).toDataURL()} alt="" />
+                  {phase !== 'build' && <button onClick={() => setCuts((cs) => cs.filter((x) => x !== c))}>×</button>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="hint">Билет, рисунок, кот, друг, записка — главное вырежется в наклейку. Её можно разложить на странице после проявки.</div>
+        </div>
       </div>
       <div>
         <div className="sec">

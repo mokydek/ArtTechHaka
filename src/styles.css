@@ -2678,3 +2678,50 @@ a.tab {
   top: 16px;
   animation: none;
 }
+
+.arrange-bar {
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: var(--paper-2);
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+}
+.cut-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.cut-item {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  background: repeating-conic-gradient(#e9e2d6 0 25%, #f5f0e8 0 50%) 0 0 / 14px 14px;
+  border-radius: 6px;
+}
+.cut-item img {
+  max-width: 78px;
+  max-height: 78px;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.3));
+}
+.cut-item button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ink);
+  color: var(--paper-2);
+  font-size: 13px;
+  line-height: 1;
+}
+.cut-item.busy {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-2);
+}

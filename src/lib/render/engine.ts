@@ -45,6 +45,15 @@ export interface LiveLayer {
   area: number;
 }
 
+export interface CutoutRt {
+  id: string;
+  img: CanvasImageSource & { width: number; height: number };
+  x: number;
+  y: number;
+  s: number;
+  rot: number;
+}
+
 export interface RenderInput {
   spec: DesignSpec;
   photos: ImageBitmap[];
@@ -311,7 +320,65 @@ export class MemoryRenderer {
 
     this.drawChrome(tm, still);
     g.restore();
+    this.drawCutouts(tm, still);
     this.drawFx();
+  }
+
+  // ——— Вклейки: свои картинки поверх страницы, живут в такт ———
+  cutouts: CutoutRt[] = [];
+  editing: string | null = null; // выбранная вклейка в режиме раскладки
+  setCutouts(list: CutoutRt[]) {
+    this.cutouts = list;
+  }
+  /** какая вклейка под точкой (сверху — последняя) */
+  hitCutout(px: number, py: number): string | null {
+    for (let i = this.cutouts.length - 1; i >= 0; i--) {
+      const c = this.cutouts[i];
+      const h = (c.s * c.img.height) / c.img.width;
+      const dx = px - c.x,
+        dy = py - c.y;
+      const ca = Math.cos(-c.rot),
+        sa = Math.sin(-c.rot);
+      const lx = dx * ca - dy * sa,
+        ly = dx * sa + dy * ca;
+      if (Math.abs(lx) <= c.s / 2 + 10 && Math.abs(ly) <= h / 2 + 10) return c.id;
+    }
+    return null;
+  }
+  private drawCutouts(tm: Timing, still: boolean) {
+    if (!this.cutouts.length) return;
+    const g = this.g;
+    this.cutouts.forEach((c, i) => {
+      const h = (c.s * c.img.height) / c.img.width;
+      const edit = this.editing != null;
+      const a = still || edit ? 1 : clamp((tm.t - this.introDur * 0.8 - i * 0.35) / 0.55);
+      if (a <= 0) return;
+      const pop = edit ? 1 : easeOutBack(a);
+      const bob = still || edit ? 0 : Math.sin(tm.t * 1.5 + i * 1.7) * 5;
+      const wob = still || edit ? 0 : Math.sin(tm.t * 1.1 + i) * 0.025 + ((tm.beatIdx + i) % 2 ? 0 : tm.pulse * 0.012);
+      // «бумажный» поворот в глубину: чуть сжимается по ширине
+      const flex = still || edit ? 1 : 1 - 0.05 * Math.abs(Math.sin(tm.t * 0.8 + i * 2.1));
+      const sc = pop * (1 + (still || edit ? 0 : tm.pulse * 0.02));
+      g.save();
+      g.translate(c.x, c.y + bob);
+      g.rotate(c.rot + wob);
+      g.scale(sc * flex, sc);
+      g.shadowColor = 'rgba(30,20,10,0.38)';
+      g.shadowBlur = 22;
+      g.shadowOffsetX = 6;
+      g.shadowOffsetY = 12 + bob * 0.4;
+      g.globalAlpha = Math.min(1, a * 2);
+      g.drawImage(c.img, -c.s / 2, -h / 2, c.s, h);
+      g.shadowColor = 'transparent';
+      if (this.editing === c.id) {
+        g.strokeStyle = this.spec.palette.accent;
+        g.lineWidth = 3;
+        g.setLineDash([12, 8]);
+        g.strokeRect(-c.s / 2 - 10, -h / 2 - 10, c.s + 20, h + 20);
+        g.setLineDash([]);
+      }
+      g.restore();
+    });
   }
 
   // ——— Оживлённое фото: фон, погода, объект — три слоя с параллаксом ———

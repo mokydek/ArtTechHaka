@@ -63,6 +63,7 @@ export class LocalStore implements DiaryStore {
       excerpt: rec.hasExcerpt ? await blobUrl(`${rec.id}/excerpt`) : undefined,
       video: rec.hasVideo ? await blobUrl(`${rec.id}/video`) : undefined,
       voice: rec.hasVoice ? await blobUrl(`${rec.id}/voice`) : undefined,
+      cutouts: Object.fromEntries((await Promise.all((rec.cutouts ?? []).map(async (c) => [c.id, await blobUrl(`${rec.id}/cutout-${c.id}`)] as const))).filter(([, u]) => !!u)) as Record<string, string>,
     };
   }
 

@@ -197,6 +197,7 @@ export interface DayRecord {
   unsealedAt?: string;
   hasVoice?: boolean; // свой голос
   live3d?: boolean; // фото оживлено в 3D
+  cutouts?: CutoutRef[]; // свои вклейки поверх страницы
   voiceName?: string;
   place?: PlaceInfo; // место и погода
   hasVideo?: boolean;
@@ -213,6 +214,7 @@ export interface DayMedia {
   excerpt?: string; // фрагмент песни из файла
   video?: string;
   voice?: string; // свой голос
+  cutouts?: Record<string, string>; // id вклейки → URL
 }
 
 export type CoverStyle = 'kraft' | 'marble' | 'guava' | 'birds' | 'linen' | 'night' | 'olive' | 'ransom' | 'collage';
@@ -261,4 +263,14 @@ export interface Capsule {
   openedAt?: string;
   hasVoice?: boolean;
   voiceName?: string;
+}
+
+/** Вклейка: своя картинка поверх страницы (координаты — в пикселях страницы 1080×1350) */
+export interface CutoutRef {
+  id: string;
+  kind: 'cut' | 'whole';
+  x: number;
+  y: number;
+  s: number; // ширина на странице
+  rot: number;
 }
