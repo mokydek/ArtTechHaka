@@ -157,23 +157,35 @@ export async function searchTracks(query: string): Promise<Ranked[]> {
 
 /** Песни под настроение дня: проверенные запросы к каталогу по мотивам атмосферы */
 const MOOD_SONGS: Record<string, string[]> = {
-  sunset: ['The Neighbourhood Sweater Weather', 'Lana Del Rey Summertime Sadness', 'Кино Звезда по имени Солнце', 'Tame Impala The Less I Know the Better'],
-  sea: ['ABBA Dancing Queen', 'Billie Eilish Ocean Eyes', 'Coldplay Yellow', 'Frank Ocean Ivy'],
-  love: ['Frank Sinatra Fly Me to the Moon', 'Arctic Monkeys I Wanna Be Yours', 'Billie Eilish Birds of a Feather', 'Ed Sheeran Perfect'],
-  snow: ['Frank Sinatra Let It Snow', 'Ryuichi Sakamoto Merry Christmas Mr. Lawrence', 'Coldplay Christmas Lights', 'Massive Attack Teardrop'],
-  rain: ['Radiohead No Surprises', 'Massive Attack Teardrop', 'Земфира Хочешь', 'Ryuichi Sakamoto Merry Christmas Mr. Lawrence'],
-  night: ['The Weeknd Blinding Lights', 'Arctic Monkeys 505', 'Massive Attack Teardrop', 'Кино Группа крови'],
-  city: ['Daft Punk Around the World', 'Max Korzh Жить в кайф', 'The Weeknd Blinding Lights', 'Frank Sinatra New York New York'],
-  nature: ['Кино Звезда по имени Солнце', 'Bon Iver Holocene', 'Of Monsters and Men Little Talks', 'Coldplay Viva la Vida'],
-  autumn: ['Nat King Cole Autumn Leaves', 'ДДТ Что такое осень', 'Lana Del Rey Video Games', 'Frank Sinatra Fly Me to the Moon'],
-  summer: ['Harry Styles Watermelon Sugar', 'Max Korzh Горы по колено', 'Daft Punk Get Lucky', 'Кино Звезда по имени Солнце'],
-  party: ['ABBA Dancing Queen', 'Daft Punk Get Lucky', 'Ирина Кайратовна Айдахар', 'Mark Ronson Uptown Funk'],
-  cozy: ['Norah Jones Don\'t Know Why', 'Frank Sinatra Fly Me to the Moon', 'Ryuichi Sakamoto Merry Christmas Mr. Lawrence', 'Кино Кукушка'],
-  calm: ['Ryuichi Sakamoto Merry Christmas Mr. Lawrence', 'Norah Jones Don\'t Know Why', 'Bon Iver Holocene', 'Radiohead No Surprises'],
-  bright: ['Daft Punk Get Lucky', 'Harry Styles Watermelon Sugar', 'ABBA Dancing Queen', 'Max Korzh Горы по колено'],
+  sunset: ['The Neighbourhood — Sweater Weather', 'Lana Del Rey — Summertime Sadness', 'Kino — Звезда по имени Солнце', 'Tame Impala — The Less I Know the Better'],
+  sea: ['ABBA — Dancing Queen', 'Billie Eilish — Ocean Eyes', 'Coldplay — Yellow', 'Frank Ocean — Ivy'],
+  love: ['Frank Sinatra — Fly Me to the Moon', 'Arctic Monkeys — I Wanna Be Yours', 'Billie Eilish — Birds of a Feather', 'Ed Sheeran — Perfect'],
+  snow: ['Frank Sinatra — Let It Snow', 'Ryuichi Sakamoto — Merry Christmas Mr. Lawrence', 'Coldplay — Christmas Lights', 'Massive Attack — Teardrop'],
+  rain: ['Radiohead — No Surprises', 'Massive Attack — Teardrop', 'Zemfira — Хочешь', 'Ryuichi Sakamoto — Merry Christmas Mr. Lawrence'],
+  night: ['The Weeknd — Blinding Lights', 'Arctic Monkeys — 505', 'Massive Attack — Teardrop', 'Kino — Группа крови'],
+  city: ['Daft Punk — Around the World', 'Max Korzh — Жить в кайф', 'The Weeknd — Blinding Lights', 'Frank Sinatra — New York New York'],
+  nature: ['Kino — Звезда по имени Солнце', 'Bon Iver — Holocene', 'Of Monsters and Men — Little Talks', 'Coldplay — Viva la Vida'],
+  autumn: ['Nat King Cole — Autumn Leaves', 'DDT — Что такое осень', 'Lana Del Rey — Video Games', 'Frank Sinatra — Fly Me to the Moon'],
+  summer: ['Harry Styles — Watermelon Sugar', 'Max Korzh — Горы по колено', 'Daft Punk — Get Lucky', 'Kino — Звезда по имени Солнце'],
+  party: ['ABBA — Dancing Queen', 'Daft Punk — Get Lucky', 'Ирина Кайратовна — Айдахар', 'Mark Ronson — Uptown Funk'],
+  cozy: ['Norah Jones — Don\'t Know Why', 'Frank Sinatra — Fly Me to the Moon', 'Ryuichi Sakamoto — Merry Christmas Mr. Lawrence', 'Kino — Кукушка'],
+  calm: ['Ryuichi Sakamoto — Merry Christmas Mr. Lawrence', 'Norah Jones — Don\'t Know Why', 'Bon Iver — Holocene', 'Radiohead — No Surprises'],
+  bright: ['Daft Punk — Get Lucky', 'Harry Styles — Watermelon Sugar', 'ABBA — Dancing Queen', 'Max Korzh — Горы по колено'],
 };
 const recCache = new Map<string, Promise<Ranked | null>>();
-/** До 6 песен под мотивы/настроение; каждая — лучшее совпадение в каталоге */
+const VERSION = /remix|mix\b|live|version|edit|acoustic|instrumental|karaoke|sped|slowed|session|demo|remaster/i;
+/** Лучший оригинал песни: исполнитель совпадает, в названии нет «remix/live/version» */
+async function original(q: string): Promise<Ranked | null> {
+  const [artist, title] = q.split(' — ');
+  const list = await searchTracks(`${artist} ${title}`);
+  const aw = words(artist);
+  const ok = list.filter((t) => {
+    const cw = words(t.artist);
+    return aw.every((w) => cw.some((x) => near(w, x))) && matchScore(title, { artist: '', title: t.title }) >= 0.75;
+  });
+  return ok.find((t) => !VERSION.test(t.title)) ?? ok[0] ?? null;
+}
+/** До 6 песен под мотивы/настроение — проверенные оригиналы из каталога */
 export async function recommendSongs(motifs: string[], mood: { valence: number; arousal: number }): Promise<Ranked[]> {
   const qs: string[] = [];
   for (const m of motifs) for (const q of MOOD_SONGS[m] ?? []) if (!qs.includes(q)) qs.push(q);
@@ -181,7 +193,7 @@ export async function recommendSongs(motifs: string[], mood: { valence: number; 
   const pick = qs.slice(0, 6);
   const found = await Promise.all(
     pick.map((q) => {
-      if (!recCache.has(q)) recCache.set(q, searchTracks(q).then((l) => (l[0] && l[0].match >= 0.7 ? l[0] : null)).catch(() => null));
+      if (!recCache.has(q)) recCache.set(q, original(q).catch(() => null));
       return recCache.get(q)!;
     }),
   );
