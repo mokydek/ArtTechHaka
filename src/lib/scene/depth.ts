@@ -73,6 +73,40 @@ function blur(a: Float32Array, w: number, h: number, r: number) {
   return o;
 }
 
+/** Линия горизонта как самый сильный ровный перепад яркости по всей ширине кадра (море, поле) */
+function horizonLine(lum: Float32Array, gw: number, gh: number): number | null {
+  const score: number[] = [];
+  for (let y = 0; y < gh; y++) {
+    if (y < 2 || y > gh - 3 || y < gh * 0.2 || y > gh * 0.75) {
+      score.push(0);
+      continue;
+    }
+    let sum = 0,
+      on = 0;
+    for (let x = 0; x < gw; x++) {
+      const d = Math.abs(lum[(y + 1) * gw + x] - lum[(y - 1) * gw + x]);
+      sum += d;
+      if (d > 0.04) on++;
+    }
+    score.push((sum / gw) * (on / gw));
+  }
+  let best = 0,
+    by = -1;
+  score.forEach((v, y) => {
+    if (v > best) {
+      best = v;
+      by = y;
+    }
+  });
+  const sorted = score.filter((v) => v > 0).sort((a, b) => a - b);
+  const med = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  if (by < 0 || best < 0.006 || best < med * 4) return null;
+  // линия должна быть ровной: перепад есть почти во всех столбцах
+  let on = 0;
+  for (let x = 0; x < gw; x++) if (Math.max(...[-1, 0, 1].map((k) => Math.abs(lum[(by + 1 + k) * gw + x] - lum[(by - 1 + k) * gw + x]))) > 0.03) on++;
+  return on / gw > 0.7 ? (by + 0.5) / gh : null;
+}
+
 /** Небо: светлое/голубое/серое, гладкое, связанное с верхним краем кадра */
 export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): { sky: Uint8Array; horizon: number } {
   const c = document.createElement('canvas');
@@ -147,6 +181,9 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
   bottoms.sort((a, b) => a - b);
   let horizon = bottoms.length > gw * 0.3 ? (bottoms[Math.floor(bottoms.length * 0.85)] + 1) / gh : 0.45;
   horizon = Math.min(0.62, Math.max(0.28, horizon));
+  // ровная линия через весь кадр (море, степь) — сильнее любой догадки по небу
+  const line = horizonLine(lum, gw, gh);
+  if (line && (bottoms.length < gw * 0.5 || line > horizon)) horizon = Math.min(0.68, line);
   const limit = Math.min(gh * 0.72, (horizon + 0.02) * gh);
   // дорастить небо по цвету: глубина нейросети снаружи ненадёжна (обучена на комнатах)
   let seed = 0;
@@ -395,14 +432,28 @@ export function findSun(src: Src, sky: Uint8Array, gw: number, gh: number, horiz
     y0 = Math.min(y0, y);
     y1 = Math.max(y1, y);
   }
-  // засвеченное небо или белая стена — это не солнце
-  if (n / (w * h) > 0.025 || (x1 - x0) / w > 0.22 || (y1 - y0) / h > 0.22) return null;
-  const u = (sx / n + 0.5) / w,
-    v = (sy / n + 0.5) / h;
-  if (v > horizon + 0.06) return null;
-  // рядом (над ним или на нём) должно быть небо
+  // засвеченное небо или белая стена — это не солнце (дорожка бликов на воде под солнцем — можно)
+  if (n / (w * h) > 0.025 || (x1 - x0) / w > 0.22) return null;
+  // само солнце — верх пятна (ниже может тянуться отражение)
+  let tx = 0,
+    ty = 0,
+    tn = 0;
+  for (let i = 0; i < w * h; i++) {
+    if (lum[i] < t) continue;
+    const y = (i / w) | 0;
+    if (y > y0 + h * 0.04) continue;
+    tx += i % w;
+    ty += y;
+    tn++;
+  }
+  const u = (tx / tn + 0.5) / w,
+    v = (ty / tn + 0.5) / h;
+  void sx;
+  void sy;
+  if (v > horizon + 0.04) return null;
+  // рядом должно быть небо — или солнце прямо у линии горизонта
   const gx = Math.min(gw - 1, Math.floor(u * gw));
-  let near = false;
+  let near = Math.abs(v - horizon) < 0.06;
   for (let y = Math.max(0, Math.floor(v * gh) - 4); y <= Math.min(gh - 1, Math.floor(v * gh)); y++) if (sky[y * gw + gx]) near = true;
   return near ? { u, v } : null;
 }
