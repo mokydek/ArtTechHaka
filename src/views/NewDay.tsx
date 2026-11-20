@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDiary } from '../App';
-import { buildDay, renderCover, retitle, type BuiltDay, type MusicInput, type Step } from '../lib/pipeline';
-import { lookupTrack, resolveLink, searchTracks, type TrackCandidate } from '../lib/analysis/music';
+import { TAIL, buildDay, fragment, renderCover, retitle, type BuiltDay, type MusicInput, type Step } from '../lib/pipeline';
+import { lookupTrack, recommendSongs, resolveLink, searchTracks, type Ranked, type TrackCandidate } from '../lib/analysis/music';
+import { bestExcerpt } from '../lib/analysis/audio';
 import Stage from '../components/Stage';
 import Why from '../components/Why';
 import { PROMPTS, PROMPT_STARTERS, dayPrompt } from '../lib/prompts';
@@ -44,6 +45,7 @@ export default function NewDay({ nb }: { nb?: string }) {
   const [text, setText] = useState('');
   // пока человек пишет — сайт подстраивается под то, что он вспоминает
   const [heard, setHeard] = useState<Motif[]>([]);
+  const [mood, setMood] = useState({ valence: 0, arousal: 0 });
   useEffect(() => {
     const id = setTimeout(() => {
       if (text.trim().length < 8) {
@@ -51,8 +53,10 @@ export default function NewDay({ nb }: { nb?: string }) {
         setHeard([]);
         return;
       }
-      const m = dayMotifs(analyzeText(text, date), text);
+      const tf = analyzeText(text, date);
+      const m = dayMotifs(tf, text);
       setDraft(m);
+      setMood({ valence: tf.valence, arousal: tf.arousal });
       setHeard((Object.keys(m) as Motif[]).filter((k) => (m[k] ?? 0) >= 0.5).sort((a, b) => (m[b] ?? 0) - (m[a] ?? 0)));
     }, 350);
     return () => clearTimeout(id);
@@ -301,7 +305,7 @@ export default function NewDay({ nb }: { nb?: string }) {
         <div className="sec">
           <b>03</b> // Песня дня
         </div>
-        <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} />
+        <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
         <div style={{ marginTop: 34 }}>
           {phase === 'build' ? (
             <div className="steps">
@@ -394,15 +398,28 @@ function Photos({ files, onChange, disabled }: { files: File[]; onChange: (f: Fi
   );
 }
 
-function SongPicker({ value, onChange, disabled }: { value: MusicInput | null; onChange: (m: MusicInput | null) => void; disabled?: boolean }) {
+function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicInput | null; onChange: (m: MusicInput | null) => void; disabled?: boolean; motifs: Motif[]; mood: { valence: number; arousal: number } }) {
   const [tab, setTab] = useState<'search' | 'file'>('search');
   const [q, setQ] = useState('');
-  const [res, setRes] = useState<TrackCandidate[]>([]);
+  const [res, setRes] = useState<Ranked[]>([]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [link, setLink] = useState<string | undefined>();
+  const [recs, setRecs] = useState<Ranked[]>([]);
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
+
+  // песни под этот день — по тому, что человек уже написал
+  const recKey = motifs.slice(0, 2).join() + (mood.arousal > 0.15 || mood.valence > 0.4 ? '+' : '-');
+  useEffect(() => {
+    let dead = false;
+    const id = setTimeout(() => recommendSongs(motifs.slice(0, 2), mood).then((r) => !dead && setRecs(r)), 300);
+    return () => {
+      dead = true;
+      clearTimeout(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recKey]);
 
   const find = async () => {
     const s = q.trim();
@@ -411,23 +428,28 @@ function SongPicker({ value, onChange, disabled }: { value: MusicInput | null; o
     setNote('');
     setRes([]);
     try {
+      let list: Ranked[] = [];
+      let asked = s;
       if (/^https?:\/\//i.test(s)) {
         setLink(s);
         const r = await resolveLink(s);
         if (r?.appleId) {
           const t = await lookupTrack(r.appleId);
-          setRes(t ? [t] : []);
+          list = t ? [{ ...t, match: 1 }] : [];
+          asked = '';
         } else if (r?.query) {
           setNote(`По ссылке: «${r.serviceTitle ?? r.query}». Ищу в каталоге…`);
-          const list = await searchTracks(r.query);
-          setRes(list);
-          if (!list.length) setNote('Песню по ссылке не нашли в каталоге — впишите «исполнитель — название».');
-        } else setNote('Этот сервис не отдаёт название по ссылке. Впишите «исполнитель — название», а ссылку мы сохраним в папке дня.');
-      } else {
-        const list = await searchTracks(s);
-        setRes(list);
-        if (!list.length) setNote('Ничего не нашли. Попробуйте иначе или загрузите свой файл.');
-      }
+          asked = r.query;
+          list = await searchTracks(r.query);
+        } else {
+          setNote('Этот сервис не отдаёт название по ссылке. Впишите «исполнитель — название», а ссылку мы сохраним в папке дня.');
+          return;
+        }
+      } else list = await searchTracks(s);
+      setRes(list);
+      if (!list.length) setNote('В каталоге такой песни нет. Загрузите свой файл — система сама найдёт припев, а отрывок можно подвинуть.');
+      else if (asked && list[0].match < 0.75) setNote('Точного совпадения в каталоге нет — ниже похожие. Если вашей песни среди них нет, загрузите свой файл.');
+      else setNote('');
     } finally {
       setBusy(false);
     }
@@ -443,13 +465,33 @@ function SongPicker({ value, onChange, disabled }: { value: MusicInput | null; o
     }
     a.src = t.previewUrl!;
     a.volume = 0.7;
-    a.play();
+    a.play().catch(() => setNote('Браузер не дал включить звук — нажмите ▶ ещё раз.'));
     a.onended = () => setPlaying(null);
     setPlaying(t.trackId);
   };
   useEffect(() => () => audio.current?.pause(), []);
 
   const sel = value?.kind === 'track' ? value.track.trackId : null;
+  const row = (t: Ranked) => (
+    <div key={t.trackId} className={'track' + (sel === t.trackId ? ' on' : '')} role="button" onClick={() => !disabled && onChange({ kind: 'track', track: t, link })} style={{ cursor: 'pointer' }}>
+      {t.artwork ? <img src={t.artwork} alt="" /> : <span />}
+      <div>
+        <b>{t.title}</b>
+        <small>
+          {t.artist} · {t.year ?? '—'} · {t.genre ?? ''}
+        </small>
+      </div>
+      <button
+        className="btn ghost small"
+        onClick={(e) => {
+          e.stopPropagation();
+          preview(t);
+        }}
+      >
+        {playing === t.trackId ? '❚❚' : '▶ 30 с'}
+      </button>
+    </div>
+  );
   return (
     <div className="field">
       <div className="seg">
@@ -469,45 +511,26 @@ function SongPicker({ value, onChange, disabled }: { value: MusicInput | null; o
               disabled={disabled}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && find()}
-              placeholder="Frank Sinatra Fly Me to the Moon — или ссылка Spotify / YouTube / Apple Music"
+              placeholder="Исполнитель и название — или ссылка Spotify / YouTube / Apple Music"
             />
             <button className="btn" onClick={find} disabled={busy || disabled}>
               {busy ? '…' : 'Найти'}
             </button>
           </div>
           {note && <div className="hint">{note}</div>}
-          <div className="results">
-            {res.map((t) => (
-              <div key={t.trackId} className={'track' + (sel === t.trackId ? ' on' : '')} role="button" onClick={() => !disabled && onChange({ kind: 'track', track: t, link })} style={{ cursor: 'pointer' }}>
-                {t.artwork ? <img src={t.artwork} alt="" /> : <span />}
-                <div>
-                  <b>{t.title}</b>
-                  <small>
-                    {t.artist} · {t.year ?? '—'} · {t.genre ?? ''}
-                  </small>
-                </div>
-                <button
-                  className="btn ghost small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    preview(t);
-                  }}
-                >
-                  {playing === t.trackId ? '❚❚' : '▶ 30 с'}
-                </button>
+          <div className="results">{res.map(row)}</div>
+          {!res.length && recs.length > 0 && (
+            <div className="recs">
+              <div className="sec" style={{ marginTop: 14 }}>
+                Подойдёт к этому дню
               </div>
-            ))}
-          </div>
+              <div className="results">{recs.map(row)}</div>
+            </div>
+          )}
           <div className="hint">Звучит официальный 30-секундный фрагмент из каталога Apple Music — песня целиком нигде не хранится. Его же система слушает: темп, тональность, энергию.</div>
         </>
       ) : (
-        <>
-          <label className="drop" style={{ display: 'block' }}>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 21 }}>{value?.kind === 'file' ? value.file.name : 'Выберите mp3 / m4a / wav'}</div>
-            <div className="hint">Система найдёт самые плотные 30 секунд (обычно припев) и сохранит в папке только их.</div>
-            <input type="file" accept="audio/*" hidden disabled={disabled} onChange={(e) => e.target.files?.[0] && onChange({ kind: 'file', file: e.target.files[0] })} />
-          </label>
-        </>
+        <FilePick value={value} onChange={onChange} disabled={disabled} />
       )}
       {value && (
         <div className="mono" style={{ marginTop: 12 }}>
@@ -515,6 +538,120 @@ function SongPicker({ value, onChange, disabled }: { value: MusicInput | null; o
         </div>
       )}
     </div>
+  );
+}
+
+/** Свой файл: волна песни и окно в 30 секунд, которое можно подвинуть и послушать */
+function FilePick({ value, onChange, disabled }: { value: MusicInput | null; onChange: (m: MusicInput | null) => void; disabled?: boolean }) {
+  const file = value?.kind === 'file' ? value.file : null;
+  const start = value?.kind === 'file' ? (value.start ?? 0) : 0;
+  const [buf, setBuf] = useState<AudioBuffer | null>(null);
+  const [err, setErr] = useState('');
+  const [play, setPlay] = useState(false);
+  const cv = useRef<HTMLCanvasElement>(null);
+  const ac = useRef<AudioContext | null>(null);
+  const src = useRef<AudioBufferSourceNode | null>(null);
+  const drag = useRef<{ x: number; s: number } | null>(null);
+  const stop = () => {
+    src.current?.stop();
+    src.current = null;
+    setPlay(false);
+  };
+  useEffect(() => () => stop(), []);
+  const pick = async (f: File) => {
+    stop();
+    setErr('');
+    setBuf(null);
+    try {
+      ac.current ??= new AudioContext();
+      const b = await ac.current.decodeAudioData(await f.arrayBuffer());
+      setBuf(b);
+      const usable = b.duration > TAIL + 8 ? b.duration - TAIL : b.duration;
+      const { start: s0 } = await bestExcerpt(b, Math.min(30, usable));
+      onChange({ kind: 'file', file: f, start: fragment(b.duration, s0).start });
+    } catch {
+      setErr('Не получилось прочитать этот файл. Подойдут mp3, m4a, wav.');
+      onChange({ kind: 'file', file: f });
+    }
+  };
+  const win = buf ? fragment(buf.duration, start) : null;
+  // волна + окно
+  useEffect(() => {
+    const c = cv.current;
+    if (!c || !buf || !win) return;
+    const W = (c.width = c.clientWidth * devicePixelRatio),
+      H = (c.height = 64 * devicePixelRatio);
+    const g = c.getContext('2d')!;
+    g.clearRect(0, 0, W, H);
+    const ch = buf.getChannelData(0);
+    const step = Math.max(1, Math.floor(ch.length / W));
+    const x0 = (win.start / buf.duration) * W,
+      x1 = ((win.start + win.dur) / buf.duration) * W;
+    for (let x = 0; x < W; x++) {
+      let m = 0;
+      for (let i = x * step; i < (x + 1) * step && i < ch.length; i += 8) m = Math.max(m, Math.abs(ch[i]));
+      const h = Math.max(1, m * H * 0.9);
+      g.fillStyle = x >= x0 && x <= x1 ? getComputedStyle(c).getPropertyValue('--accent') || '#b5482a' : 'rgba(29,27,31,0.25)';
+      g.fillRect(x, (H - h) / 2, 1, h);
+    }
+    g.strokeStyle = 'rgba(29,27,31,0.7)';
+    g.lineWidth = 2 * devicePixelRatio;
+    g.strokeRect(x0, 1, x1 - x0, H - 2);
+  }, [buf, win?.start, win?.dur]);
+  const listen = () => {
+    if (play) return stop();
+    if (!buf || !win || !ac.current) return;
+    ac.current.resume();
+    const s = ac.current.createBufferSource();
+    s.buffer = buf;
+    s.connect(ac.current.destination);
+    s.start(0, win.start, win.dur);
+    s.onended = () => setPlay(false);
+    src.current = s;
+    setPlay(true);
+  };
+  const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  return (
+    <>
+      <label className="drop" style={{ display: 'block' }}>
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 21 }}>{file ? file.name : 'Выберите mp3 / m4a / wav'}</div>
+        <div className="hint">Система найдёт самые плотные 30 секунд (обычно припев). Заставку в конце (TikTok, Reels) не берёт.</div>
+        <input type="file" accept="audio/*,video/mp4" hidden disabled={disabled} onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])} />
+      </label>
+      {err && <div className="hint">{err}</div>}
+      {buf && win && file && (
+        <div className="frag">
+          <canvas
+            ref={cv}
+            className="frag-wave"
+            onPointerDown={(e) => {
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              drag.current = { x: e.clientX, s: win.start };
+            }}
+            onPointerMove={(e) => {
+              if (!drag.current) return;
+              const r = (e.target as HTMLElement).getBoundingClientRect();
+              const ds = ((e.clientX - drag.current.x) / r.width) * buf.duration;
+              onChange({ kind: 'file', file, start: fragment(buf.duration, drag.current.s + ds).start });
+            }}
+            onPointerUp={() => {
+              drag.current = null;
+              if (play) {
+                stop();
+              }
+            }}
+          />
+          <div className="frag-row">
+            <button className="btn ghost small" onClick={listen} type="button">
+              {play ? '❚❚' : '▶ отрывок'}
+            </button>
+            <span className="mono muted">
+              {fmt(win.start)} – {fmt(win.start + win.dur)} из {fmt(buf.duration)} · тяните окно, чтобы выбрать
+            </span>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

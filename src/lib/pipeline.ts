@@ -8,6 +8,22 @@ import { analyzeText, folderName, makeTitle } from './analysis/text';
 import { analyzePhoto, loadImage, summarizePhotos } from './analysis/photo';
 import { analyzeAudio, bestExcerpt, excerptToWav, keyName } from './analysis/audio';
 import { decodeUrl, lookupTrack, musicFeatures, searchTracks, type TrackCandidate } from './analysis/music';
+
+const words = (s: string) => s.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1);
+/** Последние секунды файла не берём: там часто заставка (TikTok, Reels) или обрыв */
+export const TAIL = 4;
+/** Отрывок 30 с, выбранный человеком, — в пределах файла и без хвоста */
+export function fragment(duration: number, start: number) {
+  const usable = Math.max(1, duration > TAIL + 8 ? duration - TAIL : duration);
+  const dur = Math.min(30, usable);
+  return { start: Math.max(0, Math.min(start, usable - dur)), dur };
+}
+/** Самые плотные 30 секунд (обычно припев), но не заставка в конце */
+async function safeExcerpt(full: AudioBuffer) {
+  const usable = full.duration > TAIL + 8 ? full.duration - TAIL : full.duration;
+  const { start } = await bestExcerpt(full, Math.min(30, usable));
+  return fragment(full.duration, start);
+}
 import { designDay, MODES, PARTICLE_NAMES } from './design/system';
 import { MemoryRenderer, type CutoutRt } from './render/engine';
 import { newId } from './store';
@@ -15,7 +31,7 @@ import { voiceLabel } from './voice';
 
 export type MusicInput =
   | { kind: 'track'; track: TrackCandidate; link?: string }
-  | { kind: 'file'; file: File }
+  | { kind: 'file'; file: File; start?: number } // start — выбранный человеком отрывок (сек)
   | { kind: 'manual'; artist: string; title: string; genre?: string; year?: number; link?: string };
 
 export interface DayInput {
@@ -107,12 +123,12 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
     const [artist, title] = name.includes(' - ') ? name.split(' - ', 2) : ['', name];
     meta = { source: 'file', title: title.trim(), artist: artist.trim(), fileName: mi.file.name };
     const full = await decodeCtx().decodeAudioData(await mi.file.arrayBuffer());
-    const { start, dur } = await bestExcerpt(full, 30);
+    const { start, dur } = mi.start != null ? fragment(full.duration, mi.start) : await safeExcerpt(full);
     excerpt = await excerptToWav(full, start, dur);
     audio = await decodeCtx().decodeAudioData(await excerpt.arrayBuffer());
-    // жанр и год — из каталога, если найдётся
-    const found2 = await searchTracks(name).catch(() => []);
-    if (found2[0]) {
+    // жанр и год — из каталога, только если название файла точно совпало с песней (а не «video_1234»)
+    const found2 = words(name).length >= 2 ? await searchTracks(name).catch(() => []) : [];
+    if (found2[0] && found2[0].match >= 0.85) {
       meta.genre = found2[0].genre;
       meta.year = found2[0].year;
       if (!meta.artist) meta.artist = found2[0].artist;
