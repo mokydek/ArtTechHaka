@@ -23,7 +23,7 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-  if (url.pathname.startsWith('/assets/') || /\.(png|svg|woff2?)$/.test(url.pathname)) {
+  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/ml/') || /\.(png|svg|woff2?)$/.test(url.pathname)) {
     e.respondWith(
       caches.match(req).then(
         (hit) =>

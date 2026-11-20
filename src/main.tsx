@@ -18,7 +18,7 @@ import { analyzeAudio, bestExcerpt, excerptToWav } from './lib/analysis/audio';
 import { analyzeText, makeTitle } from './lib/analysis/text';
 
 // отладочный доступ к анализаторам (для проверки на реальных песнях)
-(window as unknown as Record<string, unknown>).__ottisk = { analyzeAudio, bestExcerpt, excerptToWav, analyzeText, makeTitle };
+(window as unknown as Record<string, unknown>).__ottisk = { analyzeAudio, bestExcerpt, excerptToWav, analyzeText, makeTitle, live: () => import('./lib/live/segment') };
 
 // шрифты нужны холсту заранее
 const preload = [
