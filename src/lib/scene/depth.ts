@@ -350,11 +350,16 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
   skyImg.height = H;
   const skg = skyImg.getContext('2d')!;
   skg.drawImage(bg, 0, 0);
+  // маска неба шире, чем вырез фона: под полупрозрачной кромкой фона всегда лежит сам снимок, без просветов
+  const wide = document.createElement('canvas');
+  wide.width = W;
+  wide.height = H;
+  const wg = wide.getContext('2d')!;
+  wg.filter = `blur(${Math.max(3, Math.round(W / 140))}px)`;
+  wg.imageSmoothingQuality = 'high';
+  for (let k = 0; k < 5; k++) wg.drawImage(sc, 0, 0, W, H);
   skg.globalCompositeOperation = 'destination-in';
-  skg.filter = blurPx;
-  skg.imageSmoothingQuality = 'high';
-  skg.drawImage(sc, 0, 0, W, H);
-  skg.filter = 'none';
+  skg.drawImage(wide, 0, 0);
   const bgg = bg.getContext('2d')!;
   bgg.globalCompositeOperation = 'destination-out';
   bgg.filter = blurPx;
