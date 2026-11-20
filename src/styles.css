@@ -549,7 +549,9 @@ button {
   position: sticky;
   top: 96px;
 }
-.stage canvas {
+.stage canvas:not(.ambilight) {
+  position: relative;
+  z-index: 1;
   width: min(100%, calc((100vh - 200px) * 0.8));
   height: auto;
   aspect-ratio: 4 / 5;
@@ -3327,4 +3329,30 @@ a.tab {
 }
 .recs .track:nth-child(6) {
   animation-delay: 0.3s;
+}
+
+/* подсветка за кадром — как у телевизора */
+.stage .ambilight {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 50%;
+  width: min(100%, calc((100vh - 200px) * 0.8));
+  aspect-ratio: 4 / 5;
+  transform: translateX(-50%) scale(1.22);
+  filter: blur(46px) saturate(1.7) brightness(1.05);
+  opacity: 0.85;
+  border-radius: 40px;
+  pointer-events: none;
+  box-shadow: none;
+  background: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage .ambilight {
+    opacity: 0.6;
+  }
+}
+
+.page {
+  overflow-x: clip;
 }

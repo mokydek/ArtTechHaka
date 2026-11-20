@@ -168,8 +168,18 @@ export function mix(a: string, b: string, t: number) {
   return rgbHex(x.map((v, i) => v + (y[i] - v) * t));
 }
 /** Акцент должен читаться на бумаге: не светлее середины */
-function readable(c: string) {
+export function readable(c: string) {
   const [r, g, b] = hex(c);
   const l = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
   return l > 0.5 ? mix(c, '#1d1b1f', (l - 0.45) / 0.55) : c;
+}
+
+/** Светлый тон дня для бумаги сайта: из палитры снимков, но всегда читаемый */
+export function lightOf(p: { paper: string; colors: string[]; accent: string }) {
+  const lum = (h: string) => {
+    const [r, g, b] = hex(h);
+    return (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+  };
+  const c = [p.paper, ...[...p.colors].reverse()].find((x) => lum(x) > 0.72);
+  return c ? mix('#f3eee6', c, 0.6) : mix('#f3eee6', p.accent, 0.14);
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDiary } from '../App';
 import type { DayMedia, DayRecord } from '../lib/types';
+import { dayMotifs, lightOf } from '../lib/atmos';
 import { download, folderZip, loadAssets, renderStory } from '../lib/pipeline';
 import { humanDate } from '../lib/render/engine';
 import { keyName } from '../lib/analysis/audio';
@@ -198,8 +199,14 @@ function SharePanel({ rec }: { rec: DayRecord }) {
 }
 
 function DayPage({ id }: { id: string }) {
-  const { store, days: allDays, covers, toast, reload, notebookOf, notebooks } = useDiary();
+  const { store, days: allDays, covers, toast, reload, notebookOf, notebooks, setFocus } = useDiary();
   const rec0 = allDays.find((d) => d.id === id) ?? null;
+  // сайт на время просмотра берёт цвета снимков и мотивы этого дня
+  useEffect(() => {
+    if (!rec0) return;
+    setFocus({ motifs: dayMotifs(rec0.analysis.text, rec0.text, rec0.analysis.photos), paper: lightOf(rec0.design.palette), accent: rec0.design.palette.accent });
+    return () => setFocus(null);
+  }, [rec0, setFocus]);
   const nbId = rec0 ? notebookOf(rec0) : '';
   const nb = notebooks.find((n) => n.id === nbId);
   const days = rec0 ? allDays.filter((d) => notebookOf(d) === nbId) : allDays;

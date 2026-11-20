@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { DayRecord } from '../lib/types';
 import { makeRenderer } from '../lib/pipeline';
@@ -433,6 +434,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
   return (
     <div className="stage">
       <div style={{ position: 'relative' }}>
+        <Ambilight src={ref} />
         <canvas
           ref={ref}
           width={1080}
@@ -547,3 +549,24 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/** Подсветка за кадром, как у телевизора: цвета живой страницы мягко растекаются по фону */
+function Ambilight({ src }: { src: React.RefObject<HTMLCanvasElement | null> }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let raf = 0,
+      last = 0;
+    const tick = (t: number) => {
+      raf = requestAnimationFrame(tick);
+      if (t - last < 90 || document.hidden) return;
+      last = t;
+      const s = src.current,
+        g = ref.current?.getContext('2d');
+      if (!s || !g || !s.width) return;
+      g.drawImage(s, 0, 0, 24, 30);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [src]);
+  return <canvas ref={ref} className="ambilight" width={24} height={30} aria-hidden />;
+}

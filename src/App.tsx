@@ -19,7 +19,7 @@ import FilmView from './views/FilmView';
 import PostcardView from './views/PostcardView';
 import StampAward from './components/StampAward';
 import { AtmosBackdrop, AtmosChip, useAtmosColors } from './components/Atmosphere';
-import { computeAtmos, type Motif } from './lib/atmos';
+import { computeAtmos, mix, readable, type Motif } from './lib/atmos';
 import { earnedStamps, type Earned } from './lib/stamps';
 
 export const DEMO_NOTEBOOK: Notebook = {
@@ -49,6 +49,12 @@ interface Diary {
   saveCapsule: (c: Capsule) => Promise<void>;
   sealed: DayRecord[]; // запечатанные дни (ещё не вскрытые)
   setDraft: (m: Partial<Record<Motif, number>> | null) => void; // черновик записи: фон подстраивается, пока человек пишет
+  setFocus: (f: Focus | null) => void; // открытый день: сайт берёт его цвета и мотивы
+}
+export interface Focus {
+  motifs: Partial<Record<Motif, number>>;
+  paper: string;
+  accent: string;
 }
 const Ctx = createContext<Diary>(null!);
 export const useDiary = () => useContext(Ctx);
@@ -208,14 +214,22 @@ export default function App() {
 
   // атмосфера: свои дни (а пока их нет — дни-примеры) + черновик, который пишут прямо сейчас
   const [draft, setDraft] = useState<Partial<Record<Motif, number>> | null>(null);
+  const [focus, setFocus] = useState<Focus | null>(null);
   const ownDays = useMemo(() => days.filter((d) => !d.demo), [days]);
-  const atmos = useMemo(() => computeAtmos(ownDays.length ? ownDays : days, draft ? { motifs: draft, weight: ownDays.length ? 0.9 : 3 } : null), [ownDays, days, draft]);
+  const atmos = useMemo(() => {
+    const base = ownDays.length ? ownDays : days;
+    if (draft) return computeAtmos(base, { motifs: draft, weight: ownDays.length ? 0.9 : 3 });
+    if (!focus) return computeAtmos(base);
+    // открытый день: его мотивы на фоне и цвета его снимков на всём сайте
+    const a = computeAtmos(base, { motifs: focus.motifs, weight: 4 });
+    return { ...a, paper: mix(a.paper, focus.paper, 0.7), paper2: mix(a.paper2, focus.paper, 0.45), accent: readable(mix(a.accent, focus.accent, 0.75)) };
+  }, [ownDays, days, draft, focus]);
   useAtmosColors(atmos);
   const strength = parts[0] === 'day' || parts[0] === 'new' ? 0.7 : 1;
 
   const on = (p: string) => (p === '/' ? (!parts.length || parts[0] === 'nb' ? 'on' : '') : route.startsWith(p) ? 'on' : '');
   return (
-    <Ctx.Provider value={{ store, days, notebooks, covers, photos, loading, reload, setCover, toast, notebookOf, daysOf, loadPhotos, saveNotebook, defaultNotebook, capsules, saveCapsule, sealed, setDraft }}>
+    <Ctx.Provider value={{ store, days, notebooks, covers, photos, loading, reload, setCover, toast, notebookOf, daysOf, loadPhotos, saveNotebook, defaultNotebook, capsules, saveCapsule, sealed, setDraft, setFocus }}>
       <AtmosBackdrop atmos={atmos} strength={strength} />
       <header className="top">
         <span className="brand-wrap">
