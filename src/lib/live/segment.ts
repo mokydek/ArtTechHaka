@@ -5,21 +5,27 @@ type Ort = typeof import('onnxruntime-web/wasm');
 type Session = import('onnxruntime-web/wasm').InferenceSession;
 
 const S = 320; // вход U²-Netp
-let loading: Promise<{ ort: Ort; session: Session }> | null = null;
+const sessions = new Map<string, Promise<{ ort: Ort; session: Session }>>();
 
-function load() {
-  if (!loading)
-    loading = (async () => {
+/** Сессия onnxruntime для модели с нашего сайта (кэшируется) */
+export function model(url: string) {
+  let p = sessions.get(url);
+  if (!p) {
+    p = (async () => {
       const ort = await import('onnxruntime-web/wasm');
       ort.env.wasm.wasmPaths = '/ml/';
       ort.env.wasm.numThreads = 1; // без изоляции страницы потоки недоступны
       ort.env.logLevel = 'error';
-      const session = await ort.InferenceSession.create('/ml/u2netp.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+      const session = await ort.InferenceSession.create(url, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
       return { ort, session };
     })();
-  loading.catch(() => (loading = null));
-  return loading;
+    p.catch(() => sessions.delete(url));
+    sessions.set(url, p);
+  }
+  return p;
 }
+
+const load = () => model('/ml/u2netp.onnx');
 
 export const warmup = () => load().then(() => true);
 
