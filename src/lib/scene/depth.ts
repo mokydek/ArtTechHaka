@@ -246,7 +246,7 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
     for (let x = 0; x < gw; x++)
       for (let y = 0; y < ly; y++) {
         const i = y * gw + x;
-        if (lum[i] < 0.2) break;
+        if (lum[i] < 0.3) break;
         sky[i] = 1;
       }
   }
