@@ -217,12 +217,33 @@ export class World {
         uv[i * 2] = u;
         uv[i * 2 + 1] = 1 - v;
       }
-    // разрывы глубины: такие вершины гасим, чтобы не было «резиновых» перепонок
+    // вершины неба ставим на дальность соседей-«не неба»: у кромки неба нет растянутых перепонок
+    for (let y = 0; y < gh; y++)
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        if (!L.sky[i]) continue;
+        let m = 0;
+        for (let dy = -2; dy <= 2; dy++)
+          for (let dx = -2; dx <= 2; dx++) {
+            const xx = x + dx,
+              yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= gw || yy >= gh) continue;
+            const j = yy * gw + xx;
+            if (!L.sky[j]) m = Math.max(m, ts[j]);
+          }
+        if (m > 0) {
+          ts[i] = m;
+          const p = this.ray(x / (gw - 1), y / (gh - 1), tanV).normalize().multiplyScalar(m);
+          pos.set([p.x, p.y + EYE, p.z], i * 3);
+        }
+      }
+    // разрывы глубины (кроме кромки неба — её прячет прозрачность текстуры): такие вершины гасим
     for (let y = 0; y < gh; y++)
       for (let x = 0; x < gw; x++) {
         const i = y * gw + x;
         let r = 1;
-        for (const j of [x > 0 ? i - 1 : i, x < gw - 1 ? i + 1 : i, y > 0 ? i - gw : i, y < gh - 1 ? i + gw : i]) r = Math.max(r, ts[j] / ts[i], ts[i] / ts[j]);
+        if (!L.sky[i])
+          for (const j of [x > 0 ? i - 1 : i, x < gw - 1 ? i + 1 : i, y > 0 ? i - gw : i, y < gh - 1 ? i + gw : i]) if (!L.sky[j]) r = Math.max(r, ts[j] / ts[i], ts[i] / ts[j]);
         const u = x / (gw - 1);
         // края кадра растворяются, а не обрываются
         const edge = smooth(0, 0.035, u) * smooth(0, 0.035, 1 - u) * smooth(0, 0.03, y / (gh - 1));
