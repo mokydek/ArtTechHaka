@@ -83,6 +83,7 @@ export default function App() {
   const reload = useCallback(async () => {
     const s = await getStore();
     setStore(s);
+    (window as unknown as Record<string, unknown>).__ottiskStore = s; // для проверок
     let nbs = await s.listNotebooks().catch(() => [] as Notebook[]);
     if (!nbs.length) {
       const first: Notebook = { id: newId(), title: 'Мой дневник', cover: { style: 'kraft' }, createdAt: new Date().toISOString() };
