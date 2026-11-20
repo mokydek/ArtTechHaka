@@ -40,9 +40,12 @@ export default function Book({ nb, count, onClick }: { nb: Notebook; count: numb
   const url = useCoverUrl(nb);
   return (
     <div className="book">
-      <a className="book-cover" href={`#/nb/${nb.id}`} onClick={onClick}>
-        {url ? <img src={url} alt={nb.title} /> : <div className="book-ph" />}
-      </a>
+      <div className="book-body">
+        <span className="book-pages" aria-hidden />
+        <a className="book-cover" href={`#/nb/${nb.id}`} onClick={onClick}>
+          {url ? <img src={url} alt={nb.title} /> : <div className="book-ph" />}
+        </a>
+      </div>
       <div className="ledge" />
       <div className="book-meta">
         <div>

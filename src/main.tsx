@@ -9,7 +9,9 @@ import '@fontsource/caveat/500.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/manrope/400.css';
+import '@fontsource/manrope/500.css';
 import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/700.css';
 import '@fontsource/manrope/800.css';
 import '@fontsource/pt-mono/400.css';
 import './styles.css';
@@ -45,4 +47,25 @@ createRoot(document.getElementById('root')!).render(
 // PWA: оболочка работает офлайн и ставится на телефон как приложение
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
+/* оттиск: каждое нажатие на кнопку-штамп оставляет на бумаге расходящийся след краски */
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  addEventListener(
+    'pointerdown',
+    (e) => {
+      const t = (e.target as Element | null)?.closest?.('.btn, .tab-new') as HTMLElement | null;
+      if (!t || (t as HTMLButtonElement).disabled) return;
+      const cs = getComputedStyle(t);
+      const c = (t.classList.contains('ghost') ? cs.getPropertyValue('--fg') : cs.getPropertyValue('--bg')).trim();
+      const d = document.createElement('i');
+      d.className = 'inkprint';
+      d.style.left = e.clientX + 'px';
+      d.style.top = e.clientY + 'px';
+      if (c) d.style.setProperty('--c', c);
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), 800);
+    },
+    { passive: true },
+  );
 }

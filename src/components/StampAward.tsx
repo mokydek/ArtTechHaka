@@ -35,10 +35,10 @@ export default function StampAward({ list, onClose }: { list: Earned[]; onClose:
         <div className="award-title">{one ? list[0].def.title : list.map((e) => e.def.title).join(' · ')}</div>
         {one && list[0].day && <div className="mono" style={{ color: '#f3e9c8', opacity: 0.7 }}>за день «{list[0].day.title}»</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <a className="btn" href="#/stamps" onClick={onClose} style={{ background: '#f3e9c8', color: '#1d1b1f', borderColor: '#f3e9c8' }}>
+          <a className="btn light" href="#/stamps" onClick={onClose}>
             В альбом
           </a>
-          <button className="btn ghost" onClick={onClose} style={{ color: '#f3e9c8', borderColor: '#f3e9c8' }}>
+          <button className="btn ghost light" onClick={onClose}>
             Дальше
           </button>
         </div>

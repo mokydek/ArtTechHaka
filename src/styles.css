@@ -12,7 +12,7 @@
 @property --accent {
   syntax: '<color>';
   inherits: true;
-  initial-value: #b5482a;
+  initial-value: #55449e;
 }
 :root {
   transition:
@@ -21,13 +21,20 @@
     --accent 1.6s ease;
   --paper: #efe9df;
   --paper-2: #f6f2ea;
-  --ink: #1d1b1f;
-  --ink-2: #5d5750;
-  --line: rgba(29, 27, 31, 0.14);
-  --accent: #b5482a;
+  /* тёплые чернила сепии вместо холодного чёрного */
+  --ink: #2b211c;
+  --ink-2: #6f6058;
+  --line: rgba(43, 33, 28, 0.15);
+  --accent: #55449e;
+  /* штемпельная краска — фиолетовый оттиск печати */
+  --stamp: #4f3f99;
+  --stamp-deep: #3d2f7d;
+  /* свет настольной лампы — для мягкого свечения */
+  --lamp: #f2c27b;
   --serif: 'Cormorant Garamond', Georgia, serif;
   --sans: Manrope, 'Helvetica Neue', Arial, sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* служебные подписи: спокойный гротеск с табличными цифрами */
+  --mono: Manrope, 'Helvetica Neue', Arial, sans-serif;
   --hand: Caveat, cursive;
 }
 * {
@@ -65,9 +72,9 @@ button {
 }
 .mono {
   font-family: var(--mono);
-  letter-spacing: 0.06em;
-  font-size: 12px;
-  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  font-size: 13px;
 }
 .muted {
   color: var(--ink-2);
@@ -97,9 +104,8 @@ button {
 .brand small {
   font-family: var(--mono);
   font-style: normal;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
   margin-left: 12px;
 }
@@ -110,50 +116,142 @@ button {
   align-items: center;
 }
 .nav a {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  position: relative;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
   text-decoration: none;
   color: var(--ink-2);
-  padding-bottom: 2px;
-  border-bottom: 1px solid transparent;
+  padding: 4px 1px;
+  transition: color 0.2s;
+}
+.nav a:hover {
+  color: var(--ink);
 }
 .nav a.on {
   color: var(--ink);
-  border-color: var(--ink);
 }
+/* активный пункт подчёркнут от руки — линия «дописывается» при переходе */
+.nav a.on::after,
+.more > button.on::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  bottom: -5px;
+  height: 7px;
+  background: var(--stamp);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 8' preserveAspectRatio='none'%3E%3Cpath d='M1 5.2C14 3.1 27 6.4 41 4.3S69 2.4 83 4.6c6 .9 11 .6 16-.6' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 8' preserveAspectRatio='none'%3E%3Cpath d='M1 5.2C14 3.1 27 6.4 41 4.3S69 2.4 83 4.6c6 .9 11 .6 16-.6' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+  animation: pen-line 0.5s cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+@keyframes pen-line {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ——— кнопки-штампы: резиновая печать с рамкой, краска чуть неровная ——— */
 .btn {
+  --bg: var(--stamp);
+  --bg-h: var(--stamp-deep);
+  --fg: #fbf6ee;
+  --frame: rgba(251, 246, 238, 0.5);
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--paper-2);
-  padding: 10px 18px;
-  border-radius: 999px;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  padding: 11px 20px;
+  border-radius: 9px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.005em;
   text-decoration: none;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1),
+    color 0.2s;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--bg);
+  box-shadow:
+    inset 0 0 0 3px var(--bg),
+    inset 0 0 0 4.3px var(--frame);
+  filter: url(#ink-rough);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.btn:hover {
+  transform: translateY(-1px) rotate(-0.5deg);
+}
+.btn:hover::before {
+  background: var(--bg-h);
+  box-shadow:
+    inset 0 0 0 3px var(--bg-h),
+    inset 0 0 0 4.3px var(--frame);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.95) rotate(0.4deg);
+  transition-duration: 0.07s;
+}
+.btn:focus-visible,
+.tab:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 3px;
 }
 .btn.ghost {
+  --fg: var(--stamp);
+}
+.btn.ghost::before,
+.btn.ghost:hover::before {
   background: transparent;
-  color: var(--ink);
+  box-shadow: inset 0 0 0 1.6px var(--fg);
+}
+.btn.ghost:hover::before {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.btn.light {
+  --bg: #f3e9c8;
+  --bg-h: #fff4d6;
+  --fg: #2b211c;
+  --frame: rgba(43, 33, 28, 0.35);
+}
+.btn.ghost.light {
+  --fg: #f3e9c8;
 }
 .btn:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: default;
+  transform: none;
 }
 .btn.small {
   padding: 7px 13px;
-  font-size: 11px;
+  font-size: 13px;
 }
-.nav .btn {
-  color: var(--paper-2);
-  border-bottom: 1px solid var(--ink);
+.nav a.btn {
+  color: var(--fg);
+  padding: 9px 17px;
+  font-weight: 600;
+}
+.nav a.btn:hover {
+  color: var(--fg);
 }
 
 .page {
@@ -179,16 +277,54 @@ button {
   margin: 0 0 12px;
 }
 .sec {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
   margin: 0 0 12px;
 }
 .sec b {
   color: var(--accent);
+  font-weight: 600;
+}
+/* шаг записи: цифра от руки, обведённая чернилами */
+.sec.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+.sec.step b {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  font-family: var(--hand);
+  font-size: 26px;
   font-weight: 500;
+  line-height: 1;
+  color: var(--stamp);
+}
+.sec.step b::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M30.5 7.5C26 3.6 17.4 3.2 11.6 6.7 5.2 10.6 2.9 19 5.6 26.3c2.6 7 10.2 10.6 17.4 9.4 7.4-1.2 12.8-7.4 12.7-14.8-.1-4.3-1.8-8.5-5.4-11.6-1.6-1.4-3.6-2.5-5.6-3.1' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M30.5 7.5C26 3.6 17.4 3.2 11.6 6.7 5.2 10.6 2.9 19 5.6 26.3c2.6 7 10.2 10.6 17.4 9.4 7.4-1.2 12.8-7.4 12.7-14.8-.1-4.3-1.8-8.5-5.4-11.6-1.6-1.4-3.6-2.5-5.6-3.1' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.sec.step small {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
 }
 
 /* ——— лента ——— */
@@ -216,15 +352,27 @@ button {
   background: transparent;
   padding: 7px 14px;
   border-radius: 999px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
   color: var(--ink-2);
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s,
+    transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.tab:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.tab:active {
+  transform: scale(0.95);
 }
 .tab.on {
-  border-color: var(--ink);
-  color: var(--ink);
+  border-color: var(--stamp);
+  color: var(--stamp);
+  background: color-mix(in srgb, var(--stamp) 7%, transparent);
 }
 .search {
   margin-left: auto;
@@ -271,10 +419,9 @@ button {
   display: grid;
   place-items: center;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-2);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 .card .ttl {
   margin-top: 12px;
@@ -315,9 +462,8 @@ button {
 }
 .badge {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.01em;
   padding: 2px 7px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -358,9 +504,8 @@ button {
 .map .ax {
   position: absolute;
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
 }
 .map .dot {
@@ -413,7 +558,7 @@ button {
 }
 .field textarea:focus,
 .inp:focus {
-  border-color: var(--ink);
+  border-color: color-mix(in srgb, var(--stamp) 60%, transparent);
 }
 .inp {
   width: 100%;
@@ -514,7 +659,7 @@ button {
 }
 .steps {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
 }
 .steps .st {
@@ -616,7 +761,7 @@ button {
 }
 .tree {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.85;
   border-left: 1px solid var(--line);
   padding-left: 14px;
@@ -648,9 +793,8 @@ button {
 }
 .rule .g {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.01em;
   color: var(--accent);
   padding-top: 2px;
 }
@@ -680,9 +824,8 @@ button {
 }
 .kv .k {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
   padding-top: 2px;
 }
@@ -709,19 +852,41 @@ button {
   padding: 4px 0;
   color: var(--ink);
 }
+/* уведомление — записка, приклеенная скотчем */
 .toast {
   position: fixed;
   bottom: 22px;
   left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--paper-2);
-  padding: 10px 18px;
-  border-radius: 999px;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  transform: translateX(-50%) rotate(-1.2deg);
+  background: #fbf7ef;
+  color: var(--ink);
+  padding: 13px 22px 12px;
+  border-radius: 2px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  max-width: min(92vw, 460px);
+  text-align: center;
+  box-shadow: 0 12px 26px -14px rgba(50, 30, 15, 0.6), 0 1px 0 rgba(50, 30, 15, 0.08);
   z-index: 50;
+  animation: note-in 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.toast::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 74px;
+  height: 18px;
+  margin-left: -37px;
+  background: rgba(214, 170, 120, 0.6);
+  transform: rotate(2.5deg);
+}
+@keyframes note-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(26px) rotate(4deg);
+  }
 }
 
 /* ——— система ——— */
@@ -838,9 +1003,6 @@ button {
   .brand small {
     display: none;
   }
-  .nav a {
-    font-size: 11px;
-  }
   .nav .btn {
     padding: 8px 14px;
   }
@@ -849,7 +1011,7 @@ button {
 /* ——— шрифт машинописи (подписи, как в Footnotes) ——— */
 .pt {
   font-family: 'PT Mono', var(--mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
   letter-spacing: 0.01em;
 }
 
@@ -897,9 +1059,8 @@ button {
 }
 .streak {
   font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
 }
 .streak-n {
@@ -980,11 +1141,45 @@ button {
   z-index: 1;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(255, 255, 255, 0.12) 45%, rgba(0, 0, 0, 0.12) 70%, transparent);
 }
-.book:hover .book-cover {
-  transform: translateY(-10px) rotate(-1.2deg);
+/* тетрадь на полке: при наведении обложка приоткрывается на корешке, видны страницы */
+.book-body {
+  position: relative;
+  perspective: 2200px;
+}
+.book-pages {
+  position: absolute;
+  inset: 4px 3px 3px 8px;
+  border-radius: 1px 5px 5px 1px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 17px, rgba(43, 33, 28, 0.08) 17px 18px) 18px 26px / calc(100% - 30px) calc(100% - 40px) no-repeat,
+    repeating-linear-gradient(90deg, #fbf7ef 0 2px, #e6dccb 2px 3px) right / 7px 100% no-repeat,
+    #fbf7ef;
+  box-shadow: 6px 10px 16px -10px rgba(50, 30, 15, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.book:hover .book-pages,
+.book:focus-within .book-pages {
+  opacity: 1;
+}
+.book .book-cover {
+  transform-origin: 0 50%;
+  transition:
+    transform 0.55s cubic-bezier(0.25, 0.9, 0.3, 1.1),
+    box-shadow 0.4s;
+}
+.book:hover .book-cover,
+.book:focus-within .book-cover {
+  transform: rotateY(-36deg);
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.2),
-    14px 26px 26px -14px rgba(0, 0, 0, 0.5);
+    18px 18px 26px -12px rgba(0, 0, 0, 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  .book:hover .book-cover,
+  .book:focus-within .book-cover {
+    transform: none;
+  }
 }
 .book-cover img {
   width: 100%;
@@ -1010,9 +1205,8 @@ button {
 }
 .book-new span {
   font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
 }
 .ledge {
@@ -1189,9 +1383,8 @@ body.ce-mode .top {
 }
 .tl-month {
   font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
   padding: 26px 0 10px;
   border-bottom: 1px solid var(--line);
@@ -1219,8 +1412,7 @@ body.ce-mode .top {
 }
 .tl-date span {
   font-family: 'PT Mono', var(--mono);
-  font-size: 12px;
-  text-transform: uppercase;
+  font-size: 13px;
   color: var(--ink-2);
 }
 .tl-line {
@@ -1236,9 +1428,8 @@ body.ce-mode .top {
 }
 .tl-mode {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.01em;
   padding: 2px 8px;
   border-radius: 999px;
 }
@@ -1531,9 +1722,8 @@ body.ce-mode .top {
 }
 .stat span {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
 }
 .stat-list {
@@ -1557,7 +1747,7 @@ body.ce-mode .top {
 .mbar em {
   font-style: normal;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-2);
 }
 
@@ -1747,7 +1937,7 @@ a.tab {
   color: var(--accent);
   border-radius: 3px;
   font-family: 'PT Mono', var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   transform: rotate(-1deg);
 }
 .place-pin {
@@ -2161,9 +2351,8 @@ a.tab {
 }
 .cap-add span {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
 }
 .cap-new {
@@ -2392,7 +2581,7 @@ a.tab {
   border: 2.5px solid rgba(40, 40, 70, 0.55);
   color: rgba(40, 40, 70, 0.62);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11.5px;
   display: grid;
   place-items: center;
   transform: rotate(-18deg);
@@ -2690,7 +2879,6 @@ a.tab {
 .rw-date {
   font-family: 'PT Mono', var(--mono);
   font-size: clamp(26px, 5vw, 56px);
-  text-transform: uppercase;
   text-shadow: 3px 0 rgba(255, 60, 60, 0.55), -3px 0 rgba(60, 200, 255, 0.55);
   font-variant-numeric: tabular-nums;
 }
@@ -2744,7 +2932,7 @@ a.tab {
 }
 .cut-item.busy {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -2828,8 +3016,8 @@ a.tab {
 .there-card small {
   margin-left: 6px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0.01em;
   opacity: 0.75;
 }
 .there-place {
@@ -2894,7 +3082,7 @@ a.tab {
   top: 0;
   transform: translateX(-50%);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 .there-tape .tick::after {
@@ -2953,13 +3141,13 @@ a.tab {
   accent-color: #ffcf6b;
 }
 .there-bar .btn {
-  background: #f3efe6;
-  color: #111;
-  border-color: #f3efe6;
+  --bg: #f3efe6;
+  --bg-h: #fffaf0;
+  --fg: #111;
+  --frame: rgba(0, 0, 0, 0.3);
 }
 .there-bar .btn.ghost {
-  background: transparent;
-  color: #f3efe6;
+  --fg: #f3efe6;
 }
 .there-hint {
   position: absolute;
@@ -3016,12 +3204,17 @@ a.tab {
   line-height: 1;
 }
 .there-drop .mono {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 1px solid #f3efe6;
-  border-radius: 999px;
-  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1.5px solid #f3efe6;
+  border-radius: 9px;
+  padding: 10px 18px;
+  transition: background 0.2s, color 0.2s;
+}
+.there-drop:hover .mono {
+  background: #f3efe6;
+  color: #111;
 }
 .there-err {
   border-color: #ff8b6b !important;
@@ -3073,7 +3266,7 @@ a.tab {
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 11.5px;
 }
 
 /* ——— Атмосфера дневника ——— */
@@ -3091,9 +3284,8 @@ a.tab {
 }
 .brand-wrap > small {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
   margin-left: 12px;
 }
@@ -3105,9 +3297,8 @@ a.tab {
   all: unset;
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--ink-2);
   display: inline-flex;
   gap: 8px;
@@ -3182,7 +3373,7 @@ a.tab {
   content: '';
   position: absolute;
   inset: -4px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1.5px solid var(--accent);
   animation: hint-ring 2.2s ease-out infinite;
   pointer-events: none;
@@ -3208,8 +3399,8 @@ a.tab {
 }
 .heard span {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   padding: 4px 10px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 12%, var(--paper-2));
@@ -3273,13 +3464,17 @@ a.tab {
 
 /* страницы появляются мягко, как проявляется снимок */
 .page-in {
-  animation: page-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: page-in 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
-    filter: blur(3px);
+    transform: translateY(8px);
+    filter: sepia(0.9) blur(5px) brightness(1.12) contrast(0.8);
+  }
+  45% {
+    opacity: 1;
+    filter: sepia(0.45) blur(1.2px) brightness(1.05) contrast(0.92);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3363,18 +3558,26 @@ a.tab {
 }
 .more > button {
   all: unset;
+  position: relative;
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink-2);
-  padding-bottom: 2px;
-  border-bottom: 1px solid transparent;
+  padding: 4px 1px;
+  transition: color 0.2s;
+}
+.more > button:hover,
+.more > button[aria-expanded='true'] {
+  color: var(--ink);
+}
+.more > button:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 .more > button.on {
   color: var(--ink);
-  border-color: var(--ink);
 }
 .more-pop {
   position: absolute;
@@ -3459,9 +3662,8 @@ a.tab {
     padding: 6px 0;
     color: var(--ink-2);
     font-family: var(--mono);
-    font-size: 9.5px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 11.5px;
+    letter-spacing: 0.01em;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.15s ease;
@@ -3535,4 +3737,251 @@ a.tab {
 @keyframes nudge {
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
+}
+
+/* ——— оттиск при нажатии ——— */
+.inkprint {
+  position: fixed;
+  z-index: 300;
+  width: 74px;
+  height: 74px;
+  margin: -37px 0 0 -37px;
+  border-radius: 50%;
+  border: 3px solid var(--c, var(--stamp));
+  box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--c, var(--stamp)) 18%, transparent);
+  filter: url(#ink-rough);
+  pointer-events: none;
+  animation: inkprint 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes inkprint {
+  from {
+    transform: scale(0.25) rotate(-20deg);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(1.45) rotate(8deg);
+    opacity: 0;
+  }
+}
+
+/* ——— сегодняшний датер ——— */
+.today-stamp {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+.dater {
+  display: inline-grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 6px 14px 7px;
+  border-radius: 10px;
+  color: var(--stamp);
+  box-shadow:
+    inset 0 0 0 2px var(--stamp),
+    inset 0 0 0 4px transparent,
+    inset 0 0 0 5.2px var(--stamp);
+  filter: url(#ink-rough);
+  transform: rotate(-4deg);
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+  animation: dater-press 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both;
+}
+.dater small {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.dater b {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+@keyframes dater-press {
+  0% {
+    transform: rotate(-9deg) scale(1.5) translateY(-18px);
+    opacity: 0;
+  }
+  55% {
+    transform: rotate(-4deg) scale(0.94);
+    opacity: 1;
+  }
+  72% {
+    transform: rotate(-4deg) scale(1.02);
+  }
+  100% {
+    transform: rotate(-4deg) scale(1);
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dater {
+    animation: none;
+  }
+}
+
+/* ——— тетрадные детали ——— */
+/* запись дня — на линованной бумаге с полем, строки едут вместе с текстом */
+.field textarea {
+  --lh: 28.5px;
+  font-size: 19px;
+  line-height: var(--lh);
+  padding: 16px 18px 16px 52px;
+  background-color: var(--paper-2);
+  background-image:
+    linear-gradient(90deg, transparent 38px, color-mix(in srgb, var(--accent) 40%, transparent) 38px 39.5px, transparent 39.5px),
+    repeating-linear-gradient(180deg, transparent 0 calc(var(--lh) - 1px), rgba(43, 33, 28, 0.1) calc(var(--lh) - 1px) var(--lh));
+  background-position: 0 0, 0 10px;
+  background-attachment: local;
+  border-radius: 3px 3px 3px 3px;
+  box-shadow: 0 1px 0 rgba(43, 33, 28, 0.05), 0 10px 24px -18px rgba(60, 40, 20, 0.45);
+  transition: border-color 0.2s, box-shadow 0.25s;
+}
+.field textarea:focus {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--lamp) 45%, transparent),
+    0 14px 30px -18px rgba(60, 40, 20, 0.55);
+}
+@media (max-width: 720px) {
+  .field textarea {
+    padding-left: 44px;
+    background-image:
+      linear-gradient(90deg, transparent 30px, color-mix(in srgb, var(--accent) 40%, transparent) 30px 31.5px, transparent 31.5px),
+      repeating-linear-gradient(180deg, transparent 0 calc(var(--lh) - 1px), rgba(43, 33, 28, 0.1) calc(var(--lh) - 1px) var(--lh));
+  }
+}
+/* фото дня — вклеены на уголки, каждое чуть наискось */
+.thumbs {
+  gap: 14px;
+  padding: 4px 2px;
+}
+.thumbs > div {
+  --r: -2deg;
+  transform: rotate(var(--r));
+  background: #fbf7ef;
+  padding: 4px;
+  box-shadow: 0 6px 12px -8px rgba(50, 30, 15, 0.55);
+  animation: paste-in 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.thumbs > div:nth-child(2n) {
+  --r: 1.6deg;
+}
+.thumbs > div:nth-child(3n) {
+  --r: -0.6deg;
+}
+.thumbs > div::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  --k: rgba(58, 44, 36, 0.82);
+  background:
+    linear-gradient(135deg, var(--k) 0 11px, transparent 11px) top left / 17px 17px no-repeat,
+    linear-gradient(225deg, var(--k) 0 11px, transparent 11px) top right / 17px 17px no-repeat,
+    linear-gradient(45deg, var(--k) 0 11px, transparent 11px) bottom left / 17px 17px no-repeat,
+    linear-gradient(315deg, var(--k) 0 11px, transparent 11px) bottom right / 17px 17px no-repeat;
+}
+.thumbs > div > button {
+  z-index: 1;
+}
+@keyframes paste-in {
+  from {
+    opacity: 0;
+    transform: rotate(calc(var(--r) * 4)) scale(1.15) translateY(-8px);
+  }
+}
+.drop {
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 28%, transparent);
+  transition: border-color 0.2s, background 0.25s, box-shadow 0.25s;
+}
+.drop:hover,
+.drop.over {
+  border-color: var(--stamp);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lamp) 35%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .thumbs > div {
+    animation: none;
+  }
+}
+
+/* ——— нижняя панель: клякса краски переезжает к активной вкладке ——— */
+@media (max-width: 720px) {
+  .tab-blob {
+    position: absolute;
+    top: 7px;
+    left: 4px;
+    width: calc((100% - 8px) / 5);
+    height: 34px;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform 0.45s cubic-bezier(0.4, 1.4, 0.5, 1), opacity 0.2s;
+  }
+  .tab-blob::before {
+    content: '';
+    width: 46px;
+    height: 32px;
+    background: color-mix(in srgb, var(--stamp) 13%, transparent);
+    border-radius: 48% 52% 44% 56% / 58% 46% 54% 42%;
+    filter: url(#ink-rough);
+    animation: blob-wobble 0.45s ease;
+  }
+  .tab-blob.off {
+    opacity: 0;
+  }
+  .tabbar > a,
+  .tabbar > button {
+    position: relative;
+    z-index: 1;
+  }
+  .tabbar > .on {
+    color: var(--stamp);
+  }
+  .tabbar .tab-new {
+    background: transparent;
+    color: #fbf6ee;
+    isolation: isolate;
+    box-sizing: border-box;
+    padding: 0;
+  }
+  .tabbar .tab-new::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: 50%;
+    background: var(--stamp);
+    box-shadow:
+      inset 0 0 0 3px var(--stamp),
+      inset 0 0 0 4.3px rgba(251, 246, 238, 0.5);
+    filter: url(#ink-rough);
+  }
+  .tabbar .tab-new:active {
+    transform: scale(0.9) rotate(8deg);
+  }
+}
+@keyframes blob-wobble {
+  0% {
+    transform: scale(0.6, 0.9);
+  }
+  60% {
+    transform: scale(1.12, 0.92);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-blob {
+    transition: none;
+  }
+  .tab-blob::before {
+    animation: none;
+  }
 }

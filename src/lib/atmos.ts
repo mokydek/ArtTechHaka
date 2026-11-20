@@ -86,7 +86,7 @@ export interface Atmos {
 
 const BASE_PAPER = '#efe9df',
   BASE_PAPER2 = '#f6f2ea',
-  BASE_ACCENT = '#b5482a';
+  BASE_ACCENT = '#55449e';
 
 export const EMPTY: Atmos = {
   weights: Object.fromEntries(MOTIFS.map((k) => [k, 0])) as Record<Motif, number>,

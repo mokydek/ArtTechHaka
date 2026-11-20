@@ -47,9 +47,9 @@ export default function Shelf() {
       {rw && <Rewind to={rw} onDone={() => (location.hash = `#/day/${encodeURIComponent(rw.id)}`)} />}
       <section className="today">
         <div className="today-main">
-          <div className="sec">
-            <b>●</b> {humanDate(today)}
-            {store && <span className="muted"> · {store.kind === 'cloud' ? 'облако' : 'на устройстве'}</span>}
+          <div className="today-stamp">
+            <Dater date={today} />
+            {store && <span className="muted">{store.kind === 'cloud' ? 'хранится в облаке' : 'хранится на этом устройстве'}</span>}
           </div>
           <h1 className="h1">
             Фото помнят, как выглядел день. <em>Оттиск</em> — как он ощущался.
@@ -139,5 +139,21 @@ export default function Shelf() {
         ))}
       </div>
     </>
+  );
+}
+
+const MON = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'];
+const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+/** Сегодняшняя дата — оттиск штемпеля-датера: сам «Оттиск» начинается с печати */
+function Dater({ date }: { date: string }) {
+  const [y, m, d] = date.split('-').map(Number);
+  const wd = WD[new Date(y, m - 1, d).getDay()];
+  return (
+    <span className="dater" role="img" aria-label={`${d} ${MON[m - 1].toLowerCase()} ${y}, ${wd}`}>
+      <small>{wd}</small>
+      <b>
+        {String(d).padStart(2, '0')} {MON[m - 1]} {y}
+      </b>
+    </span>
   );
 }

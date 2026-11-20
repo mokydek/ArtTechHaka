@@ -314,6 +314,8 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
     addEventListener('hashchange', h);
     return () => removeEventListener('hashchange', h);
   }, []);
+  const isMore = MORE.some(([p]) => on(p));
+  const idx = more ? 4 : on('/') ? 0 : on('/year') ? 1 : on('/there') ? 3 : isMore ? 4 : -1;
   const I = (d: string) => (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d={d} />
@@ -334,6 +336,7 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
         </div>
       )}
       <nav className="tabbar">
+        <span className={'tab-blob' + (idx < 0 ? ' off' : '')} style={{ '--i': Math.max(0, idx) } as React.CSSProperties} aria-hidden />
         <a href="#/" className={on('/')}>
           {I('M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5C4.7 20 4 19.3 4 18.5zM13 4h5.5c.8 0 1.5.7 1.5 1.5v13c0 .8-.7 1.5-1.5 1.5H13z')}
           <span>Дневник</span>

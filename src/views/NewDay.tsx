@@ -236,8 +236,8 @@ export default function NewDay({ nb }: { nb?: string }) {
   return (
     <div className="new">
       <div>
-        <div className="sec">
-          <b>01</b> // Запись
+        <div className="sec step">
+          <b>1</b> Запись
         </div>
         <h1 className="h1" style={{ fontSize: 44, marginBottom: 18 }}>
           Как прошёл день?
@@ -297,14 +297,14 @@ export default function NewDay({ nb }: { nb?: string }) {
         <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
         {fromPhoto && <div className="mono muted" style={{ margin: '-6px 0 10px' }}>⌖ {fromPhoto}</div>}
         <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
-        <div className="sec">
-          <b>02</b> // Фото
+        <div className="sec step">
+          <b>2</b> Фото
         </div>
         <div ref={(e) => void (secs.current.photo = e)}>
           <Photos files={photos} onChange={setPhotos} disabled={phase === 'build'} />
         </div>
         <div className="sec" style={{ marginTop: 6 }}>
-          <b>02+</b> // Вклейки — свои моменты поверх страницы
+          Вклейки — свои моменты поверх страницы
         </div>
         <div className="field">
           <CutoutPicker count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
@@ -322,8 +322,8 @@ export default function NewDay({ nb }: { nb?: string }) {
         </div>
       </div>
       <div>
-        <div className="sec">
-          <b>03</b> // Песня дня
+        <div className="sec step">
+          <b>3</b> Песня дня
         </div>
         <div ref={(e) => void (secs.current.song = e)}>
           <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
@@ -349,7 +349,7 @@ export default function NewDay({ nb }: { nb?: string }) {
                   : missing.map(([, m]) => m).join(' ')}
               </div>
               <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 13, padding: '14px 26px' }}>
-                Проявить день →
+                Проявить день
               </button>
               {err && <p style={{ color: '#a33' }}>{err}</p>}
             </>
