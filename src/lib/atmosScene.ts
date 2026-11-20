@@ -23,7 +23,7 @@ const rgba = (h: string, a: number) => {
 };
 
 // сколько частиц у мотива при полном весе
-const DENSITY: Partial<Record<Motif, number>> = { snow: 80, rain: 70, love: 26, city: 26, nature: 10, autumn: 24, summer: 40, party: 40, cozy: 16, night: 90, sea: 14 };
+const DENSITY: Partial<Record<Motif, number>> = { snow: 80, rain: 70, love: 26, city: 26, nature: 10, autumn: 30, summer: 40, party: 40, cozy: 16, night: 90, sea: 14 };
 
 export class AtmosScene {
   private g: CanvasRenderingContext2D;
@@ -60,8 +60,8 @@ export class AtmosScene {
   set(a: Atmos) {
     for (const k of MOTIFS) this.target[k] = 0;
     // ведущие мотивы — по силе, но в сумме фон всегда один цельный
-    const tot = a.top.reduce((s, k) => s + a.weights[k], 0) || 1;
-    a.top.forEach((k, i) => (this.target[k] = (a.weights[k] / tot) * (i === 0 ? 1 : 0.85)));
+    // главный мотив — в полную силу (если он уверенный), остальные — тише
+    a.top.forEach((k, i) => (this.target[k] = Math.min(1, 0.55 + a.weights[k] * 1.5) * [1, 0.55, 0.35][i]));
     this.lead = a.top[0] ?? null;
     if (this.reduced) {
       this.cur = { ...this.target };
