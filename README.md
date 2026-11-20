@@ -30,6 +30,8 @@
 - **Альбом марок**: 21 марка за моменты, вручение со штемпелем.
 - **Фильм месяца / тетради**: автомонтаж дней с их песнями и звуками, экспорт видео.
 - **Открытка другу** (ссылка без регистрации) и **«Перенеси меня»** — перемотка к случайному дню.
+- **Оживить фото в 3D**: U²-Netp в браузере вырезает главное, фон дорисовывается, слои двигаются с параллаксом.
+- **Свои вклейки**: картинка → наклейка с вырубной кромкой или фото целиком; раскладка пальцем, анимация в такт.
 
 ## Запуск
 
@@ -52,11 +54,12 @@ src/lib/store      cloud.ts (Supabase), local.ts (IndexedDB)
 src/lib            ambience.ts — звуки дня; place.ts — место и погода; covers.ts — обложки; prompts.ts — подсказки, серия, «в этот день»;
                    sky.ts — луна и солнце; details.ts — музей мелочей; stamps.ts — марки; film.ts — фильм; sfx.ts — звуки интерфейса
 src/lib/render     ransom.ts — вырезанные буквы; stickers.ts — наклейки и васи-скотч
+src/lib/live       segment.ts — вырезание главного и дорисовка фона; sticker.ts — вклейки
 src/views          полка, тетрадь (лента/книга/фото/год/настроения), обложка, запись дня, папка дня, год, визуальная система
 ```
 
 ## Использованные инструменты
 
-React 19, Vite, TypeScript, Supabase (Postgres, Auth, Storage), JSZip; шрифты Cormorant Garamond, Caveat, JetBrains Mono, Manrope (Fontsource, OFL); Web Audio API, Canvas 2D, MediaRecorder, Web Speech API; iTunes Search API (официальные 30-секундные фрагменты, песня целиком не хранится), oEmbed Spotify и noembed (название по ссылке), Open-Meteo (место и погода за день), BigDataCloud (название места по геолокации); шрифт PT Mono. Демо-фото — Unsplash (Unsplash License). Генеративные модели не используются: весь анализ и графика — собственный код команды.
+React 19, Vite, TypeScript, Supabase (Postgres, Auth, Storage), JSZip; шрифты Cormorant Garamond, Caveat, JetBrains Mono, Manrope (Fontsource, OFL); Web Audio API, Canvas 2D, MediaRecorder, Web Speech API; iTunes Search API (официальные 30-секундные фрагменты, песня целиком не хранится), oEmbed Spotify и noembed (название по ссылке), Open-Meteo (место и погода за день), BigDataCloud (название места по геолокации); шрифт PT Mono. Демо-фото — Unsplash (Unsplash License). Нейросеть одна — U²-Netp (Apache-2.0) для вырезания объекта, работает на устройстве через onnxruntime-web; модель копируется из npm-пакета `@rmbg/model-u2netp` в `public/ml` при сборке (`scripts/copy-ml.mjs`). Остальной анализ и графика — собственный код команды.
 
 Настроение — художественная интерпретация записи, а не психологическая или медицинская оценка.
