@@ -183,7 +183,8 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
   horizon = Math.min(0.62, Math.max(0.28, horizon));
   // ровная линия через весь кадр (море, степь) — сильнее любой догадки по небу
   const line = horizonLine(lum, gw, gh);
-  if (line && (bottoms.length < gw * 0.5 || line > horizon)) horizon = Math.min(0.68, line);
+  const byLine = !!line && (bottoms.length < gw * 0.5 || line > horizon);
+  if (byLine) horizon = Math.min(0.68, line!);
   const limit = Math.min(gh * 0.72, (horizon + 0.02) * gh);
   // дорастить небо по цвету: глубина нейросети снаружи ненадёжна (обучена на комнатах)
   let seed = 0;
@@ -218,13 +219,16 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
         b = px[i * 4 + 2];
       const mx = Math.max(r, g, b),
         mn = Math.min(r, g, b);
-      return lum[i] > 0.62 && (mx - mn) / mx < 0.22 && b >= r * 0.95;
+      if (lum[i] > 0.62 && (mx - mn) / mx < 0.22 && b >= r * 0.95) return true;
+      // над ровной линией моря/степи всё светлое и гладкое — небо (закатные облака тоже)
+      return byLine && y < horizon * gh - 1 && lum[i] > 0.28;
     };
     const smoothAt = (i: number) => {
       const x = i % gw,
         y = (i / gw) | 0;
       if (x < 1 || y < 1 || x >= gw - 1 || y >= gh - 1) return true;
-      return Math.abs(lum[i + 1] - lum[i - 1]) + Math.abs(lum[i + gw] - lum[i - gw]) < 0.07;
+      const gr = Math.abs(lum[i + 1] - lum[i - 1]) + Math.abs(lum[i + gw] - lum[i - gw]);
+      return gr < (byLine && y < horizon * gh - 1 ? 0.14 : 0.07);
     };
     const q2: number[] = [];
     for (let i = 0; i < gw * gh; i++) if (sky[i]) q2.push(i);
