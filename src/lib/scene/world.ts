@@ -56,6 +56,7 @@ export class World {
   private raf = 0;
   private walked = 0;
   photoAlt: number;
+  private photoWeather: HourWeather | null;
   onFrame?: (heading: number) => void;
   onThunder?: () => void;
 
@@ -79,6 +80,7 @@ export class World {
     this.pitch0 = -Math.atan(cyh); // горизонт выше центра — камера смотрела чуть вниз
     this.pitch = this.pitch0;
     this.photoAlt = o.sky.sunAlt;
+    this.photoWeather = o.weather;
 
     // ——— небо ———
     this.sky.scale.setScalar(450000);
@@ -540,12 +542,20 @@ export class World {
     this.scene.fog = new THREE.FogExp2(fogCol, density);
     this.scene.background = fogCol;
     // фото подсвечиваем относительно того часа, когда оно снято
-    const lum = (alt: number) => 0.18 + 0.82 * smooth(-8, 18, alt);
-    const k = Math.max(0.2, Math.min(1.5, lum(s.sunAlt) / lum(this.photoAlt)));
-    const warm = golden * 0.25;
-    const night = 1 - day;
-    const wetK = w && (w.rain > 0.05 || w.snow > 0.01) ? 0.08 : 0;
-    const dull = (smooth(0.6, 1, cloud) * 0.12 + wetK) * day; // пасмурно и мокро — свет глуше и холоднее
+    // свет снимка уже в самом снимке: красим только разницу между выбранным часом и минутой съёмки
+    const light = (alt: number, wx: HourWeather | null) => {
+      const d = smooth(-8, 6, alt);
+      const gold = smooth(-2, 4, alt) * (1 - smooth(8, 20, alt));
+      const cl = (wx?.cloud ?? 20) / 100;
+      const wet = wx && (wx.rain > 0.05 || wx.snow > 0.01) ? 0.08 : 0;
+      return { lum: 0.18 + 0.82 * smooth(-8, 18, alt), warm: gold * 0.25, night: 1 - d, dull: (smooth(0.6, 1, cl) * 0.12 + wet) * d };
+    };
+    const now = light(s.sunAlt, w),
+      then = light(this.photoAlt, this.photoWeather);
+    const k = Math.max(0.2, Math.min(1.5, now.lum / then.lum));
+    const warm = now.warm - then.warm,
+      night = Math.max(0, now.night - then.night),
+      dull = now.dull - then.dull;
     const tint = new THREE.Color(k * (1 + warm * 0.3 - dull), k * (1 + warm * 0.05 - dull * 0.8), k * (1 - warm * 0.4 + night * 0.25 - dull * 0.4));
     for (const m of this.photoMats) m.color.copy(tint);
     this.groundMat.color.copy(this.groundCol).multiply(tint);
