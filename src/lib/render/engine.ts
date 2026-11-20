@@ -692,7 +692,8 @@ export class MemoryRenderer {
       if (key === 'intro') {
         wg.fillStyle = this.spec.palette.paper;
         wg.fillRect(0, 0, FIELD.w, FIELD.h);
-        wg.globalAlpha = 0.35;
+        // снимок узнаётся сразу (мягкая подмалёвка), мазки его проявляют — а не пятна на пустом холсте
+        wg.globalAlpha = 0.85;
       }
       wg.drawImage(base, 0, 0);
       wg.globalAlpha = 1;

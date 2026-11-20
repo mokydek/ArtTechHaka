@@ -3356,3 +3356,162 @@ a.tab {
 .page {
   overflow-x: clip;
 }
+
+/* ——— навигация: 3 главных пункта + «Ещё»; на телефоне — нижняя панель ——— */
+.more {
+  position: relative;
+}
+.more > button {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+}
+.more > button.on {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.more-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  z-index: 30;
+  width: 290px;
+  display: grid;
+  padding: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.35);
+  animation: atmos-in 0.3s ease both;
+}
+.more-pop a,
+.tab-sheet a {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  border: 0;
+  color: var(--ink);
+}
+.more-pop a:hover,
+.more-pop a.on,
+.tab-sheet a.on {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.more-pop b,
+.tab-sheet b {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+}
+.more-pop small,
+.tab-sheet small {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.tabbar,
+.tab-sheet {
+  display: none;
+}
+@media (max-width: 720px) {
+  .nav {
+    display: none;
+  }
+  .top {
+    padding: 12px 18px;
+  }
+  .page {
+    padding-bottom: 110px;
+  }
+  .tabbar {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    padding: 6px 4px;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--paper-2) 95%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.4);
+  }
+  .tabbar > a,
+  .tabbar > button {
+    all: unset;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 6px 0;
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease;
+  }
+  .tabbar > a:active,
+  .tabbar > button:active {
+    transform: scale(0.92);
+  }
+  .tabbar > .on {
+    color: var(--accent);
+  }
+  .tabbar .tab-new {
+    justify-self: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    place-items: center;
+    background: var(--ink);
+    color: var(--paper-2);
+    margin-top: -26px;
+    box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.6);
+    position: relative;
+  }
+  .tabbar .tab-new.hint::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    animation: hint-ring 2.2s ease-out infinite;
+  }
+  .tab-sheet {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    align-items: flex-end;
+    padding: 0 10px calc(92px + env(safe-area-inset-bottom));
+    background: rgba(20, 18, 22, 0.25);
+    animation: atmos-in 0.25s ease both;
+  }
+  .toast {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .tab-sheet > div {
+    width: 100%;
+    display: grid;
+    padding: 8px;
+    border-radius: 20px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+  }
+}

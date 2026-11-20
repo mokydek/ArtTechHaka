@@ -121,7 +121,8 @@ export function paintStrokes(src: Cnv, spec: DesignSpec, seed: number): Stroke[]
   const rnd = mulberry32(seed);
   const accent = rgbToHsl(hexToRgb(spec.palette.accent));
   const sz = spec.strokeSize * (W / 936);
-  const layers = [30, 16, 8.5].map((r) => r * sz);
+  // мельче, чем было: предмет на фото должен узнаваться, а не тонуть в кирпичах мазков
+  const layers = [22, 11, 5.5].map((r) => r * sz);
   const out: Stroke[] = [];
   const globalAng = (rnd() - 0.5) * 0.8 - 0.4;
   layers.forEach((R, li) => {
@@ -134,7 +135,7 @@ export function paintStrokes(src: Cnv, spec: DesignSpec, seed: number): Stroke[]
         const [gx, gy] = grad(px, py, Math.max(2, R * 0.35));
         const mag = Math.hypot(gx, gy);
         if (li === 1 && mag < 6 && rnd() < 0.55) continue;
-        if (li === 2 && mag < 11 && rnd() < 0.8) continue;
+        if (li === 2 && mag < 9 && rnd() < 0.85) continue;
         // кривой мазок вдоль изофот
         const pts = [px, py];
         let cx = px,
@@ -179,13 +180,13 @@ export function paintStrokes(src: Cnv, spec: DesignSpec, seed: number): Stroke[]
           g = box(ig, px, py, R * 0.5),
           b = box(ib, px, py, R * 0.5);
         let [h, s, l] = rgbToHsl([r, g, b]);
-        h += (rnd() - 0.5) * 14;
-        l = clamp(l + (rnd() - 0.5) * 0.08 + 0.02);
-        s = clamp(s * (0.95 + rnd() * 0.2));
-        if (rnd() < 0.1) {
-          // раздельный мазок: вкрапление цвета-акцента
-          h = h + (((accent[0] - h + 540) % 360) - 180) * 0.5;
-          s = clamp(s + 0.15);
+        h += (rnd() - 0.5) * 10 * s;
+        l = clamp(l + (rnd() - 0.5) * 0.05 + 0.01);
+        s = clamp(s * (0.97 + rnd() * 0.12));
+        if (s > 0.25 && rnd() < 0.04) {
+          // раздельный мазок: редкое вкрапление цвета-акцента — только там, где и так есть цвет
+          h = h + (((accent[0] - h + 540) % 360) - 180) * 0.25;
+          s = clamp(s + 0.08);
         }
         const [R2, G2, B2] = hslToRgb(h, s, l);
         layer.push({ pts, w: R * (0.7 + rnd() * 0.35), c: `rgb(${R2 | 0},${G2 | 0},${B2 | 0})`, a: li === 0 ? 0.9 : 0.85 });
@@ -223,7 +224,7 @@ export function drawStrokes(g: CanvasRenderingContext2D, strokes: Stroke[], from
 
 /** Холст под мазками: размытая подмалёвка */
 export function underpainting(src: Cnv): Cnv {
-  return softBlur(src, 0.04);
+  return softBlur(src, 0.1);
 }
 
 /** Текстура холста (переплетение нитей) */
