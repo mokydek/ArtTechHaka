@@ -90,6 +90,8 @@ export const translit = (s: string) => s.toLowerCase().replace(/[а-яёәғқң
 const words = (s: string) =>
   translit(s)
     .replace(/kh/g, 'h')
+    .replace(/x/g, 'ks') // Max = Макс
+    .replace(/ph/g, 'f')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
     .split(' ')
