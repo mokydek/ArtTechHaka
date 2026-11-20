@@ -196,6 +196,7 @@ export interface DayRecord {
   sealedAt?: string;
   unsealedAt?: string;
   hasVoice?: boolean; // свой голос
+  live3d?: boolean; // фото оживлено в 3D
   voiceName?: string;
   place?: PlaceInfo; // место и погода
   hasVideo?: boolean;

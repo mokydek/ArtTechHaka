@@ -5,6 +5,9 @@ import { MemoryPlayer } from '../lib/render/player';
 import { speak, stopSpeaking } from '../lib/voice';
 import { AMB_NAMES, ambBuffer } from '../lib/ambience';
 
+// маски уже вырезанных фото, чтобы не считать заново
+const maskCache = new WeakMap<ImageBitmap, HTMLCanvasElement | null>();
+
 interface Props {
   rec: DayRecord;
   title?: string;
@@ -15,10 +18,14 @@ interface Props {
   extra?: React.ReactNode;
   voiceUrl?: string; // свой голос вместо синтеза
   develop?: boolean; // проявить как полароид
+  live?: boolean; // оживлённое 3D-фото
+  onLive?: (on: boolean) => void;
 }
 
 /** Живая страница дня: звук, движение, голос, запись видео */
-export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, extra, voiceUrl, develop }: Props) {
+export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, extra, voiceUrl, develop, live, onLive }: Props) {
+  const [liveState, setLiveState] = useState<'off' | 'busy' | 'on'>('off');
+  const [liveMsg, setLiveMsg] = useState('');
   const [dev, setDev] = useState<number | null>(develop ? 0 : null);
   const devRef = useRef<number | null>(develop ? 0 : null);
   const [breath, setBreath] = useState(false);
@@ -73,7 +80,8 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
       player.current?.destroy();
       player.current = null;
     };
-  }, [rec, bitmaps, audio, autoplay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec.id, bitmaps, audio, autoplay]);
 
   // проявка и эффекты: свой цикл, чтобы всё жило и на паузе
   useEffect(() => {
@@ -115,6 +123,51 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
   }, [ready]);
 
   useEffect(() => () => mic.current?.stop(), []);
+
+  const enableLive = async (save = true) => {
+    const p = player.current;
+    if (!p || liveState === 'busy') return;
+    if (liveState === 'on') {
+      p.r.setLive(false);
+      setLiveState('off');
+      if (save) onLive?.(false);
+      if (!p.playing) p.r.draw(p.time, { still: p.time === 0 });
+      return;
+    }
+    setLiveState('busy');
+    try {
+      setLiveMsg('загружаю нейросеть…');
+      const L = await import('../lib/live/segment');
+      const masks: (HTMLCanvasElement | null)[] = [];
+      for (let i = 0; i < bitmaps.length; i++) {
+        const b = bitmaps[i];
+        setLiveMsg(`вырезаю главное · фото ${i + 1} из ${bitmaps.length}`);
+        if (!maskCache.has(b)) maskCache.set(b, (await L.cutout(b)).mask);
+        masks.push(maskCache.get(b) ?? null);
+      }
+      setLiveMsg('склеиваю слои');
+      await new Promise((r) => setTimeout(r, 0));
+      if (player.current !== p) return;
+      p.r.buildLive(masks, (img, m) => L.applyMask(img, m), (img, m) => L.inpaint(img, m));
+      p.r.setLive(true);
+      setLiveState('on');
+      if (save) onLive?.(true);
+      if (!p.playing) p.r.draw(p.time, { still: p.time === 0 });
+    } catch (e) {
+      console.error(e);
+      setLiveState('off');
+      setLiveMsg('не получилось оживить — попробуйте ещё раз');
+      setTimeout(() => setLiveMsg(''), 3000);
+      return;
+    }
+    setLiveMsg('');
+  };
+
+  // день уже был оживлён — оживляем сразу
+  useEffect(() => {
+    if (ready && live && liveState === 'off') enableLive(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const toCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const b = e.currentTarget.getBoundingClientRect();
@@ -287,6 +340,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
         />
         {ready && dev != null && <div className="dev-hint mono">проявляется… потрите фото{'ontouchstart' in window ? ' или встряхните телефон' : ''}</div>}
         {ready && breath && <div className="dev-hint mono">подуйте в микрофон — стекло запотеет, по нему можно рисовать пальцем</div>}
+        {liveMsg && <div className="dev-hint mono live-hint">✦ {liveMsg}</div>}
         {!ready && (
           <div className="mono muted" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
             <span className="blink">{step}</span>
@@ -307,6 +361,9 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
       <div className="ctrl">
         <button className="btn ghost small" onClick={listen} disabled={!ready || rec_ !== null}>
           {voice ? '■ Остановить голос' : voiceUrl ? '◉ Мой голос' : '◉ Слушать запись'}
+        </button>
+        <button className={'btn small' + (liveState === 'on' ? '' : ' ghost')} onClick={() => enableLive()} disabled={!ready || liveState === 'busy' || rec_ !== null} title="вырезать главное и оживить фото в 3D">
+          ✦ {liveState === 'on' ? 'Живое 3D' : liveState === 'busy' ? 'Оживляю…' : 'Оживить 3D'}
         </button>
         <button className={'btn small' + (breath ? '' : ' ghost')} onClick={blow} disabled={!ready} title="подуть в микрофон">
           🌬 {breath ? 'Слушаю дыхание' : 'Подуть'}

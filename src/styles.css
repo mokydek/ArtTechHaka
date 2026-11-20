@@ -2672,3 +2672,9 @@ a.tab {
   text-shadow: 3px 0 rgba(255, 60, 60, 0.55), -3px 0 rgba(60, 200, 255, 0.55);
   font-variant-numeric: tabular-nums;
 }
+
+.live-hint {
+  bottom: auto;
+  top: 16px;
+  animation: none;
+}

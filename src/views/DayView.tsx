@@ -310,6 +310,12 @@ function DayPage({ id }: { id: string }) {
           onVideo={onVideo}
           voiceUrl={media?.voice}
           develop={firstView}
+          live={!!rec.live3d}
+          onLive={async (on) => {
+            if (rec.demo || !store) return;
+            await store.update({ ...rec, live3d: on });
+            await reload();
+          }}
           extra={
             <>
               <button className="btn ghost small" onClick={zip} disabled={zipping || !media}>

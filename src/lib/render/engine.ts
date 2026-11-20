@@ -36,6 +36,15 @@ export const FONTS = {
   hand: 'Caveat, cursive',
 };
 
+export interface LiveLayer {
+  bg: Cnv; // фон с дорисованным местом под объектом
+  fg: Cnv | null; // вырезанный объект
+  shadow: Cnv | null;
+  cx: number; // центр объекта в долях поля
+  cy: number;
+  area: number;
+}
+
 export interface RenderInput {
   spec: DesignSpec;
   photos: ImageBitmap[];
@@ -259,7 +268,8 @@ export class MemoryRenderer {
     g.beginPath();
     g.rect(FIELD.x - pad, FIELD.y - pad, FIELD.w + pad * 2, FIELD.h + pad * 2);
     g.clip();
-    switch (this.spec.mode) {
+    if (this.live) this.drawLive(tm, still, dt);
+    else switch (this.spec.mode) {
       case 'impression':
         this.drawImpression(tm, still);
         break;
@@ -280,8 +290,10 @@ export class MemoryRenderer {
         break;
     }
     // погода внутри
-    if (!still) this.particles.update(dt, tm.t, tm.level * 0.6 + tm.pulse * 0.2);
-    this.particles.draw(g, tm.t, tm.level, tm.pulse);
+    if (!this.live) {
+      if (!still) this.particles.update(dt, tm.t, tm.level * 0.6 + tm.pulse * 0.2);
+      this.particles.draw(g, tm.t, tm.level, tm.pulse);
+    }
     // зерно
     const gr = this.spec.grain * (this.spec.mode === 'film' ? 0.75 : 0.45);
     if (gr > 0.02) {
@@ -300,6 +312,135 @@ export class MemoryRenderer {
     this.drawChrome(tm, still);
     g.restore();
     this.drawFx();
+  }
+
+  // ——— Оживлённое фото: фон, погода, объект — три слоя с параллаксом ———
+  private live: LiveLayer[] | null = null;
+  get isLive() {
+    return !!this.live;
+  }
+  setLive(on: boolean) {
+    this.live = on ? this.liveLayers : null;
+  }
+  private liveLayers: LiveLayer[] | null = null;
+
+  /** Слои для каждого фото: обработка стиля дня, вырезанный объект, дорисованный фон */
+  buildLive(masks: (Cnv | null)[], cut: (img: Cnv, mask: Cnv) => Cnv, fill: (img: Cnv, mask: Cnv) => Cnv) {
+    const { spec, photos } = this.input;
+    const W = FIELD.w,
+      H = FIELD.h;
+    const layers: LiveLayer[] = [];
+    photos.forEach((ph, i) => {
+      let treated: Cnv;
+      if (spec.mode === 'impression' && this.painted[i]) treated = this.painted[i];
+      else if ((spec.mode === 'construct' || spec.mode === 'nocturne') && this.imgs[i]) treated = this.imgs[i];
+      else {
+        const base = coverCrop(ph, W, H);
+        if (spec.mode === 'film') treated = filmGrade(base, spec).img;
+        else if (spec.mode === 'ma') treated = maGrade(base, spec);
+        else treated = applyGrade(base, moodGrade(spec, { contrast: 1.02 }));
+      }
+      const m = masks[i] ? coverCrop(masks[i]!, W, H) : null;
+      let area = 0,
+        cx = 0.5,
+        cy = 0.6;
+      if (m) {
+        // доля и центр объекта по уменьшенной маске
+        const sm = canvas(64, 64);
+        const sg = ctx2d(sm);
+        sg.drawImage(m, 0, 0, 64, 64);
+        const d = sg.getImageData(0, 0, 64, 64).data;
+        let sx = 0,
+          sy = 0;
+        for (let k = 0; k < 64 * 64; k++) {
+          const a = d[k * 4 + 3] / 255;
+          area += a;
+          sx += (k % 64) * a;
+          sy += ((k / 64) | 0) * a;
+        }
+        if (area > 0) {
+          cx = sx / area / 64;
+          cy = sy / area / 64;
+        }
+        area /= 64 * 64;
+      }
+      const has = !!m && area > 0.012 && area < 0.8;
+      let shadow: Cnv | null = null;
+      if (has) {
+        shadow = canvas(W, H);
+        const g = ctx2d(shadow);
+        g.filter = 'blur(14px) brightness(0)';
+        g.drawImage(m!, 0, 0);
+        g.filter = 'none';
+      }
+      layers.push({ bg: has ? fill(treated, m!) : treated, fg: has ? cut(treated, m!) : null, shadow, cx, cy, area });
+    });
+    this.liveLayers = layers;
+  }
+
+  private drawLive(tm: Timing, still: boolean, dt: number) {
+    const g = this.g;
+    const { x, y, w, h } = FIELD;
+    const L = this.liveLayers!;
+    g.fillStyle = this.spec.palette.colors[0];
+    g.fillRect(x, y, w, h);
+    const t = still ? 2.4 : tm.t;
+    // камера медленно плывёт по эллипсу и «дышит» вместе с песней
+    const per = 11 + this.spec.motion * -4;
+    const a = (t / per) * Math.PI * 2;
+    const cam = { x: Math.sin(a), y: Math.cos(a * 0.8) * 0.7 };
+    const z = 1.07 + 0.025 * Math.sin((t / 17) * Math.PI * 2) + (still ? 0 : tm.pulse * 0.004 * (0.4 + this.spec.mood.energy));
+    // объект «отрывается» от фона в начале — как у монтажёров
+    const lift = still ? 1 : clamp((t - 0.6) / 1.4);
+    const liftE = lift * lift * (3 - 2 * lift);
+    const set = (k: number, alpha: number, withParticles: boolean) => {
+      const l = L[k];
+      if (!l) return;
+      g.globalAlpha = alpha;
+      // фон полосами: внизу ближе — сдвигается сильнее (перспектива «земли»)
+      const N = 18;
+      const sh = h / N;
+      for (let s = 0; s < N; s++) {
+        const d = 0.12 + 0.88 * Math.pow(s / (N - 1), 1.4);
+        const sc = z * (1 + 0.022 * d * liftE);
+        const ox = cam.x * (5 + 20 * d) * liftE,
+          oy = cam.y * (3 + 9 * d) * liftE;
+        const sy = s * sh;
+        g.drawImage(l.bg, 0, sy, w, sh + 1, x + w / 2 - (w / 2) * sc + ox, y + h / 2 + (sy - h / 2) * sc + oy, w * sc, (sh + 1) * sc);
+      }
+      if (withParticles) {
+        g.globalAlpha = 1;
+        if (!still) this.particles.update(dt, tm.t, tm.level * 0.6 + tm.pulse * 0.2);
+        this.particles.draw(g, tm.t, tm.level, tm.pulse);
+        g.globalAlpha = alpha;
+      }
+      if (l.fg) {
+        const fx = x + w * l.cx,
+          fy = y + h * l.cy;
+        const fs = z * (1 + 0.035 * liftE) + (still ? 0 : tm.pulse * 0.006);
+        const ox = cam.x * 42 * liftE,
+          oy = cam.y * 24 * liftE;
+        const rot = still ? 0 : Math.sin(a * 1.3) * 0.006 * liftE;
+        // тень на фон
+        g.save();
+        g.globalAlpha = alpha * 0.32 * liftE;
+        g.translate(fx + ox * 0.55 + 10 * liftE, fy + oy * 0.55 + 14 * liftE);
+        g.scale(fs * 0.995, fs * 0.995);
+        g.drawImage(l.shadow!, -w * l.cx, -h * l.cy, w, h);
+        g.restore();
+        g.save();
+        g.globalAlpha = alpha;
+        g.translate(fx + ox, fy + oy);
+        g.rotate(rot);
+        g.scale(fs, fs);
+        g.drawImage(l.fg, -w * l.cx, -h * l.cy, w, h);
+        g.restore();
+      }
+      g.globalAlpha = 1;
+    };
+    const intro = still ? 1 : easeInOut(clamp((tm.t - 0.2) / (this.introDur * 0.7)));
+    set(tm.cur, intro, tm.tr < 0);
+    if (tm.tr >= 0) set(tm.next, easeInOut(tm.tr), true);
   }
 
   // ——— Живое касание: круги от пальца, запотевшее стекло, проявка ———

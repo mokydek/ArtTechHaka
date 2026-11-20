@@ -139,8 +139,8 @@ export function inpaint(img: Src, mask: Src, w = img.width, h = img.height): HTM
   m.width = W;
   m.height = H;
   const mgc = m.getContext('2d', { willReadFrequently: true })!;
-  mgc.filter = `blur(${Math.max(2, Math.round(W / 90))}px)`;
-  mgc.drawImage(mask, 0, 0, W, H);
+  mgc.filter = `blur(${Math.max(2, Math.round(W / 50))}px)`;
+  for (let k = 0; k < 4; k++) mgc.drawImage(mask, 0, 0, W, H);
   const ma = mgc.getImageData(0, 0, W, H).data;
   // уровень 0: известные пиксели (вес = 1 - маска)
   type L = { w: number; h: number; r: Float32Array; g: Float32Array; b: Float32Array; a: Float32Array };
@@ -230,15 +230,22 @@ export function inpaint(img: Src, mask: Src, w = img.width, h = img.height): HTM
   fg.filter = 'blur(1.5px)';
   fg.drawImage(c, 0, 0, w, h);
   fg.filter = 'none';
+  // расширенная маска: размытие + многократное наложение = «дилатация», чтобы от объекта не оставалось контура
+  const dil = document.createElement('canvas');
+  dil.width = w;
+  dil.height = h;
+  const dg = dil.getContext('2d')!;
+  dg.filter = `blur(${Math.max(3, Math.round(w / 70))}px)`;
+  for (let k = 0; k < 5; k++) dg.drawImage(mask, 0, 0, w, h);
+  dg.filter = 'none';
   const keep = document.createElement('canvas');
   keep.width = w;
   keep.height = h;
   const kg = keep.getContext('2d')!;
   kg.drawImage(img, 0, 0, w, h);
   kg.globalCompositeOperation = 'destination-out';
-  kg.filter = `blur(${Math.max(2, Math.round(w / 120))}px)`;
-  kg.drawImage(mask, 0, 0, w, h);
-  kg.drawImage(mask, 0, 0, w, h);
+  kg.drawImage(dil, 0, 0);
+  kg.drawImage(dil, 0, 0);
   fg.drawImage(keep, 0, 0);
   return full;
 }

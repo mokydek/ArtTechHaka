@@ -25,6 +25,7 @@ export default function NewDay({ nb }: { nb?: string }) {
   const [date, setDate] = useState(today());
   const [place, setPlace] = useState<PlaceInfo | null>(null);
   const [voice, setVoice] = useState<Blob | null>(null);
+  const [live, setLive] = useState(false);
   const voiceUrl = useMemo(() => (voice ? URL.createObjectURL(voice) : undefined), [voice]);
   const dictate = (t: string) =>
     setText((prev) => {
@@ -93,6 +94,7 @@ export default function NewDay({ nb }: { nb?: string }) {
     try {
       const rec = retitle(built.record, title || built.record.title);
       rec.notebookId = nbId || defaultNotebook;
+      rec.live3d = live;
       if (voice) {
         rec.hasVoice = true;
         rec.voiceName = `voice.${voice.type.includes('mp4') ? 'mp4' : 'webm'}`;
@@ -120,7 +122,7 @@ export default function NewDay({ nb }: { nb?: string }) {
   if ((phase === 'preview' || phase === 'save') && built) {
     return (
       <div className="day">
-        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay voiceUrl={voiceUrl} develop />
+        <Stage rec={built.record} title={title} bitmaps={built.bitmaps} audio={built.audio} autoplay voiceUrl={voiceUrl} develop live={live} onLive={setLive} />
         <div className="panel">
           <div className="sec">
             <b>●</b> Папка дня — название придумала система, можно поправить
