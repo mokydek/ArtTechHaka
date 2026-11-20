@@ -116,7 +116,25 @@ export default function NewDay({ nb }: { nb?: string }) {
     });
   };
 
-  const ready = text.trim().length > 10 && photos.length > 0 && !!music;
+  const missing: ['text' | 'photo' | 'song', string][] = [];
+  if (text.trim().length < 3) missing.push(['text', 'Напишите хотя бы пару слов о дне.']);
+  if (!photos.length) missing.push(['photo', 'Добавьте хотя бы одно фото.']);
+  if (!music) missing.push(['song', 'Выберите песню.']);
+  const ready = !missing.length;
+  const secs = useRef<Record<string, HTMLElement | null>>({});
+  const [nudge, setNudge] = useState(false);
+  /** кнопка всегда нажимается: если чего-то не хватает — ведём к этому месту */
+  const go = () => {
+    if (ready) return develop();
+    const el = secs.current[missing[0][0]];
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el?.classList.remove('flash');
+    void el?.offsetWidth;
+    el?.classList.add('flash');
+    setTimeout(() => el?.classList.remove('flash'), 1700);
+    setNudge(true);
+    setTimeout(() => setNudge(false), 900);
+  };
 
   const develop = async () => {
     setErr('');
@@ -249,7 +267,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             </button>
           ))}
         </div>
-        <div className="field">
+        <div className="field" ref={(e) => void (secs.current.text = e)}>
           <textarea
             ref={ta}
             value={text}
@@ -282,7 +300,9 @@ export default function NewDay({ nb }: { nb?: string }) {
         <div className="sec">
           <b>02</b> // Фото
         </div>
-        <Photos files={photos} onChange={setPhotos} disabled={phase === 'build'} />
+        <div ref={(e) => void (secs.current.photo = e)}>
+          <Photos files={photos} onChange={setPhotos} disabled={phase === 'build'} />
+        </div>
         <div className="sec" style={{ marginTop: 6 }}>
           <b>02+</b> // Вклейки — свои моменты поверх страницы
         </div>
@@ -305,7 +325,9 @@ export default function NewDay({ nb }: { nb?: string }) {
         <div className="sec">
           <b>03</b> // Песня дня
         </div>
-        <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
+        <div ref={(e) => void (secs.current.song = e)}>
+          <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
+        </div>
         <div style={{ marginTop: 34 }}>
           {phase === 'build' ? (
             <div className="steps">
@@ -321,15 +343,14 @@ export default function NewDay({ nb }: { nb?: string }) {
             </div>
           ) : (
             <>
-              <button className="btn" onClick={develop} disabled={!ready} style={{ fontSize: 13, padding: '14px 26px' }}>
+              <div className={'hint' + (nudge ? ' nudge' : '')} style={{ marginBottom: 12 }}>
+                {ready
+                  ? 'Всё на месте. Анализ идёт на устройстве — запись никуда не отправляется до сохранения.'
+                  : missing.map(([, m]) => m).join(' ')}
+              </div>
+              <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 13, padding: '14px 26px' }}>
                 Проявить день →
               </button>
-              <div className="hint">
-                {!text.trim() ? 'Нужна запись (хотя бы пара предложений). ' : ''}
-                {!photos.length ? 'Нужно минимум одно фото. ' : ''}
-                {!music ? 'Выберите песню. ' : ''}
-                {ready && 'Всё на месте. Анализ идёт на устройстве — запись никуда не отправляется до сохранения.'}
-              </div>
               {err && <p style={{ color: '#a33' }}>{err}</p>}
             </>
           )}
@@ -353,7 +374,7 @@ function Photos({ files, onChange, disabled }: { files: File[]; onChange: (f: Fi
   filesRef.current = files;
   const add = (list: FileList | null) => {
     if (!list) return;
-    const imgs = [...list].filter((f) => f.type.startsWith('image/'));
+    const imgs = [...list].filter((f) => f.type.startsWith('image/') || (!f.type && /\.(jpe?g|png|webp|heic|heif|gif|avif)$/i.test(f.name)));
     onChange([...files, ...imgs].slice(0, 8));
   };
   return (

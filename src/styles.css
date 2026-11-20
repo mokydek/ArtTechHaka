@@ -2830,7 +2830,7 @@ a.tab {
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  opacity: 0.55;
+  opacity: 0.75;
 }
 .there-place {
   font-family: var(--serif);
@@ -3514,4 +3514,25 @@ a.tab {
     background: var(--paper-2);
     border: 1px solid var(--line);
   }
+}
+
+/* «Проявить день» всегда нажимается и ведёт к тому, чего не хватает */
+.btn.soft {
+  opacity: 0.75;
+}
+.flash {
+  animation: need 1.6s ease;
+  border-radius: 12px;
+}
+@keyframes need {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  20%, 60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent); }
+}
+.hint.nudge {
+  color: var(--accent);
+  animation: nudge 0.45s ease;
+}
+@keyframes nudge {
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
