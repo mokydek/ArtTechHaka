@@ -11,6 +11,7 @@ import SystemPage from './views/SystemPage';
 import YearView from './views/YearView';
 import Seed from './views/Seed';
 import Museum from './views/Museum';
+import BeThere from './views/BeThere';
 import CapsuleNew from './views/CapsuleNew';
 import CapsuleView from './views/CapsuleView';
 import Stamps from './views/Stamps';
@@ -198,6 +199,7 @@ export default function App() {
   else if (parts[0] === 'film') view = <FilmView kind={parts[1]} id={parts[2]} key={route} />;
   else if (parts[0] === 'capsule' && parts[1] === 'new') view = <CapsuleNew key={route} />;
   else if (parts[0] === 'capsule') view = <CapsuleView id={parts[1]} key={route} />;
+  else if (parts[0] === 'there') view = <BeThere dayId={parts[1] ? decodeURIComponent(parts[1]) : undefined} idx={parts[2] ? +parts[2] : 0} key={route} />;
   else if (parts[0] === 'system') view = <SystemPage />;
   else if (parts[0] === 'seed') view = <Seed />;
 
@@ -221,6 +223,9 @@ export default function App() {
           <a className={on('/stamps')} href="#/stamps">
             Марки
           </a>
+          <a className={on('/there')} href="#/there">
+            Побывать там
+          </a>
           <a className={on('/system')} href="#/system">
             Визуальная система
           </a>
@@ -231,7 +236,7 @@ export default function App() {
       </header>
       <main className="page">{view}</main>
       {msg && <div className="toast">{msg}</div>}
-      {awards.length > 0 && !hash.startsWith('#/new') && !hash.startsWith('#/p/') && <StampAward list={awards} onClose={() => setAwards([])} />}
+      {awards.length > 0 && !hash.startsWith('#/new') && !hash.startsWith('#/p/') && !hash.startsWith('#/there') && <StampAward list={awards} onClose={() => setAwards([])} />}
     </Ctx.Provider>
   );
 }

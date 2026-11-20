@@ -74,7 +74,7 @@ function blur(a: Float32Array, w: number, h: number, r: number) {
 }
 
 /** Небо: светлое/голубое/серое, гладкое, связанное с верхним краем кадра */
-export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): Uint8Array {
+export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): { sky: Uint8Array; horizon: number } {
   const c = document.createElement('canvas');
   c.width = gw;
   c.height = gh;
@@ -126,16 +126,85 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
         q.push(j);
       }
   }
-  // небо идёт сплошной полосой от верха в каждом столбце
+  const columns = () => {
+    for (let x = 0; x < gw; x++) {
+      let open = true;
+      for (let y = 0; y < gh; y++) {
+        const i = y * gw + x;
+        if (!sky[i]) open = false;
+        else if (!open) sky[i] = 0;
+      }
+    }
+  };
+  columns();
+  // горизонт: почти самый низкий край неба (передний план его только заслоняет)
+  const bottoms: number[] = [];
   for (let x = 0; x < gw; x++) {
-    let open = true;
+    let b = -1;
+    for (let y = 0; y < gh; y++) if (sky[y * gw + x]) b = y;
+    if (b >= 0) bottoms.push(b);
+  }
+  bottoms.sort((a, b) => a - b);
+  let horizon = bottoms.length > gw * 0.3 ? (bottoms[Math.floor(bottoms.length * 0.85)] + 1) / gh : 0.45;
+  horizon = Math.min(0.62, Math.max(0.28, horizon));
+  const limit = Math.min(gh * 0.72, (horizon + 0.02) * gh);
+  // дорастить небо по цвету: глубина нейросети снаружи ненадёжна (обучена на комнатах)
+  let seed = 0;
+  for (let i = 0; i < gw * gh; i++) seed += sky[i];
+  if (seed > gw * gh * 0.04) {
+    // эталон цвета по строкам: у неба вертикальный градиент
+    const ref = new Float32Array(gh * 3).fill(-1);
     for (let y = 0; y < gh; y++) {
-      const i = y * gw + x;
-      if (!sky[i]) open = false;
-      else if (!open) sky[i] = 0;
+      let n = 0,
+        r = 0,
+        gg = 0,
+        b = 0;
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        if (!sky[i]) continue;
+        n++;
+        r += px[i * 4];
+        gg += px[i * 4 + 1];
+        b += px[i * 4 + 2];
+      }
+      if (n >= 3) ref.set([r / n, gg / n, b / n], y * 3);
+      else if (y > 0) ref.set(ref.subarray((y - 1) * 3, y * 3), y * 3);
+    }
+    const near = (i: number) => {
+      const y = (i / gw) | 0;
+      if (ref[y * 3] < 0) return false;
+      const d = Math.hypot(px[i * 4] - ref[y * 3], px[i * 4 + 1] - ref[y * 3 + 1], px[i * 4 + 2] - ref[y * 3 + 2]) / 255;
+      if (d < 0.13) return true;
+      // светлая дымка/засветка у солнца: яркое и почти бесцветное
+      const r = px[i * 4],
+        g = px[i * 4 + 1],
+        b = px[i * 4 + 2];
+      const mx = Math.max(r, g, b),
+        mn = Math.min(r, g, b);
+      return lum[i] > 0.62 && (mx - mn) / mx < 0.22 && b >= r * 0.95;
+    };
+    const smoothAt = (i: number) => {
+      const x = i % gw,
+        y = (i / gw) | 0;
+      if (x < 1 || y < 1 || x >= gw - 1 || y >= gh - 1) return true;
+      return Math.abs(lum[i + 1] - lum[i - 1]) + Math.abs(lum[i + gw] - lum[i - gw]) < 0.07;
+    };
+    const q2: number[] = [];
+    for (let i = 0; i < gw * gh; i++) if (sky[i]) q2.push(i);
+    while (q2.length) {
+      const i = q2.pop()!;
+      const x = i % gw,
+        y = (i / gw) | 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < gw - 1 ? i + 1 : -1, y > 0 ? i - gw : -1, y < gh - 1 ? i + gw : -1])
+        if (j >= 0 && !sky[j] && (j / gw | 0) < limit && near(j) && smoothAt(j)) {
+          sky[j] = 1;
+          q2.push(j);
+        }
     }
   }
-  return sky;
+  // небо идёт сплошной полосой от верха в каждом столбце
+  columns();
+  return { sky, horizon };
 }
 
 export interface SceneLayers {
@@ -163,17 +232,40 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
   const cut = await cutout(src);
   const has = cut.area > 0.01 && cut.area < 0.75;
   onStep?.('нахожу небо и горизонт');
-  const sky = skyMask(src, gw, gh, depth);
-  // горизонт: нижняя граница неба по медиане столбцов, иначе — чуть выше середины
-  const bottoms: number[] = [];
-  for (let x = 0; x < gw; x++) {
-    let b = -1;
-    for (let y = 0; y < gh; y++) if (sky[y * gw + x]) b = y;
-    if (b >= 0) bottoms.push(b);
+  const skm = skyMask(src, gw, gh, depth);
+  const sky = skm.sky;
+  let horizon = skm.horizon;
+  // крупный портрет на фоне ровной стены — это не небо
+  const skyArea = sky.reduce((a, v) => a + v, 0) / (gw * gh);
+  if (has && cut.area > 0.4 && skyArea < 0.15) {
+    sky.fill(0);
+    horizon = 0.45;
   }
-  bottoms.sort((a, b) => a - b);
-  let horizon = bottoms.length > gw * 0.3 ? (bottoms[Math.floor(bottoms.length / 2)] + 1) / gh : 0.45;
-  horizon = Math.min(0.62, Math.max(0.28, horizon));
+  for (let y = Math.ceil((horizon + 0.02) * gh); y < gh; y++) sky.fill(0, y * gw, (y + 1) * gw);
+  // за объектом над горизонтом — тоже небо (если над ним небо): шагнёшь в сторону — увидишь небо, а не мутное пятно
+  if (has && sky.some((v) => v)) {
+    const mc = document.createElement('canvas');
+    mc.width = gw;
+    mc.height = gh;
+    const mg = mc.getContext('2d', { willReadFrequently: true })!;
+    mg.drawImage(cut.mask, 0, 0, gw, gh);
+    const ma = mg.getImageData(0, 0, gw, gh).data;
+    const hy = Math.floor(horizon * gh);
+    for (let x = 0; x < gw; x++) {
+      if (!sky[x]) continue;
+      let y = 0;
+      while (y < gh && sky[y * gw + x]) y++;
+      // сквозь объект (и узкие просветы в его маске) — до горизонта
+      let gap = 0;
+      const from = y;
+      while (y < hy) {
+        if (ma[(y * gw + x) * 4 + 3] > 25) gap = 0;
+        else if (++gap > 4) break;
+        y++;
+      }
+      if (y - from > gap) for (let k = from; k < y - gap; k++) sky[k * gw + x] = 1;
+    }
+  }
   onStep?.('дорисовываю фон за объектом');
   // фон без объекта
   const W = Math.min(1600, src.width),

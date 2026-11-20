@@ -54,8 +54,8 @@ export interface HourWeather {
   utcOffset: number; // секунд
 }
 
-/** Погода в конкретный час (местное время места) */
-export async function hourWeather(lat: number, lon: number, date: string, hour: number): Promise<HourWeather | null> {
+/** Погода по часам за день (местное время места): 24 записи */
+export async function dayHours(lat: number, lon: number, date: string): Promise<HourWeather[] | null> {
   const vars = 'temperature_2m,precipitation,rain,snowfall,cloud_cover,wind_speed_10m,wind_direction_10m,weather_code,is_day';
   const q = `latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&hourly=${vars}&timezone=auto`;
   const daysAgo = (Date.now() - new Date(date + 'T12:00:00').getTime()) / 86400000;
@@ -66,11 +66,9 @@ export async function hourWeather(lat: number, lon: number, date: string, hour: 
       if (!r.ok) continue;
       const j = await r.json();
       const h = j.hourly;
-      if (!h?.time?.length) continue;
-      const i = Math.max(0, Math.min(h.time.length - 1, hour));
-      if (h.weather_code?.[i] == null) continue;
-      return {
-        code: h.weather_code[i],
+      if (!h?.time?.length || h.weather_code?.[12] == null) continue;
+      return h.time.map((_: string, i: number) => ({
+        code: h.weather_code[i] ?? 0,
         temp: h.temperature_2m?.[i] ?? undefined,
         precip: h.precipitation?.[i] ?? 0,
         rain: h.rain?.[i] ?? 0,
@@ -80,12 +78,18 @@ export async function hourWeather(lat: number, lon: number, date: string, hour: 
         windDir: h.wind_direction_10m?.[i] ?? 0,
         isDay: !!h.is_day?.[i],
         utcOffset: j.utc_offset_seconds ?? 0,
-      };
+      }));
     } catch {
       /* следующий источник */
     }
   }
   return null;
+}
+
+/** Погода в конкретный час (местное время места) */
+export async function hourWeather(lat: number, lon: number, date: string, hour: number): Promise<HourWeather | null> {
+  const d = await dayHours(lat, lon, date);
+  return d ? d[Math.max(0, Math.min(d.length - 1, hour))] : null;
 }
 
 export interface SkyState {

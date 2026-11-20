@@ -452,6 +452,8 @@ function DayPage({ id }: { id: string }) {
 
         <SkyBox rec={rec} />
 
+        <ThereBox rec={rec} photos={media?.photos.length ? media.photos : (rec.photoUrls ?? [])} />
+
         <Why rec={rec} />
 
         <div className="navdays">
@@ -493,3 +495,24 @@ function DayPage({ id }: { id: string }) {
 }
 
 export type { DayRecord };
+
+/** Войти в любое фото дня: место, минута, солнце и погода того момента */
+function ThereBox({ rec, photos }: { rec: DayRecord; photos: string[] }) {
+  if (!photos.length) return null;
+  return (
+    <div className="box">
+      <div className="sec">Побывать там</div>
+      <div className="there-tiles">
+        {photos.map((u, i) => {
+          const m = rec.photoMeta?.[i];
+          return (
+            <a key={i} href={`#/there/${encodeURIComponent(rec.id)}/${i}`} title="войти в этот кадр">
+              <img src={u} alt="" loading="lazy" />
+              <span>{m?.lat != null ? '⌖ GPS' : '🚶'}</span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

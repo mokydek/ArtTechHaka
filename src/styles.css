@@ -2725,3 +2725,331 @@ a.tab {
   font-size: 10px;
   color: var(--ink-2);
 }
+
+/* ——— Побывать там ——— */
+.there {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #0b0d12;
+  color: #f3efe6;
+  overflow: hidden;
+  user-select: none;
+}
+.there-gl {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+}
+.there-gl:active {
+  cursor: grabbing;
+}
+.there-gl canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.there-x {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(10, 12, 18, 0.55);
+  color: #f3efe6;
+  font-size: 22px;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+}
+.there-load {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+.there-load canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(18px) brightness(0.55);
+  transform: scale(1.08);
+}
+.there-load p {
+  position: relative;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  animation: blink 1.6s ease-in-out infinite;
+}
+.there-card {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  z-index: 3;
+  max-width: min(420px, calc(100vw - 80px));
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 12, 18, 0.55);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  line-height: 1.55;
+  display: grid;
+  gap: 2px;
+}
+.there-card small {
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+.there-place {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+.there-link {
+  all: unset;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(243, 239, 230, 0.35);
+}
+.there-date {
+  all: unset;
+  font-size: 12px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+.there-where {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.there-where input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: inherit;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+.there-where button {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.there-where button:hover {
+  text-decoration: underline;
+}
+.there-compass {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 360px;
+  margin-left: -180px;
+  height: 30px;
+  z-index: 3;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  pointer-events: none;
+}
+.there-tape {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+}
+.there-tape span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.there-tape .tick::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  width: 1px;
+  height: 6px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.there-tape .tick.big {
+  font-weight: 700;
+}
+.there-tape .sun {
+  top: 14px;
+  color: #ffcf6b;
+  font-size: 14px;
+}
+.there-tape .sun.down {
+  opacity: 0.35;
+}
+.there-tape .moon {
+  top: 14px;
+  color: #dfe6ff;
+  font-size: 13px;
+}
+.there-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-bottom-color: var(--accent);
+  margin-left: -5px;
+}
+.there-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(640px, calc(100vw - 32px));
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.55);
+  backdrop-filter: blur(10px);
+}
+.there-bar input[type='range'] {
+  flex: 1;
+  accent-color: #ffcf6b;
+}
+.there-bar .btn {
+  background: #f3efe6;
+  color: #111;
+  border-color: #f3efe6;
+}
+.there-bar .btn.ghost {
+  background: transparent;
+  color: #f3efe6;
+}
+.there-hint {
+  position: absolute;
+  right: 18px;
+  bottom: 30px;
+  z-index: 2;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.there-stick {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  width: 110px;
+  height: 110px;
+  margin: -55px 0 0 -55px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+.there-stick i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+}
+.there-pick {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 40%, #27324a, #0b0d12 70%);
+}
+.there-drop {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+  max-width: 420px;
+  padding: 44px 36px;
+  border: 1px dashed rgba(243, 239, 230, 0.4);
+  border-radius: 22px;
+  cursor: pointer;
+}
+.there-drop b {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1;
+}
+.there-drop .mono {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid #f3efe6;
+  border-radius: 999px;
+  padding: 9px 16px;
+}
+.there-err {
+  border-color: #ff8b6b !important;
+  color: #ff8b6b;
+}
+@media (max-width: 720px) {
+  .there-hint {
+    display: none;
+  }
+  .there-compass {
+    top: auto;
+    bottom: 86px;
+  }
+  .there-card {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+  .there-place {
+    font-size: 18px;
+  }
+}
+.there-tiles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.there-tiles a {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  text-decoration: none;
+}
+.there-tiles img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.there-tiles span {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 9px;
+}
