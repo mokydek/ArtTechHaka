@@ -60,3 +60,5 @@ alter table public.notebooks enable row level security;
 drop policy if exists "notebooks: own" on public.notebooks;
 create policy "notebooks: own" on public.notebooks for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 grant select, insert, update, delete on public.notebooks to authenticated;
+
+-- Общие тетради: см. supabase/shared.sql

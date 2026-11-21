@@ -13,6 +13,7 @@ import NewDay from './views/NewDay';
 import DayView from './views/DayView';
 import MapView from './views/MapView';
 import ShareView from './views/ShareView';
+import JoinView from './views/JoinView';
 import SystemPage from './views/SystemPage';
 import YearView from './views/YearView';
 import Seed from './views/Seed';
@@ -101,18 +102,21 @@ export default function App() {
     setStore(s);
     (window as unknown as Record<string, unknown>).__ottiskStore = s; // для проверок
     let nbs = await s.listNotebooks().catch(() => [] as Notebook[]);
-    if (!nbs.length) {
+    // общие тетради других людей не заменяют свою: если своей нет — создаём
+    if (!nbs.some((n) => !n.shared)) {
       const first: Notebook = { id: newId(), title: 'Мой дневник', cover: { style: 'black' }, createdAt: new Date().toISOString() };
       await s.saveNotebook(first).catch(() => {});
-      nbs = [first];
+      nbs = [first, ...nbs];
     }
     // первая тетрадь по умолчанию теперь чёрная: старую автоматическую крафтовую перекрашиваем один раз
     try {
-      const auto = nbs.length === 1 && nbs[0].title === 'Мой дневник' && nbs[0].cover.style === 'kraft' && !localStorage.getItem('ottisk:black');
+      const mineOnly = nbs.filter((n) => !n.shared);
+      const auto = mineOnly.length === 1 && mineOnly[0].title === 'Мой дневник' && mineOnly[0].cover.style === 'kraft' && !localStorage.getItem('ottisk:black');
       localStorage.setItem('ottisk:black', '1');
       if (auto) {
-        nbs = [{ ...nbs[0], cover: { style: 'black' } }];
-        await s.saveNotebook(nbs[0]).catch(() => {});
+        const fixed = { ...mineOnly[0], cover: { style: 'black' as const } };
+        nbs = nbs.map((n) => (n.id === fixed.id ? fixed : n));
+        await s.saveNotebook(fixed).catch(() => {});
       }
     } catch {
       /* без хранилища */
@@ -151,7 +155,7 @@ export default function App() {
   );
   const days = useMemo(() => everything.filter((d) => !d.sealedUntil), [everything]);
   const sealed = useMemo(() => everything.filter((d) => !!d.sealedUntil), [everything]);
-  const defaultNotebook = own[0]?.id ?? '';
+  const defaultNotebook = (own.find((n) => !n.shared) ?? own[0])?.id ?? '';
   const notebooks = useMemo(() => [...own, DEMO_NOTEBOOK], [own]);
   const notebookOf = useCallback((d: DayRecord) => (d.demo ? DEMO_NOTEBOOK.id : d.notebookId && own.some((n) => n.id === d.notebookId) ? d.notebookId : defaultNotebook), [own, defaultNotebook]);
   const daysOf = useCallback((nbId: string) => days.filter((d) => notebookOf(d) === nbId), [days, notebookOf]);
@@ -217,6 +221,7 @@ export default function App() {
   else if (parts[0] === 'system') view = <SystemPage />;
   else if (parts[0] === 'map') view = <MapView />;
   else if (parts[0] === 's') view = <ShareView token={parts[1] ?? ''} key={route} />;
+  else if (parts[0] === 'join') view = <JoinView code={parts[1]} key={route} />;
   else if (parts[0] === 'seed') view = <Seed />;
 
   // атмосфера: свои дни (а пока их нет — дни-примеры) + черновик, который пишут прямо сейчас
@@ -277,6 +282,7 @@ export default function App() {
 const MORE: [string, string, string][] = [
   ['/shelf', 'Тетради и капсулы', 'все тетради, письма себе в будущее'],
   ['/map', 'Карта', 'все дни на карте, по местам'],
+  ['/join', 'Общая тетрадь', 'вступить по коду приглашения'],
   ['/museum', 'Музей мелочей', 'запахи, звуки, свет из всех дней'],
   ['/stamps', 'Альбом марок', 'марки за особенные дни'],
   ['/system', 'Как это устроено', 'правила, по которым день становится страницей'],

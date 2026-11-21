@@ -233,6 +233,17 @@ export interface Notebook {
   cover: { style: CoverStyle; image?: string; label?: boolean }; // custom: своя обложка (JPEG data URL) и нужна ли подпись
   createdAt: string;
   demo?: boolean;
+  // общая тетрадь (облако): владелец, его имя и код приглашения; shared — тетрадь чужая, я в ней участник
+  ownerId?: string;
+  ownerName?: string;
+  inviteCode?: string;
+  shared?: boolean;
+}
+
+export interface NotebookMember {
+  userId: string;
+  name: string;
+  joinedAt: string;
 }
 
 export interface PlaceInfo {

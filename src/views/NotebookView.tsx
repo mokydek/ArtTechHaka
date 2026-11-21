@@ -9,6 +9,7 @@ import { MODES } from '../lib/design/system';
 import { plural } from '../lib/prompts';
 import type { DayRecord } from '../lib/types';
 import ShareLink from '../components/ShareLink';
+import Members from '../components/Members';
 
 const TABS: [string, string][] = [
   ['timeline', 'Лента'],
@@ -25,6 +26,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
   const [q, setQ] = useState('');
   const [mode, setMode] = useState('all');
   const [share, setShare] = useState(false);
+  const [people, setPeople] = useState(false);
   const days = useMemo(() => {
     const s = q.trim().toLowerCase();
     return all.filter((d) => (mode === 'all' || d.design.mode === mode) && (!s || (d.title + ' ' + d.text + ' ' + d.music.artist + ' ' + d.music.title + ' ' + (d.place?.name ?? '')).toLowerCase().includes(s)));
@@ -38,7 +40,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
   return (
     <>
       <section className="nb-head">
-        <a href={nb.demo ? undefined : `#/nb/${nb.id}/cover`} className="nb-cover">
+        <a href={nb.demo || nb.shared ? undefined : `#/nb/${nb.id}/cover`} className="nb-cover">
           {cover && <img src={cover} alt="" />}
         </a>
         <div className="nb-info">
@@ -51,6 +53,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
           <div className="mono muted">
             {all.length} {plural(all.length, 'запись', 'записи', 'записей')}
             {all.length > 0 && ` · ${all[all.length - 1].date.slice(0, 7).split('-').reverse().join('.')}, ${all[0].date.slice(0, 7).split('-').reverse().join('.')}`}
+            {(nb.shared || nb.inviteCode) && <span className="nb-shared">общая</span>}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             {!nb.demo && (
@@ -58,9 +61,14 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
                 <a className="btn" href={`#/new/${nb.id}`}>
                   + Записать день
                 </a>
-                <a className="btn ghost" href={`#/nb/${nb.id}/cover`}>
-                  Обложка и название
-                </a>
+                {!nb.shared && (
+                  <a className="btn ghost" href={`#/nb/${nb.id}/cover`}>
+                    Обложка и название
+                  </a>
+                )}
+                <button className="btn ghost" onClick={() => setPeople(true)}>
+                  👥 {nb.shared ? 'Участники' : 'Общий доступ'}
+                </button>
               </>
             )}
             {all.length >= 2 && (
@@ -77,6 +85,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
         </div>
       </section>
 
+      {people && <Members nb={nb} onClose={() => setPeople(false)} />}
       {share && <ShareLink title={nb.title} days={all.filter((d) => !d.sealedUntil)} onClose={() => setShare(false)} />}
       <div className="tabs">
         {TABS.map(([k, label]) => (

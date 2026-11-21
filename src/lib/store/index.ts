@@ -48,3 +48,9 @@ export function getStore(): Promise<DiaryStore> {
 export function newId(): string {
   return crypto.randomUUID();
 }
+
+/** День другого участника общей тетради (менять его нельзя) */
+export function foreign(rec: DayRecord, store: DiaryStore | null): boolean {
+  const uid = (store as unknown as { uid?: string } | null)?.uid;
+  return !!(store && store.kind === 'cloud' && rec.ownerId && uid && rec.ownerId !== uid && !rec.demo);
+}

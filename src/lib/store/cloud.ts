@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { Capsule, DayMedia, DayRecord, Notebook } from '../types';
+import type { Capsule, DayMedia, DayRecord, Notebook, NotebookMember } from '../types';
 import type { DayFiles, DiaryStore } from './index';
-import { seal, type SharedAlbum, type SharedDay } from '../share';
+import { newCode, seal, type SharedAlbum, type SharedDay } from '../share';
 
 // Публикуемый (publishable) ключ рассчитан на браузер: доступ ограничен RLS-политиками (см. supabase/schema.sql)
 const URL_ = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? 'https://byxaagbqhpzaskteyxkh.supabase.co';
@@ -223,9 +223,62 @@ export class CloudStore implements DiaryStore {
   }
 
   async listNotebooks(): Promise<Notebook[]> {
-    const { data, error } = await this.sb.from('notebooks').select('id, title, cover, created_at').eq('user_id', this.uid).order('created_at');
+    // свои тетради и общие, где я участник (RLS отдаёт только их)
+    let res = await this.sb.from('notebooks').select('id, title, cover, created_at, user_id, invite_code, owner_name').order('created_at');
+    if (res.error) {
+      // схема без общих тетрадей: только свои
+      res = (await this.sb.from('notebooks').select('id, title, cover, created_at, user_id').eq('user_id', this.uid).order('created_at')) as typeof res;
+      if (res.error) throw res.error;
+    }
+    const rows = (res.data ?? []) as { id: string; title: string; cover: Notebook['cover']; created_at: string; user_id: string; invite_code?: string | null; owner_name?: string | null }[];
+    const list = rows.map((r) => ({ id: r.id, title: r.title, cover: r.cover, createdAt: r.created_at, ownerId: r.user_id, ownerName: r.owner_name ?? '', inviteCode: r.invite_code ?? undefined, shared: r.user_id !== this.uid }));
+    // свои — первыми
+    return [...list.filter((n) => !n.shared), ...list.filter((n) => n.shared)];
+  }
+
+  // ——— общие тетради ———
+  async members(nbId: string): Promise<NotebookMember[]> {
+    const { data, error } = await this.sb.from('notebook_members').select('user_id, name, joined_at').eq('notebook_id', nbId).order('joined_at');
     if (error) throw error;
-    return (data ?? []).map((r) => ({ id: r.id, title: r.title, cover: r.cover, createdAt: r.created_at }));
+    return (data ?? []).map((r) => ({ userId: r.user_id, name: r.name, joinedAt: r.joined_at }));
+  }
+
+  /** Код приглашения (новый — если просили или его ещё нет) */
+  async invite(nbId: string, ownerName: string, fresh = false): Promise<string> {
+    const cur = await this.sb.from('notebooks').select('invite_code').eq('id', nbId).maybeSingle();
+    let code = !fresh && cur.data?.invite_code ? (cur.data.invite_code as string) : '';
+    for (let i = 0; !code && i < 5; i++) {
+      const c = newCode(6);
+      const { error } = await this.sb.from('notebooks').update({ invite_code: c, owner_name: ownerName }).eq('id', nbId);
+      if (!error) code = c;
+    }
+    if (!code) throw new Error('invite');
+    if (code === cur.data?.invite_code) await this.sb.from('notebooks').update({ owner_name: ownerName }).eq('id', nbId);
+    return code;
+  }
+
+  async stopInvites(nbId: string) {
+    await this.sb.from('notebooks').update({ invite_code: null }).eq('id', nbId);
+  }
+
+  /** Вступить по коду: вернёт id тетради */
+  async join(code: string, name: string): Promise<string> {
+    const { data, error } = await this.sb.rpc('join_notebook', { code: code.toUpperCase(), member_name: name });
+    if (error) throw error;
+    return data as string;
+  }
+
+  async rename(nbId: string, name: string) {
+    await this.sb.from('notebook_members').update({ name }).eq('notebook_id', nbId).eq('user_id', this.uid);
+  }
+
+  async removeMember(nbId: string, userId: string) {
+    const { error } = await this.sb.from('notebook_members').delete().eq('notebook_id', nbId).eq('user_id', userId);
+    if (error) throw error;
+  }
+
+  async leave(nbId: string) {
+    await this.removeMember(nbId, this.uid);
   }
 
   async saveNotebook(nb: Notebook) {

@@ -55,7 +55,8 @@ export default function Book({ nb, count, onClick }: { nb: Notebook; count: numb
             {count} {count % 10 === 1 && count % 100 !== 11 ? 'запись' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'записи' : 'записей'}
           </div>
         </div>
-        {!nb.demo && (
+        {(nb.shared || nb.inviteCode) && <span className="nb-shared">общая</span>}
+        {!nb.demo && !nb.shared && (
           <a className="book-more" href={`#/nb/${nb.id}/cover`} title="Обложка и название">
             ···
           </a>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDiary } from '../App';
 import { humanDate } from '../lib/render/engine';
 import { newCode } from '../lib/share';
@@ -54,7 +55,8 @@ export default function ShareLink({ title, days, onClose }: { title: string; day
     }
   };
 
-  return (
+  // окно — в body: у страниц есть анимация с transform, и fixed внутри неё съезжает
+  return createPortal(
     <div className="sl-back" onClick={onClose}>
       <div className="sl" role="dialog" aria-label="Поделиться ссылкой" onClick={(e) => e.stopPropagation()}>
         <button className="sl-x" onClick={onClose} aria-label="Закрыть">
@@ -126,6 +128,7 @@ export default function ShareLink({ title, days, onClose }: { title: string; day
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

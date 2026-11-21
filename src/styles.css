@@ -8033,3 +8033,107 @@ a.mc-b:hover {
     transform: translateX(-4px);
   }
 }
+
+/* ===== Общая тетрадь ===== */
+.nb-shared {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #e6f3ec;
+  color: #2f6b55;
+  font: 600 12px/1.5 var(--sans);
+  vertical-align: middle;
+}
+.book-meta .nb-shared {
+  align-self: center;
+  margin-left: auto;
+}
+.mb-lead {
+  margin: 0 0 16px;
+}
+.mb-name {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.mb-name .inp {
+  flex: 1;
+}
+.mb-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+.mb-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(36, 35, 58, 0.07);
+}
+.mb-av {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: #fff;
+  font: 700 18px/1 var(--serif);
+  box-shadow: 0 0 0 3px #fff, 0 6px 14px -6px rgba(36, 35, 58, 0.45);
+}
+.mb-t b {
+  display: block;
+  font: 600 16px/1.2 var(--serif);
+}
+.mb-t small {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.mb-kick {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: #fde3dc;
+  color: #d04a2a;
+  font: 700 20px/1 var(--sans);
+  cursor: pointer;
+}
+.mb-empty {
+  margin: 4px 2px;
+  font-size: 14px;
+}
+.mb-invite > b {
+  display: block;
+  margin-bottom: 8px;
+  font: 600 18px var(--serif);
+}
+.mb-invite .inp {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  font-size: 14px;
+}
+.mb-leave {
+  width: 100%;
+}
+.jv-ic {
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.2'/%3E%3Cpath d='M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5'/%3E%3Ccircle cx='17' cy='9' r='2.5'/%3E%3Cpath d='M15.6 14.3c2.6-.4 4.4 1.2 4.9 4.2'/%3E%3C/svg%3E") center / 32px no-repeat,
+    linear-gradient(145deg, #7fc7a9, #9bc8e8);
+  box-shadow: 0 14px 26px -12px rgba(47, 107, 85, 0.6);
+}
+.jv-name {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  font-size: 16px;
+  text-align: center;
+}

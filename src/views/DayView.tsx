@@ -1,3 +1,4 @@
+import { foreign } from '../lib/store';
 import { useEffect, useState } from 'react';
 import { useDiary } from '../App';
 import type { DayMedia, DayRecord } from '../lib/types';
@@ -277,6 +278,8 @@ function DayPage({ id }: { id: string }) {
   }, [rec?.id, store]);
 
   if (!rec) return <p className="muted mono">{days.length ? 'День не найден.' : 'Загружаю…'}</p>;
+  // чужой день из общей тетради: смотреть можно, менять — нет
+  const ro = !!rec.demo || foreign(rec, store);
 
   const idx = days.findIndex((d) => d.id === id);
   const newer = days[idx - 1];
@@ -325,7 +328,7 @@ function DayPage({ id }: { id: string }) {
   };
 
   const remove = async () => {
-    if (!store || rec.demo) return;
+    if (!store || ro) return;
     if (!confirm(`Удалить папку «${rec.folder}»? Это нельзя отменить.`)) return;
     await store.remove(rec.id);
     await reload();
@@ -349,7 +352,7 @@ function DayPage({ id }: { id: string }) {
           develop={firstView}
           cutouts={cuts}
           onCutouts={
-            rec.demo
+            ro
               ? undefined
               : async (list) => {
                   setCuts(list);
@@ -361,7 +364,7 @@ function DayPage({ id }: { id: string }) {
           }
           live={!!rec.live3d}
           onLive={async (on) => {
-            if (rec.demo || !store) return;
+            if (ro || !store) return;
             await store.update({ ...rec, live3d: on });
             await reload();
           }}
@@ -433,7 +436,7 @@ function DayPage({ id }: { id: string }) {
         </div>
         <div style={{ marginTop: 30, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <SharePanel rec={rec} />
-          {!rec.demo && (
+          {!ro && (
             <CutoutPicker
               compact
               count={cuts.length}
@@ -449,7 +452,7 @@ function DayPage({ id }: { id: string }) {
             />
           )}
         </div>
-        {!rec.demo && (
+        {!ro && (
           <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <SealPanel rec={rec} />
             <button className="btn ghost small" onClick={remove}>
