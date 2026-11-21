@@ -8,6 +8,7 @@ import MoodMap from '../components/MoodMap';
 import { MODES } from '../lib/design/system';
 import { plural } from '../lib/prompts';
 import type { DayRecord } from '../lib/types';
+import ShareLink from '../components/ShareLink';
 
 const TABS: [string, string][] = [
   ['timeline', 'Лента'],
@@ -23,6 +24,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
   const all = nb ? daysOf(nb.id) : [];
   const [q, setQ] = useState('');
   const [mode, setMode] = useState('all');
+  const [share, setShare] = useState(false);
   const days = useMemo(() => {
     const s = q.trim().toLowerCase();
     return all.filter((d) => (mode === 'all' || d.design.mode === mode) && (!s || (d.title + ' ' + d.text + ' ' + d.music.artist + ' ' + d.music.title + ' ' + (d.place?.name ?? '')).toLowerCase().includes(s)));
@@ -66,10 +68,16 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
                 ▶ Фильм тетради
               </a>
             )}
+            {all.length > 0 && (
+              <button className="btn ghost" onClick={() => setShare(true)}>
+                ⤴ Поделиться ссылкой
+              </button>
+            )}
           </div>
         </div>
       </section>
 
+      {share && <ShareLink title={nb.title} days={all.filter((d) => !d.sealedUntil)} onClose={() => setShare(false)} />}
       <div className="tabs">
         {TABS.map(([k, label]) => (
           <a key={k} className={'tab' + (tab === k ? ' on' : '')} href={`#/nb/${nb.id}/${k}`}>

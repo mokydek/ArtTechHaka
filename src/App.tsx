@@ -12,6 +12,7 @@ import CoverEditor from './views/CoverEditor';
 import NewDay from './views/NewDay';
 import DayView from './views/DayView';
 import MapView from './views/MapView';
+import ShareView from './views/ShareView';
 import SystemPage from './views/SystemPage';
 import YearView from './views/YearView';
 import Seed from './views/Seed';
@@ -215,6 +216,7 @@ export default function App() {
   else if (parts[0] === 'there') view = <BeThere dayId={parts[1] ? decodeURIComponent(parts[1]) : undefined} idx={parts[2] ? +parts[2] : 0} key={route} />;
   else if (parts[0] === 'system') view = <SystemPage />;
   else if (parts[0] === 'map') view = <MapView />;
+  else if (parts[0] === 's') view = <ShareView token={parts[1] ?? ''} key={route} />;
   else if (parts[0] === 'seed') view = <Seed />;
 
   // атмосфера: свои дни (а пока их нет — дни-примеры) + черновик, который пишут прямо сейчас

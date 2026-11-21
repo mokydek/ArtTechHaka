@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Capsule, DayMedia, DayRecord, Notebook } from '../types';
 import type { DayFiles, DiaryStore } from './index';
+import { seal, type SharedAlbum, type SharedDay } from '../share';
 
 // Публикуемый (publishable) ключ рассчитан на браузер: доступ ограничен RLS-политиками (см. supabase/schema.sql)
 const URL_ = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? 'https://byxaagbqhpzaskteyxkh.supabase.co';
@@ -83,6 +84,37 @@ export class CloudStore implements DiaryStore {
     const s = await this.sb.storage.from(BUCKET).createSignedUrl(full, YEAR);
     if (s.error || !s.data) throw s.error ?? new Error('sign');
     // в ссылке — только путь и подпись, хост известен
+    const u = new URL(s.data.signedUrl);
+    return btoa(JSON.stringify({ p: full, t: u.searchParams.get('token') })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  /** Ссылка на выбранные дни (как веб-ссылки в Journey): файлы подписаны на год, по желанию — под кодом доступа */
+  async shareDays(recs: DayRecord[], title: string, code?: string): Promise<string> {
+    const YEAR = 60 * 60 * 24 * 365;
+    const days: SharedDay[] = [];
+    for (const rec of recs) {
+      const f = this.files(rec);
+      const paths = Object.entries(f).filter(([k]) => k !== 'video' && !k.startsWith('cutout-'));
+      const url: Record<string, string> = {};
+      if (paths.length) {
+        const { data } = await this.sb.storage.from(BUCKET).createSignedUrls(
+          paths.map(([, p]) => p),
+          YEAR,
+        );
+        paths.forEach(([k], i) => data?.[i]?.signedUrl && (url[k] = data[i].signedUrl));
+      }
+      const photos = rec.photoUrls?.length ? rec.photoUrls : Array.from({ length: rec.photoCount }, (_, i) => url[`photo-${i + 1}`]).filter(Boolean);
+      const { ownerId: _o, ...clean } = rec;
+      void _o;
+      days.push({ rec: clean as DayRecord, photos, cover: url.cover, excerpt: url.excerpt, voice: url.voice });
+    }
+    const album: SharedAlbum = { v: 2, kind: 'album', title, days, sentAt: new Date().toISOString() };
+    const body = code ? await seal(album, code) : album;
+    const full = `${this.uid}/shares/${crypto.randomUUID()}.json`;
+    const { error } = await this.sb.storage.from(BUCKET).upload(full, new Blob([JSON.stringify(body)], { type: 'application/json' }), { upsert: true, contentType: 'application/json' });
+    if (error) throw error;
+    const s = await this.sb.storage.from(BUCKET).createSignedUrl(full, YEAR);
+    if (s.error || !s.data) throw s.error ?? new Error('sign');
     const u = new URL(s.data.signedUrl);
     return btoa(JSON.stringify({ p: full, t: u.searchParams.get('token') })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
@@ -218,4 +250,12 @@ export async function fetchPostcard(token: string) {
   const r = await fetch(`${URL_}/storage/v1/object/sign/${BUCKET}/${j.p}?token=${j.t}`);
   if (!r.ok) throw new Error('postcard ' + r.status);
   return (await r.json()) as { v: number; rec: DayRecord; note: string; photos: string[]; cover?: string; excerpt?: string; voice?: string; sentAt: string };
+}
+
+/** Открыть общую ссылку на записи по токену (без входа) */
+export async function fetchShared(token: string): Promise<unknown> {
+  const j = JSON.parse(atob(token.replace(/-/g, '+').replace(/_/g, '/')));
+  const r = await fetch(`${URL_}/storage/v1/object/sign/${BUCKET}/${j.p}?token=${j.t}`);
+  if (!r.ok) throw new Error('share ' + r.status);
+  return r.json();
 }
