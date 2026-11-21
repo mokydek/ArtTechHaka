@@ -7449,6 +7449,10 @@ a.mc-b:hover {
   inset: 0;
   font-family: var(--sans);
 }
+/* яркие тайлы OSM приглушаем под пастельную палитру */
+.atl-leaf .leaflet-tile-pane {
+  filter: saturate(0.62) brightness(1.03) contrast(0.94);
+}
 .atl-leaf .leaflet-control-attribution {
   background: rgba(255, 255, 255, 0.75);
   border-radius: 8px 0 0 0;

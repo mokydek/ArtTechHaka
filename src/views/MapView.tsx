@@ -59,10 +59,10 @@ export default function MapView() {
   useEffect(() => {
     if (!box.current || map.current) return;
     const m = L.map(box.current, { zoomControl: false, attributionControl: true, worldCopyJump: true, minZoom: 2 }).setView([48, 68], 4);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
+    // CARTO теперь отдаёт заглушку «API key required» — берём стандартные тайлы OSM
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(m);
     L.control.zoom({ position: 'topleft' }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
