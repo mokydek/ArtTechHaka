@@ -206,6 +206,13 @@ export interface DayRecord {
   photoUrls?: string[]; // для демо-дней: внешние ссылки на фото
   titlePattern?: string;
   hasExcerpt?: boolean;
+  layout?: PhotoLayout; // как фото вклеены на страницу дневника
+}
+
+/** Раскладка фото на странице: полароиды, коллаж или как человек разложил сам */
+export interface PhotoLayout {
+  kind: 'polaroid' | 'collage' | 'free';
+  items?: { x: number; y: number; w: number; rot: number }[]; // для «free»: центр 0..1, ширина 0..1, поворот в градусах
 }
 
 // День с загруженными медиа (для просмотра)

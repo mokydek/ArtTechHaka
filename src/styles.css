@@ -4544,3 +4544,510 @@ a.tab {
     animation: none;
   }
 }
+
+/* ——— Дневник-тетрадь на главной (как в Paper) ——— */
+.jh {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+.jh-nbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.jr-wait {
+  text-align: center;
+  padding: 80px 0;
+}
+.jr {
+  --pw: min(44vw, calc((100vh - 280px) * 0.72), 520px);
+  --ph: calc(var(--pw) / 0.72);
+  --pen: #2c3a78;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.jr.single {
+  --pw: min(88vw, calc((100svh - 270px) * 0.68), 440px);
+  --ph: calc(var(--pw) / 0.68);
+}
+.jr-stage {
+  padding: 18px 0 8px;
+}
+.jr-book {
+  position: relative;
+  width: calc(var(--pw) * 2);
+  height: var(--ph);
+  perspective: 2600px;
+  transition: transform 0.8s cubic-bezier(0.45, 0.05, 0.2, 1);
+  touch-action: pan-y;
+  cursor: grab;
+}
+.jr.single .jr-book {
+  width: var(--pw);
+  perspective: 1800px;
+}
+.jr-book:active {
+  cursor: grabbing;
+}
+/* срез страниц под листами */
+.jr-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: #f6f0e4;
+  box-shadow: 0 22px 40px -22px rgba(40, 25, 10, 0.55);
+}
+.jr-block.right {
+  left: 50%;
+  border-radius: 0 6px 6px 0;
+  box-shadow:
+    3px 0 0 -1px #efe7d8,
+    5px 0 0 -2px #e8dfcd,
+    7px 1px 0 -3px #e2d7c2,
+    0 26px 44px -24px rgba(40, 25, 10, 0.6);
+}
+.jr-block.left {
+  left: 0;
+  border-radius: 6px 0 0 6px;
+  box-shadow:
+    -3px 0 0 -1px #efe7d8,
+    -5px 0 0 -2px #e8dfcd,
+    -7px 1px 0 -3px #e2d7c2,
+    0 26px 44px -24px rgba(40, 25, 10, 0.6);
+  transition: opacity 0.4s;
+}
+.jr-book.closed .jr-block.left {
+  opacity: 0;
+}
+.jr.single .jr-block.right {
+  left: 0;
+  width: 100%;
+}
+.jr-base {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 0 6px 6px 0;
+}
+.jr.single .jr-base {
+  left: 0;
+  width: 100%;
+}
+.jr-leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+  transition: transform 0.95s cubic-bezier(0.45, 0.05, 0.2, 1);
+}
+.jr.single .jr-leaf {
+  left: 0;
+  width: 100%;
+}
+.jr-leaf.flipped {
+  transform: rotateY(-180deg);
+}
+.jr.single .jr-leaf.flipped:not(.turning) {
+  visibility: hidden;
+}
+.jr-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.jr-face.front {
+  border-radius: 0 6px 6px 0;
+}
+.jr-face.back {
+  transform: rotateY(180deg);
+  border-radius: 6px 0 0 6px;
+}
+/* тень корешка */
+.jr-face::before,
+.jr-base::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(40, 25, 10, 0.16), rgba(40, 25, 10, 0.04) 6%, transparent 14%);
+}
+.jr-face.back::before {
+  background: linear-gradient(270deg, rgba(40, 25, 10, 0.16), rgba(40, 25, 10, 0.04) 6%, transparent 14%);
+}
+.jr.single .jr-face::before,
+.jr.single .jr-base::before {
+  background: linear-gradient(90deg, rgba(40, 25, 10, 0.12), transparent 5%);
+}
+.jr-leaf.is-cover .jr-face.front::before {
+  display: none;
+}
+/* лист в движении темнеет к середине поворота */
+.jr-leaf.turning .jr-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(30, 20, 10, 0.22), rgba(30, 20, 10, 0.05) 70%);
+  animation: jr-shade 0.95s ease both;
+}
+@keyframes jr-shade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ——— страница ——— */
+.jp {
+  position: absolute;
+  inset: 0;
+  background-color: #fbf7ef;
+  background-image:
+    radial-gradient(circle, rgba(43, 33, 28, 0.13) 1px, transparent 1.4px),
+    url('/paper-noise.png');
+  background-size: 22px 22px, auto;
+  color: var(--ink);
+}
+.jp-cover {
+  background: #1d1b1f;
+  border-radius: 4px 10px 10px 4px;
+  box-shadow: inset 6px 0 10px -6px rgba(0, 0, 0, 0.6);
+}
+.jp-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.jp-elastic {
+  position: absolute;
+  top: -1%;
+  bottom: -1%;
+  right: 10%;
+  width: 3.2%;
+  min-width: 8px;
+  background: linear-gradient(90deg, #121014, #2a2630 50%, #121014);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.35);
+}
+.jp-endpaper {
+  background-color: #2a2433;
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.07) 2px, transparent 2.5px),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.05) 2px, transparent 2.5px);
+  background-size: 26px 26px;
+}
+.jp-titlepage {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+}
+.jp-label {
+  padding: 18px 30px;
+  background: #fffdf8;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1.5px rgba(43, 33, 28, 0.18), 0 8px 18px -12px rgba(40, 25, 10, 0.5);
+  background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(44, 58, 120, 0.16) 25px 26px);
+  transform: rotate(-1.5deg);
+}
+.jp-label span {
+  font-family: var(--hand);
+  font-size: calc(var(--pw) * 0.085);
+  color: var(--pen);
+  line-height: 1.1;
+}
+.jp-count {
+  font-family: var(--hand);
+  font-size: calc(var(--pw) * 0.05);
+  color: var(--ink-2);
+  margin: 0;
+}
+.jp-new {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+}
+.jp-new .jp-hand {
+  font-size: calc(var(--pw) * 0.075);
+}
+.jp-end {
+  color: var(--ink-2) !important;
+}
+
+/* фото вклеены: полароиды на скотче, коллаж, свободная раскладка */
+.jp-photos {
+  overflow: hidden;
+}
+.jp-pola,
+.jp-free {
+  position: absolute;
+  margin: 0;
+  background: #fffefb;
+  padding: 4.5% 4.5% 15%;
+  box-shadow:
+    0 1px 1px rgba(40, 25, 10, 0.12),
+    0 14px 22px -14px rgba(40, 25, 10, 0.55);
+}
+.jp-free {
+  padding: 3.5%;
+}
+.jp-pola img,
+.jp-free img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+}
+.jp-free img {
+  aspect-ratio: auto;
+}
+.jp-tape {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 36%;
+  height: 22px;
+  margin-left: -18%;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0 3px, transparent 3px 7px);
+  mix-blend-mode: multiply;
+  clip-path: polygon(2% 0, 98% 4%, 100% 50%, 97% 100%, 1% 96%, 0 50%);
+  opacity: 0.9;
+}
+.jp-collage {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 9%;
+  bottom: 12%;
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  background: #fffefb;
+  box-shadow: 0 16px 26px -16px rgba(40, 25, 10, 0.6);
+}
+.jp-collage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 0;
+  display: block;
+}
+.jp-collage.n2 {
+  grid-template-rows: 1fr 1fr;
+}
+.jp-collage.n3 {
+  grid-template: 1.3fr 1fr / 1fr 1fr;
+}
+.jp-collage.n3 img:first-child {
+  grid-column: span 2;
+}
+.jp-collage.n4 {
+  grid-template: 1fr 1fr / 1fr 1fr;
+}
+.jp-more {
+  position: absolute;
+  right: 10%;
+  bottom: 6%;
+  font-family: var(--hand);
+  font-size: 22px;
+  color: var(--pen);
+}
+.jp-nophoto {
+  position: absolute;
+  inset: 12% 14%;
+  opacity: 0.35;
+  border-radius: 4px;
+}
+
+/* мысли от руки синей ручкой */
+.jp-text {
+  display: flex;
+  flex-direction: column;
+  padding: 8% 9% 7% 11%;
+}
+.jp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.jp-date {
+  font-family: var(--hand);
+  font-size: calc(var(--pw) * 0.05);
+  color: var(--pen);
+  line-height: 1;
+}
+.jp-date b {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: calc(var(--pw) * 0.11);
+  color: var(--ink);
+  margin-right: 4px;
+}
+.jp-date small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78em;
+  color: var(--ink-2);
+}
+.jp-mood {
+  width: calc(var(--pw) * 0.065);
+  height: calc(var(--pw) * 0.065);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5), 0 2px 5px rgba(40, 25, 10, 0.3);
+}
+.jp-title {
+  margin: 4% 0 2%;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: calc(var(--pw) * 0.062);
+  line-height: 1.1;
+}
+.jp-hand {
+  --lh: calc(var(--pw) * 0.064);
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  font-family: var(--hand);
+  font-size: calc(var(--pw) * 0.05);
+  line-height: var(--lh);
+  color: var(--pen);
+  overflow: hidden;
+  background: repeating-linear-gradient(180deg, transparent 0 calc(var(--lh) - 1px), rgba(44, 58, 120, 0.14) calc(var(--lh) - 1px) var(--lh));
+  -webkit-mask: linear-gradient(180deg, #000 85%, transparent);
+  mask: linear-gradient(180deg, #000 85%, transparent);
+  white-space: pre-wrap;
+}
+.jp-voice {
+  flex: none;
+  color: var(--stamp);
+}
+.jp-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 10px;
+}
+.jp-ticket {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 12px 6px 8px;
+  background: #f3e3b5;
+  border-left: 2px dashed rgba(43, 33, 28, 0.35);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #5a4524;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 4px 8px -6px rgba(40, 25, 10, 0.6);
+  -webkit-mask: radial-gradient(circle 4px at 100% 50%, transparent 98%, #000) right / 100% 100% no-repeat;
+}
+.jp-ticket i {
+  font-style: normal;
+  font-size: 15px;
+}
+.jp-ticket span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jp-play {
+  font-size: 13px;
+}
+/* телефон: одна страница — фото сверху, мысли снизу */
+.jp-single .jp-photos {
+  inset: 0 0 50% 0;
+  background: none;
+}
+.jp-single .jp-text {
+  inset: 48% 0 0 0;
+  background: none;
+  padding: 2% 8% 6% 9%;
+}
+.jp-single .jp-title {
+  font-size: calc(var(--pw) * 0.07);
+  margin: 2% 0 1%;
+}
+.jp-single .jp-date b {
+  font-size: calc(var(--pw) * 0.09);
+}
+.jp-single .jp-hand {
+  --lh: calc(var(--pw) * 0.072);
+  font-size: calc(var(--pw) * 0.056);
+}
+.jp-single .jp-pola {
+  padding-bottom: 10%;
+}
+.jp-single .jp-pola img {
+  aspect-ratio: 5 / 4;
+}
+
+/* навигация под тетрадью */
+.jr-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.jr-arrow {
+  all: unset;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--stamp);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--stamp) 45%, transparent);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.2s;
+}
+.jr-arrow:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stamp) 9%, transparent);
+}
+.jr-arrow:active:not(:disabled) {
+  transform: scale(0.9);
+}
+.jr-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.jr-arrow:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+.jr-pos {
+  min-width: 110px;
+  text-align: center;
+  font-family: var(--hand);
+  font-size: 20px;
+  color: var(--ink-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .jr-leaf,
+  .jr-book {
+    transition-duration: 0.01s !important;
+  }
+}

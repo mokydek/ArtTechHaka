@@ -4,6 +4,7 @@ import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
 import Mascot from './components/Mascot';
 import Shelf from './views/Shelf';
+import JournalHome from './views/JournalHome';
 import NotebookView from './views/NotebookView';
 import CoverEditor from './views/CoverEditor';
 import NewDay from './views/NewDay';
@@ -182,8 +183,9 @@ export default function App() {
 
   const route = hash.replace(/^#/, '');
   const parts = route.split('/').filter(Boolean);
-  let view = <Shelf />;
-  if (parts[0] === 'new') view = <NewDay nb={parts[1]} key={route} />;
+  let view = <JournalHome />;
+  if (parts[0] === 'shelf') view = <Shelf />;
+  else if (parts[0] === 'new') view = <NewDay nb={parts[1]} key={route} />;
   else if (parts[0] === 'day') view = <DayView id={decodeURIComponent(parts[1] ?? '')} key={route} />;
   else if (parts[0] === 'nb' && parts[2] === 'cover') view = <CoverEditor id={parts[1]} key={route} />;
   else if (parts[0] === 'nb' && parts[1] === 'new') view = <CoverEditor key={route} />;
@@ -255,6 +257,7 @@ export default function App() {
 
 /** «Ещё»: всё второстепенное — одним меню, чтобы шапка не путала */
 const MORE: [string, string, string][] = [
+  ['/shelf', 'Тетради и капсулы', 'все тетради, письма себе в будущее'],
   ['/museum', 'Музей мелочей', 'запахи, звуки, свет из всех дней'],
   ['/stamps', 'Альбом марок', 'марки за особенные дни'],
   ['/system', 'Как это устроено', 'правила, по которым день становится страницей'],
