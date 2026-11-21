@@ -320,11 +320,8 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
   }, []);
   const isMore = MORE.some(([p]) => on(p));
   const idx = more ? 4 : on('/') ? 0 : on('/year') ? 1 : on('/there') ? 3 : isMore ? 4 : -1;
-  const I = (d: string) => (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={d} />
-    </svg>
-  );
+  // иконки панели нарисованы в ChatGPT (public/ui/ic-*.webp)
+  const I = (n: string) => <img className="tab-ic" src={`/ui/ic-${n}.webp`} alt="" draggable={false} aria-hidden />;
   return (
     <>
       {more && (
@@ -343,22 +340,22 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
       <nav className="tabbar">
         <span className={'tab-blob' + (idx < 0 ? ' off' : '')} style={{ '--i': Math.max(0, idx) } as React.CSSProperties} aria-hidden />
         <a href="#/" className={on('/')}>
-          {I('M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5C4.7 20 4 19.3 4 18.5zM13 4h5.5c.8 0 1.5.7 1.5 1.5v13c0 .8-.7 1.5-1.5 1.5H13z')}
+          {I('notebook')}
           <span>Дневник</span>
         </a>
         <a href="#/year" className={on('/year')}>
-          {I('M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4z')}
+          {I('year')}
           <span>Год</span>
         </a>
         <a href="#/new" className={'tab-new' + (on('/new') ? ' on' : '') + (hint ? ' hint' : '')} aria-label="Записать день">
-          {I('M12 5v14M5 12h14')}
+          <img src="/ui/ic-plus.webp" alt="" draggable={false} />
         </a>
         <a href="#/there" className={on('/there')}>
-          {I('M3 19l6-9 4 5 3-4 5 8zM16 7.5a1.5 1.5 0 1 0 0-.01')}
+          {I('there')}
           <span>Побывать</span>
         </a>
         <button type="button" className={MORE.some(([p]) => on(p)) ? 'on' : ''} onClick={() => setMore((m) => (play(m ? 'popDown' : 'pop'), !m))} data-sfx="none">
-          {I('M5 12h.01M12 12h.01M19 12h.01')}
+          {I('more')}
           <span>Ещё</span>
         </button>
       </nav>
@@ -382,9 +379,7 @@ function SoundSwitch() {
         setV(!v);
       }}
     >
-      <span className="sound-ic" aria-hidden>
-        {v ? '🔊' : '🔈'}
-      </span>
+      <img className={'sound-ic' + (v ? '' : ' off')} src="/ui/ic-sound.webp" alt="" aria-hidden draggable={false} />
       <span>
         <b>Звуки</b>
         <small>{v ? 'включены' : 'выключены'}</small>

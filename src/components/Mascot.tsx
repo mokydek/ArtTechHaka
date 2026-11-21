@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Bunny, { type Pose } from './Bunny';
+import Bunny, { moodImg, type Pose } from './Bunny';
 import { useDiary } from '../App';
 import type { DayRecord } from '../lib/types';
 import { humanDate } from '../lib/render/engine';
-import { MOOD_COLORS, MOOD_WORDS, moods, setMood, todayIso, type Mood } from '../lib/moods';
+import { MOOD_WORDS, moods, setMood, todayIso, type Mood } from '../lib/moods';
 import { burst, buzz, play } from '../lib/feel';
 
 /**
@@ -304,23 +304,7 @@ export default function Mascot({ route }: { route: string }) {
   );
 }
 
-/** личико настроения: 1 — грустное, 5 — сияет */
+/** личико настроения: 1 грустное, 5 сияет (рисунки из ChatGPT) */
 function Face({ m }: { m: Mood }) {
-  const mouth = ['M9 19 Q14 14.5 19 19', 'M9.5 18.5 Q14 16 18.5 18.5', 'M9.5 17.5 H18.5', 'M9 16.5 Q14 20.5 19 16.5', 'M8.5 15.5 Q14 23 19.5 15.5 Z'][m - 1];
-  return (
-    <svg viewBox="0 0 28 28" width="34" height="34" aria-hidden>
-      <circle cx="14" cy="14" r="12.5" fill={MOOD_COLORS[m]} stroke="#4f3f99" strokeWidth="1.6" />
-      {m === 5 ? (
-        <>
-          <path d="M8.5 11.5 Q10.5 9 12.5 11.5 M15.5 11.5 Q17.5 9 19.5 11.5" fill="none" stroke="#2b211c" strokeWidth="1.6" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <circle cx="10.3" cy="11.3" r="1.5" fill="#2b211c" />
-          <circle cx="17.7" cy="11.3" r="1.5" fill="#2b211c" />
-        </>
-      )}
-      <path d={mouth} fill={m === 5 ? '#fff' : 'none'} stroke="#2b211c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <img className="mood-face" src={moodImg(m)} alt="" width={40} height={40} draggable={false} />;
 }

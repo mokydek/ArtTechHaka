@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { DayRecord, Notebook } from '../lib/types';
 import { useDiary } from '../App';
 import { useCoverUrl } from './Book';
-import { MOOD_COLORS, moods, valenceMood } from '../lib/moods';
+import { moods, valenceMood } from '../lib/moods';
+import { moodImg } from './Bunny';
 import { play } from '../lib/feel';
 
 /**
@@ -48,7 +49,7 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
         {d.layout.items.slice(0, photos.length).map((it, i) => (
           <figure key={i} className="jp-free" style={{ left: `${it.x * 100}%`, top: `${it.y * 100}%`, width: `${it.w * 100}%`, transform: `translate(-50%, -50%) rotate(${it.rot}deg)`, zIndex: i + 1 }}>
             <img src={photos[i]} alt="" draggable={false} />
-            <i className="jp-tape" style={{ background: tapes[(i + 2) % 5] + 'b0' }} />
+            <i className={'jp-tape t' + ((i + 1) % 3)} />
           </figure>
         ))}
       </div>
@@ -60,8 +61,8 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
           {list.map((u, i) => (
             <img key={i} src={u} alt="" draggable={false} />
           ))}
-          <i className="jp-tape" style={{ background: tapes[3] + 'b0', left: '8%', top: '-12px', transform: 'rotate(-6deg)' }} />
-          <i className="jp-tape" style={{ background: tapes[2] + 'b0', right: '6%', bottom: '-12px', left: 'auto', top: 'auto', transform: 'rotate(4deg)' }} />
+          <i className={'jp-tape t' + (Math.floor(r() * 3) % 3)} style={{ left: '8%', top: '-14px', marginLeft: 0, transform: 'rotate(-6deg)' }} />
+          <i className={'jp-tape t' + ((Math.floor(r() * 3) + 1) % 3)} style={{ right: '6%', bottom: '-14px', left: 'auto', top: 'auto', marginLeft: 0, transform: 'rotate(4deg)' }} />
         </div>
         {photos.length > 4 && <span className="jp-more">+{photos.length - 4}</span>}
       </div>
@@ -81,7 +82,7 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
         return (
           <figure key={i} className="jp-pola" style={{ ...style, transform: `translate(-50%, -50%) rotate(${rot}deg)`, zIndex: i + 1 }}>
             <img src={u} alt="" draggable={false} />
-            <i className="jp-tape" style={{ background: tapes[(i + 3) % 5] + 'b0', transform: `rotate(${(r() - 0.5) * 14}deg)` }} />
+            <i className={'jp-tape t' + ((i + (d.date?.charCodeAt(9) || 0)) % 3)} style={{ transform: `rotate(${(r() - 0.5) * 14}deg)` }} />
           </figure>
         );
       })}
@@ -100,7 +101,7 @@ function TextPage({ d }: { d: DayRecord }) {
           <b>{w.day}</b> {w.month}
           <small>{w.wd}</small>
         </span>
-        <i className="jp-mood" style={{ background: MOOD_COLORS[m] }} title="настроение дня" />
+        <img className="jp-mood" src={moodImg(m)} alt="" title="настроение дня" draggable={false} />
       </div>
       <h3 className="jp-title">{d.title}</h3>
       {d.text ? <p className="jp-hand">{d.text}</p> : d.hasVoice ? <p className="jp-hand jp-voice">♪ голосовое воспоминание</p> : null}
@@ -125,6 +126,7 @@ function TitlePage({ nb, count }: { nb: Notebook; count: number }) {
       <div className="jp-label">
         <span>{nb.title}</span>
       </div>
+      <img className="jp-heart" src="/ui/stamp-heart.webp" alt="" draggable={false} />
       <p className="jp-count">{count ? `${count} ${count % 10 === 1 && count % 100 !== 11 ? 'день' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'дня' : 'дней'}` : 'пока ни одного дня'}</p>
     </div>
   );

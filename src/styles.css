@@ -6270,3 +6270,164 @@ input {
     animation: none !important;
   }
 }
+
+/* ═══════════ графика из ChatGPT (public/ui) ═══════════ */
+
+/* зайчик: растровые позы, дыхание и прыжки остаются, вместо глаз — лёгкий наклон к курсору */
+.bunny {
+  position: relative;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.bunny .b-all {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 100%;
+}
+.bunny img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  filter: drop-shadow(0 3px 2px rgba(40, 25, 10, 0.18));
+  transform: rotate(calc(var(--ex, 0) * 1.4deg)) translateX(calc(var(--ex, 0) * 0.6px));
+  transition: transform 0.25s ease-out;
+  animation: bunny-swap 0.28s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes bunny-swap {
+  from {
+    transform: scale(0.88, 1.08) translateY(3px);
+    opacity: 0.6;
+  }
+}
+.bun-me .bunny {
+  width: 92px !important;
+  height: 112px !important;
+}
+@media (max-width: 720px) {
+  .bun-me .bunny {
+    width: 70px !important;
+    height: 86px !important;
+  }
+}
+.bun-dot {
+  top: 4px;
+  right: 6px;
+}
+
+/* лица настроения */
+.mood-face {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.bun-moods button:hover .mood-face {
+  animation: face-wiggle 0.5s ease;
+}
+@keyframes face-wiggle {
+  25% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(8deg);
+  }
+}
+img.jp-mood {
+  width: calc(var(--pw) * 0.085);
+  height: calc(var(--pw) * 0.085);
+  border-radius: 0;
+  box-shadow: none;
+  object-fit: contain;
+  transform: rotate(8deg);
+  filter: drop-shadow(0 2px 2px rgba(40, 25, 10, 0.2));
+}
+.jp-heart {
+  width: calc(var(--pw) * 0.18);
+  opacity: 0.85;
+  transform: rotate(-10deg);
+  mix-blend-mode: multiply;
+}
+
+/* бумажный скотч — три рисованные ленты */
+.jp-tape {
+  height: 26px;
+  top: -13px;
+  background: center / 100% 100% no-repeat;
+  clip-path: none;
+  mix-blend-mode: multiply;
+  opacity: 0.95;
+}
+.jp-tape.t0 {
+  background-image: url('/ui/tape-mustard.webp');
+}
+.jp-tape.t1 {
+  background-image: url('/ui/tape-pink.webp');
+}
+.jp-tape.t2 {
+  background-image: url('/ui/tape-blue.webp');
+}
+.toast::before,
+.prompt-card::before {
+  background: url('/ui/tape-pink.webp') center / 100% 100% no-repeat;
+  height: 24px;
+}
+/* уголки для фото */
+.thumbs > div::after {
+  inset: -4px;
+  background: url('/ui/corners.webp') center / 100% 100% no-repeat;
+}
+
+/* нижняя панель: рисованные иконки */
+.tab-ic {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  opacity: 0.55;
+  filter: grayscale(0.4);
+  transition:
+    opacity 0.2s,
+    filter 0.2s,
+    transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.tabbar > .on .tab-ic {
+  opacity: 1;
+  filter: none;
+  transform: translateY(-2px) scale(1.08);
+}
+@media (max-width: 720px) {
+  .tabbar .tab-new {
+    background: none;
+    box-shadow: none;
+  }
+  .tabbar .tab-new::before {
+    display: none;
+  }
+  .tabbar .tab-new img {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 8px rgba(40, 25, 10, 0.3));
+    background: #fbf7ef;
+    border-radius: 50%;
+  }
+}
+.sound-ic {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  transition: opacity 0.2s;
+}
+.sound-ic.off {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+/* зайчик не закрывает открытый нижний лист */
+body:has(.tab-sheet) .bun,
+body:has(.ce-catalog) .bun {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
