@@ -200,7 +200,7 @@ export async function fill(img: Src, mask: Src, w = img.width, h = img.height): 
     rg.drawImage(patch, 0, 0);
     return res;
   } catch (e) {
-    console.warn('[Оттиск] дорисовка нейросетью недоступна, мягкая заливка', e);
+    console.warn('[Aura] дорисовка нейросетью недоступна, мягкая заливка', e);
     return inpaint(img, mask, w, h);
   }
 }

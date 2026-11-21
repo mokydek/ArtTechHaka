@@ -37,7 +37,7 @@ export function getStore(): Promise<DiaryStore> {
         const c = await CloudStore.connect();
         if (c) return c;
       } catch (e) {
-        console.warn('[Оттиск] облако недоступно, работаем локально', e);
+        console.warn('[Aura] облако недоступно, работаем локально', e);
       }
       return new LocalStore();
     })();

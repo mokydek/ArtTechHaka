@@ -20,8 +20,8 @@ import { analyzeText, makeTitle } from './lib/analysis/text';
 
 // шрифты нужны холсту заранее
 const preload = [
-  'italic 500 40px Ottisk',
-  '500 40px Ottisk',
+  'italic 500 40px "Aura Serif"',
+  '500 40px "Aura Serif"',
   '500 40px Caveat',
   '400 16px "JetBrains Mono"',
   '500 16px "JetBrains Mono"',

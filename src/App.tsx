@@ -236,7 +236,7 @@ export default function App() {
       <header className="top">
         <span className="brand-wrap">
           <a className="brand" href="#/">
-            Оттиск
+            Aura
           </a>
           <AtmosChip atmos={atmos} />
         </span>

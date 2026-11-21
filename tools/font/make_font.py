@@ -268,7 +268,7 @@ def main():
         if rec.nameID in (1, 2, 3, 4, 6, 16, 17, 21, 22, 25):
             nm.removeNames(nameID=rec.nameID)
     full = f'{fam} {sty}' if sty != 'Regular' else fam
-    ps = f'{fam}-{sty.replace(" ", "")}'
+    ps = f'{fam.replace(" ", "")}-{sty.replace(" ", "")}'
     nm.setName(fam, 1, 3, 1, 0x409); nm.setName(sty, 2, 3, 1, 0x409)
     nm.setName(f'{ps};2026', 3, 3, 1, 0x409); nm.setName(full, 4, 3, 1, 0x409)
     nm.setName(ps, 6, 3, 1, 0x409)

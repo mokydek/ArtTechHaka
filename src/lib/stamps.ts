@@ -118,7 +118,7 @@ export function stampArt(def: StampDef, no: number, locked = false): string {
     g.strokeRect(m, m, W - m * 2, H - m * 2);
     g.setLineDash([]);
     g.fillStyle = 'rgba(40,30,20,0.25)';
-    g.font = 'italic 500 120px Ottisk, serif';
+    g.font = 'italic 500 120px "Aura Serif", serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText('?', W / 2, H / 2 - 6);
@@ -148,7 +148,7 @@ export function stampArt(def: StampDef, no: number, locked = false): string {
     g.fillText(String(no).padStart(2, '0'), W - m - 18, m + 32);
     g.letterSpacing = '0px';
     g.textAlign = 'center';
-    g.font = 'italic 500 30px Ottisk, serif';
+    g.font = 'italic 500 30px "Aura Serif", serif';
     g.fillText(def.title, W / 2, H - m - 26);
   }
   const url = c.toDataURL('image/png');

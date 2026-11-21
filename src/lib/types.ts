@@ -1,4 +1,4 @@
-// Общие типы «Оттиска»
+// Общие типы Aura
 
 export type RGB = [number, number, number];
 
