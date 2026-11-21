@@ -4,15 +4,13 @@ import type { DayMedia, DayRecord } from '../lib/types';
 import { dayMotifs, lightOf } from '../lib/atmos';
 import { download, folderZip, loadAssets, renderStory } from '../lib/pipeline';
 import { humanDate } from '../lib/render/engine';
-import { keyName } from '../lib/analysis/audio';
-import { voiceLabel } from '../lib/voice';
 import Stage from '../components/Stage';
+import Slideshow, { autoStyle, type ShowStyle } from '../components/Slideshow';
 import Why from '../components/Why';
 import { LocalStore } from '../lib/store/local';
 import Envelope, { countdown, useNow } from '../components/Envelope';
 import { stamp } from '../lib/sfx';
 import { placeLine } from '../lib/place';
-import { AMB_NAMES } from '../lib/ambience';
 import SkyBox from '../components/Sky';
 import CutoutPicker from '../components/CutoutPicker';
 import type { CutoutRt } from '../lib/render/engine';
@@ -217,6 +215,17 @@ function DayPage({ id }: { id: string }) {
   const [video, setVideo] = useState<Blob | null>(null);
   const [zipping, setZipping] = useState(false);
   const [storyBusy, setStoryBusy] = useState(false);
+  // как воспроизводить: слайдшоу (по умолчанию) или живая страница
+  const [view, setView] = useState<'show' | 'page'>(() => (localStorage.getItem('ottisk:view') === 'page' ? 'page' : 'show'));
+  const [showStyle, setShowStyle] = useState<ShowStyle | null>(null);
+  const pickView = (v: 'show' | 'page') => {
+    setView(v);
+    try {
+      localStorage.setItem('ottisk:view', v);
+    } catch {
+      /* без хранилища */
+    }
+  };
   // в первый раз день проявляется как полароид
   const [firstView] = useState(() => {
     try {
@@ -272,8 +281,6 @@ function DayPage({ id }: { id: string }) {
   const idx = days.findIndex((d) => d.id === id);
   const newer = days[idx - 1];
   const older = days[idx + 1];
-  const a = rec.analysis.music.audio;
-  const t = rec.analysis.text;
 
   const onVideo = async (b: Blob) => {
     setVideo(b);
@@ -327,7 +334,11 @@ function DayPage({ id }: { id: string }) {
 
   return (
     <div className="day">
-      {assets ? (
+      {assets && view === 'show' ? (
+        <div className="stage">
+          <Slideshow rec={rec} photos={media?.photos.length ? media.photos : (rec.photoUrls ?? [])} audio={assets.audio} voiceUrl={media?.voice} style={showStyle ?? autoStyle(rec)} onStyle={setShowStyle} />
+        </div>
+      ) : assets ? (
         <Stage
           rec={rec}
           bitmaps={assets.bitmaps}
@@ -382,86 +393,39 @@ function DayPage({ id }: { id: string }) {
         </div>
         <h1>{rec.title}</h1>
         {rec.place && <div className="place-stamp" style={{ margin: '0 0 14px' }}>⌖ {placeLine(rec.place)}</div>}
-        <div className="tree">
-          <div>
-            <span className="folder-ic" style={{ display: 'inline-block', marginRight: 8, verticalAlign: '-1px' }} />
-            {rec.folder}/
-          </div>
-          <div>├─ запись.txt <span className="k">{t.wordCount} слов</span></div>
-          <div>├─ фото/ <span className="k">{rec.photoCount} шт.</span></div>
-          <div>
-            ├─ песня <span className="k">{[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}</span>
-          </div>
-          {rec.hasExcerpt && <div>├─ фрагмент песни.wav <span className="k">30 с</span></div>}
-          {!!rec.ambience?.length && (
-            <div>
-              ├─ звуки дня.wav <span className="k">{rec.ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')}</span>
-            </div>
-          )}
-          <div>├─ воспоминание.{rec.videoName?.split('.').pop() ?? 'webm'} <span className="k">{rec.hasVideo || video ? 'сохранено' : 'нажмите «Сохранить видео»'}</span></div>
-          <div>├─ обложка.jpg</div>
-          {rec.hasVoice && <div>├─ мой голос <span className="k">запись автора</span></div>}
-          <div>├─ озвучка <span className="k">{rec.design.voice.character}</span></div>
-          <div>└─ почему так.txt</div>
+        <div className="view-pick" role="radiogroup" aria-label="Как воспроизвести">
+          <button role="radio" aria-checked={view === 'show'} className={'tab' + (view === 'show' ? ' on' : '')} onClick={() => pickView('show')}>
+            Слайдшоу
+          </button>
+          <button role="radio" aria-checked={view === 'page'} className={'tab' + (view === 'page' ? ' on' : '')} onClick={() => pickView('page')}>
+            Живая страница
+          </button>
         </div>
 
-        <div className="box">
-          <div className="sec">Запись</div>
-          <div className="entry">{rec.text}</div>
-        </div>
-
-        <div className="box">
-          <div className="sec">Песня дня</div>
-          <div className="kv">
-            <span className="k">трек</span>
-            <span>
-              {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}
-              {rec.music.year ? `, ${rec.music.year}` : ''}
-            </span>
-            {rec.music.genre && (
-              <>
-                <span className="k">жанр</span>
-                <span>{rec.music.genre}</span>
-              </>
-            )}
-            {a && (
-              <>
-                <span className="k">темп</span>
-                <span>{Math.round(a.bpm)} BPM</span>
-                <span className="k">лад</span>
-                <span>{keyName(a.key, a.mode)}</span>
-                <span className="k">энергия</span>
-                <span>{Math.round(a.energy * 100)}%</span>
-              </>
-            )}
-            <span className="k">голос</span>
-            <span>{voiceLabel(rec.design.voice)}</span>
+        {rec.text.trim() && <p className="day-text">{rec.text}</p>}
+        {(rec.music.title || rec.music.artist) && (
+          <p className="day-song">
+            ♪ {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}
             {(rec.music.link || rec.music.serviceUrl) && (
               <>
-                <span className="k">открыть</span>
-                <span>
-                  {rec.music.link && (
-                    <a href={rec.music.link} target="_blank" rel="noreferrer">
-                      ссылка из записи
-                    </a>
-                  )}
-                  {rec.music.link && rec.music.serviceUrl && ' · '}
-                  {rec.music.serviceUrl && (
-                    <a href={rec.music.serviceUrl} target="_blank" rel="noreferrer">
-                      Apple Music
-                    </a>
-                  )}
-                </span>
+                {' '}
+                <a href={rec.music.link || rec.music.serviceUrl} target="_blank" rel="noreferrer">
+                  открыть
+                </a>
               </>
             )}
-          </div>
-        </div>
+          </p>
+        )}
 
         <SkyBox rec={rec} />
 
         <ThereBox rec={rec} photos={media?.photos.length ? media.photos : (rec.photoUrls ?? [])} />
 
-        <Why rec={rec} />
+        <details className="why-more">
+          <summary>Почему день выглядит так</summary>
+          <Why rec={rec} />
+          <p className="hint">Настроение здесь художественная интерпретация, а не психологическая оценка.</p>
+        </details>
 
         <div className="navdays">
           {older ? <a href={`#/day/${older.id}`}>← {older.title}</a> : <span />}
@@ -493,9 +457,6 @@ function DayPage({ id }: { id: string }) {
             </button>
           </div>
         )}
-        <p className="hint" style={{ marginTop: 24 }}>
-          Настроение здесь, художественная интерпретация записи, а не психологическая оценка.
-        </p>
       </div>
     </div>
   );

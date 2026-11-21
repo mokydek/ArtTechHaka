@@ -224,11 +224,9 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
     setLiveMsg('');
   };
 
-  // день уже был оживлён — оживляем сразу
-  useEffect(() => {
-    if (ready && live && liveState === 'off') enableLive(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  // 3D-оживление больше не включается само: страница показывается как есть
+  void live;
+  void enableLive;
 
   const toCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const b = e.currentTarget.getBoundingClientRect();
@@ -484,9 +482,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
             {voice ? '■ Остановить голос' : voiceUrl ? '◉ Мой голос' : '◉ Прочитать запись'}
           </button>
         )}
-        <button className={'btn small' + (liveState === 'on' ? '' : ' ghost')} onClick={() => enableLive()} disabled={!ready || liveState === 'busy' || rec_ !== null} title="вырезать главное и оживить фото в 3D">
-          ✦ {liveState === 'on' ? 'Живое 3D' : liveState === 'busy' ? 'Оживляю…' : 'Оживить 3D'}
-        </button>
+{/* «Оживить 3D» убрано: эффект выглядел неубедительно */}
         {!!rec.ambience?.length && (
           <button
             className={'btn small' + (amb ? '' : ' ghost')}

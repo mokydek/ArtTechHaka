@@ -8,19 +8,15 @@ import { MODES } from '../design/system';
 import { Particles } from './particles';
 import { canvas, coverCrop, ctx2d, fogTexture, grainTiles, paperTexture, type Cnv } from './textures';
 import {
-  canvasWeave,
   cutoutPath,
-  drawStrokes,
   filmGrade,
   maGrade,
   makeEnso,
   moodGrade,
   applyGrade,
   nocturneGrade,
-  paintStrokes,
   posterize,
   tornPiece,
-  underpainting,
   type Enso,
   type Stroke,
 } from './treatments';
@@ -117,11 +113,6 @@ export class MemoryRenderer {
   // импрессия
   private strokes: Stroke[][] = [];
   private painted: Cnv[] = [];
-  private under: Cnv | null = null;
-  private work: Cnv | null = null;
-  private workKey = '';
-  private workCount = 0;
-  private weave: Cnv | null = null;
   // плёнка / ноктюрн
   private halation: Cnv[] = [];
   private bloom: Cnv[] = [];
@@ -171,16 +162,21 @@ export class MemoryRenderer {
       await yieldUI();
       const ph = photos[i];
       if (mode === 'impression') {
+        // «мягкий свет»: само фото в лёгком свечении, без мазков
         const base = coverCrop(ph, W, H);
-        applyGrade(base, moodGrade(spec, { contrast: 0.95, light: 0.03 }));
-        const strokes = paintStrokes(base, spec, spec.seed + i * 17);
-        this.strokes.push(strokes);
+        applyGrade(base, moodGrade(spec, { contrast: 0.97, light: 0.04 }));
         const p = canvas(W, H);
         const pg = ctx2d(p);
-        pg.drawImage(underpainting(base), 0, 0);
-        drawStrokes(pg, strokes, 0, strokes.length);
+        pg.drawImage(base, 0, 0);
+        pg.globalCompositeOperation = 'screen';
+        pg.globalAlpha = 0.2;
+        pg.filter = 'blur(16px)';
+        pg.drawImage(base, 0, 0);
+        pg.filter = 'none';
+        pg.globalAlpha = 1;
+        pg.globalCompositeOperation = 'source-over';
+        this.strokes.push([]);
         this.painted.push(p);
-        if (i === 0) this.under = underpainting(base);
       } else if (mode === 'construct') {
         const base = coverCrop(ph, W, H);
         applyGrade(base, moodGrade(spec, { contrast: 1.15 }));
@@ -214,10 +210,6 @@ export class MemoryRenderer {
         this.imgs.push(img);
         this.bloom.push(bloom);
       }
-    }
-    if (mode === 'impression') {
-      this.work = canvas(W, H);
-      this.weave = canvasWeave(256, 256);
     }
     if (mode === 'nocturne') {
       this.fog = [fogTexture(256, '#b9c6dd', spec.seed), fogTexture(256, '#8fa3c4', spec.seed + 9)];
@@ -646,64 +638,36 @@ export class MemoryRenderer {
   private drawImpression(tm: Timing, still: boolean) {
     const g = this.g;
     const { x, y, w, h } = FIELD;
-    let src: Cnv;
-    if (still) src = this.painted[0];
+    const s = 1.0 + 0.04 * this.spec.motion * ((tm.t % (this.photoDur * 2)) / (this.photoDur * 2));
+    const put = (src: Cnv, a: number) => {
+      g.globalAlpha = a;
+      g.drawImage(src, x - (w * (s - 1)) / 2, y - (h * (s - 1)) / 2, w * s, h * s);
+    };
+    if (still) put(this.painted[0], 1);
     else if (tm.slot === 0 && tm.local < this.introDur) {
-      const total = this.strokes[0].length;
-      const k = Math.floor(easeInOut(clamp(tm.local / this.introDur)) * total);
-      this.ensureWork('intro', this.under!, 0, k);
-      src = this.work!;
+      // проявляется из бумаги
+      g.fillStyle = this.spec.palette.paper;
+      g.fillRect(x, y, w, h);
+      put(this.painted[0], easeInOut(clamp(tm.local / this.introDur)));
     } else if (tm.tr >= 0) {
-      const total = this.strokes[tm.next].length;
-      const k = Math.floor(easeInOut(tm.tr) * total);
-      this.ensureWork(`s${tm.slot}`, this.painted[tm.cur], tm.next, k);
-      src = this.work!;
-    } else src = this.painted[tm.cur];
-    const s = 1.0 + 0.035 * this.spec.motion * ((tm.t % (this.photoDur * 2)) / (this.photoDur * 2));
-    g.drawImage(src, x - (w * (s - 1)) / 2, y - (h * (s - 1)) / 2, w * s, h * s);
-    // фактура холста
-    if (this.weave) {
-      g.globalCompositeOperation = 'overlay';
-      g.globalAlpha = 0.22;
-      for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(this.weave, xx, yy);
-    }
-    // дрожащий свет
+      put(this.painted[tm.cur], 1);
+      put(this.painted[tm.next], easeInOut(tm.tr));
+    } else put(this.painted[tm.cur], 1);
+    g.globalAlpha = 1;
+    // тёплые блики света
     g.globalCompositeOperation = 'soft-light';
     for (let i = 0; i < 2; i++) {
       const cx = x + w * (0.3 + 0.4 * Math.sin(tm.t * 0.13 + i * 2)),
         cy = y + h * (0.35 + 0.3 * Math.cos(tm.t * 0.11 + i));
       const r = w * 0.5;
       const grd = g.createRadialGradient(cx, cy, 0, cx, cy, r);
-      grd.addColorStop(0, withAlpha('#fff3d6', 0.35 + tm.level * 0.25));
+      grd.addColorStop(0, withAlpha('#fff3d6', 0.25 + tm.level * 0.2));
       grd.addColorStop(1, 'rgba(255,243,214,0)');
       g.fillStyle = grd;
       g.fillRect(x, y, w, h);
     }
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
-  }
-
-  private ensureWork(key: string, base: Cnv, strokeIdx: number, count: number) {
-    const wg = ctx2d(this.work!);
-    const full = key + ':' + strokeIdx;
-    if (this.workKey !== full || count < this.workCount) {
-      wg.globalAlpha = 1;
-      wg.globalCompositeOperation = 'source-over';
-      if (key === 'intro') {
-        wg.fillStyle = this.spec.palette.paper;
-        wg.fillRect(0, 0, FIELD.w, FIELD.h);
-        // снимок узнаётся сразу (мягкая подмалёвка), мазки его проявляют — а не пятна на пустом холсте
-        wg.globalAlpha = 0.85;
-      }
-      wg.drawImage(base, 0, 0);
-      wg.globalAlpha = 1;
-      this.workKey = full;
-      this.workCount = 0;
-    }
-    if (count > this.workCount) {
-      drawStrokes(wg, this.strokes[strokeIdx], this.workCount, count);
-      this.workCount = count;
-    }
   }
 
   // ——— Конструкция: Кандинский ———
