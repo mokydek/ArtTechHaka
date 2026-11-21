@@ -225,12 +225,12 @@ export interface DayMedia {
   cutouts?: Record<string, string>; // id вклейки → URL
 }
 
-export type CoverStyle = 'kraft' | 'marble' | 'guava' | 'birds' | 'linen' | 'night' | 'olive' | 'ransom' | 'collage';
+export type CoverStyle = 'black' | 'kraft' | 'marble' | 'guava' | 'birds' | 'linen' | 'night' | 'olive' | 'ransom' | 'collage' | 'custom';
 
 export interface Notebook {
   id: string;
   title: string;
-  cover: { style: CoverStyle };
+  cover: { style: CoverStyle; image?: string; label?: boolean }; // custom: своя обложка (JPEG data URL) и нужна ли подпись
   createdAt: string;
   demo?: boolean;
 }

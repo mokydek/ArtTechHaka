@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDiary } from '../App';
 import { useCoverUrl } from '../components/Book';
 import Timeline from '../components/Timeline';
-import FlipBook from '../components/FlipBook';
+import Journal from '../components/Journal';
 import YearPixels from '../components/YearPixels';
 import MoodMap from '../components/MoodMap';
 import { MODES } from '../lib/design/system';
@@ -102,7 +102,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
           )}
         </div>
       ) : tab === 'book' ? (
-        <FlipBook nb={nb} days={all} />
+        <Journal nb={nb} days={all} />
       ) : tab === 'photos' ? (
         <PhotoWall days={days} />
       ) : tab === 'year' ? (

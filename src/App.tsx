@@ -97,9 +97,20 @@ export default function App() {
     (window as unknown as Record<string, unknown>).__ottiskStore = s; // для проверок
     let nbs = await s.listNotebooks().catch(() => [] as Notebook[]);
     if (!nbs.length) {
-      const first: Notebook = { id: newId(), title: 'Мой дневник', cover: { style: 'kraft' }, createdAt: new Date().toISOString() };
+      const first: Notebook = { id: newId(), title: 'Мой дневник', cover: { style: 'black' }, createdAt: new Date().toISOString() };
       await s.saveNotebook(first).catch(() => {});
       nbs = [first];
+    }
+    // первая тетрадь по умолчанию теперь чёрная: старую автоматическую крафтовую перекрашиваем один раз
+    try {
+      const auto = nbs.length === 1 && nbs[0].title === 'Мой дневник' && nbs[0].cover.style === 'kraft' && !localStorage.getItem('ottisk:black');
+      localStorage.setItem('ottisk:black', '1');
+      if (auto) {
+        nbs = [{ ...nbs[0], cover: { style: 'black' } }];
+        await s.saveNotebook(nbs[0]).catch(() => {});
+      }
+    } catch {
+      /* без хранилища */
     }
     setOwn(nbs);
     const list = await s.list();

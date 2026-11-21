@@ -12,6 +12,7 @@ export interface CoverInfo {
 }
 
 export const COVERS: CoverInfo[] = [
+  { id: 'black', name: 'чёрная', bg: '#2a2730', ink: '#efe9df' },
   { id: 'kraft', name: 'крафт', bg: '#e9dcc6', ink: '#3a2a1a' },
   { id: 'marble', name: 'тетрадь в мрамор', bg: '#e6e2db', ink: '#111111' },
   { id: 'guava', name: 'розовая гуава', bg: '#e8a59b', ink: '#5a1f1a' },
@@ -24,6 +25,8 @@ export const COVERS: CoverInfo[] = [
 ];
 
 export const coverInfo = (id: CoverStyle) => COVERS.find((c) => c.id === id) ?? COVERS[0];
+/** каталог: всё, кроме своей обложки */
+export const CATALOG = COVERS;
 
 const cache = new Map<string, string>();
 
@@ -93,8 +96,8 @@ function bird(g: CanvasRenderingContext2D, x: number, y: number, s: number, rot:
 }
 
 /** Нарисовать обложку. images — обложки дней (для «из моих дней») */
-export async function renderCover(style: CoverStyle, title: string, images: CanvasImageSource[] = [], W = 600, H = 800): Promise<string> {
-  const key = `${style}|${title}|${images.length}|${W}`;
+export async function renderCover(style: CoverStyle, title: string, images: CanvasImageSource[] = [], W = 600, H = 800, extra: { label?: boolean; key?: string } = {}): Promise<string> {
+  const key = `${style}|${title}|${images.length}|${W}|${extra.key ?? ''}|${extra.label ?? ''}`;
   if (cache.has(key) && style !== 'collage') return cache.get(key)!;
   await document.fonts.ready;
   const c = document.createElement('canvas');
@@ -105,6 +108,32 @@ export async function renderCover(style: CoverStyle, title: string, images: Canv
   const rnd = mulberry32(seed);
   const info = coverInfo(style);
   switch (style) {
+    case 'black': {
+      // классическая чёрная тетрадь: мелкая фактура, светлая наклейка
+      g.fillStyle = '#1c1a1f';
+      g.fillRect(0, 0, W, H);
+      noise(g, W, H, 14, seed);
+      const gl = g.createLinearGradient(0, 0, W, H);
+      gl.addColorStop(0, 'rgba(255,255,255,0.06)');
+      gl.addColorStop(0.5, 'rgba(255,255,255,0)');
+      gl.addColorStop(1, 'rgba(0,0,0,0.18)');
+      g.fillStyle = gl;
+      g.fillRect(0, 0, W, H);
+      label(g, W, H, title, { y: 0.16 });
+      break;
+    }
+    case 'custom': {
+      const im = images[0] as (CanvasImageSource & { width: number; height: number }) | undefined;
+      if (im) {
+        const r = Math.max(W / im.width, H / im.height);
+        g.drawImage(im, (W - im.width * r) / 2, (H - im.height * r) / 2, im.width * r, im.height * r);
+      } else {
+        g.fillStyle = '#1c1a1f';
+        g.fillRect(0, 0, W, H);
+      }
+      if (extra.label !== false) label(g, W, H, title, { y: 0.16 });
+      break;
+    }
     case 'kraft': {
       g.fillStyle = '#b48a5a';
       g.fillRect(0, 0, W, H);

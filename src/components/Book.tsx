@@ -8,8 +8,9 @@ export function useCoverUrl(nb: Pick<Notebook, 'id' | 'title' | 'cover'>, size =
   const { covers, daysOf } = useDiary();
   const [url, setUrl] = useState('');
   const days = daysOf(nb.id);
-  const srcs = nb.cover.style === 'collage' ? days.slice(0, 4).map((d) => covers[d.id]).filter(Boolean) : [];
-  const key = nb.cover.style + nb.title + srcs.join('|');
+  const srcs = nb.cover.style === 'collage' ? days.slice(0, 4).map((d) => covers[d.id]).filter(Boolean) : nb.cover.style === 'custom' && nb.cover.image ? [nb.cover.image] : [];
+  const ckey = nb.cover.image ? nb.cover.image.length + nb.cover.image.slice(-24) : '';
+  const key = nb.cover.style + nb.title + (nb.cover.style === 'collage' ? srcs.join('|') : ckey) + (nb.cover.label ?? '');
   useEffect(() => {
     let dead = false;
     (async () => {
@@ -25,7 +26,7 @@ export function useCoverUrl(nb: Pick<Notebook, 'id' | 'title' | 'cover'>, size =
           /* пропускаем */
         }
       }
-      const u = await renderCover(nb.cover.style, nb.title, imgs, size, Math.round(size * 1.333));
+      const u = await renderCover(nb.cover.style, nb.title, imgs, size, Math.round(size * 1.333), { label: nb.cover.label, key: ckey });
       if (!dead) setUrl(u);
     })();
     return () => {
