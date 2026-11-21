@@ -79,7 +79,7 @@ export default function Timeline({ days, sealed = [] }: { days: DayRecord[]; sea
                 </div>
                 <p className="pt tl-text">{d.text.length > 220 ? d.text.slice(0, 220).replace(/\s+\S*$/, '') + '…' : d.text}</p>
                 <div className="pt muted">
-                  ♪ {[d.music.artist, d.music.title].filter(Boolean).join(' — ')}
+                  ♪ {[d.music.artist, d.music.title].filter(Boolean).join(' · ')}
                   {d.place && <> · ⌖ {d.place.name}</>}
                 </div>
               </div>

@@ -1263,9 +1263,9 @@ export class MemoryRenderer {
     g.fillText(right, R, 1318);
     const rw = g.measureText(right).width;
     g.textAlign = 'left';
-    let song = `♪ ${inp.music.artist ? inp.music.artist + ' — ' : ''}${inp.music.title}`.toUpperCase();
+    let song = `♪ ${inp.music.artist ? inp.music.artist + ' · ' : ''}${inp.music.title}`.toUpperCase();
     while (g.measureText(song).width > FIELD.w - rw - 40 && song.length > 8) song = song.slice(0, -2);
-    if (song !== `♪ ${inp.music.artist ? inp.music.artist + ' — ' : ''}${inp.music.title}`.toUpperCase()) song += '…';
+    if (song !== `♪ ${inp.music.artist ? inp.music.artist + ' · ' : ''}${inp.music.title}`.toUpperCase()) song += '…';
     g.fillStyle = withAlpha(pal.ink, 0.78);
     g.fillText(song, L, 1318);
     g.letterSpacing = '0px';

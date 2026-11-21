@@ -48,7 +48,7 @@ export default function NotebookView({ id, tab }: { id: string; tab: string }) {
           </h1>
           <div className="mono muted">
             {all.length} {plural(all.length, 'запись', 'записи', 'записей')}
-            {all.length > 0 && ` · ${all[all.length - 1].date.slice(0, 7).split('-').reverse().join('.')} — ${all[0].date.slice(0, 7).split('-').reverse().join('.')}`}
+            {all.length > 0 && ` · ${all[all.length - 1].date.slice(0, 7).split('-').reverse().join('.')}, ${all[0].date.slice(0, 7).split('-').reverse().join('.')}`}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             {!nb.demo && (

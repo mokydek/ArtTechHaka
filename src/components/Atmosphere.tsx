@@ -67,7 +67,7 @@ export function AtmosChip({ atmos }: { atmos: Atmos }) {
             <span key={k} className="atmos-row">
               <i style={{ width: `${Math.round(atmos.weights[k] * 100)}%` }} />
               {MOTIF_NAMES[k]}
-              {atmos.counts[k] ? ` — ${atmos.counts[k]} ${days(atmos.counts[k]!)}` : ''}
+              {atmos.counts[k] ? `, ${atmos.counts[k]} ${days(atmos.counts[k]!)}` : ''}
             </span>
           ))}
           <small>Цвета, небо и мелочи на фоне меняются с каждой новой записью.</small>

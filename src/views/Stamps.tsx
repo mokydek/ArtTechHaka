@@ -15,7 +15,7 @@ export default function Stamps() {
     <>
       <div className="sec">
         <b>●</b> {earned.length} из {STAMPS.length} {plural(STAMPS.length, 'марки', 'марок', 'марок')}
-        {example && <span className="muted"> · пример на днях команды — ваши марки появятся с первой записью</span>}
+        {example && <span className="muted"> · пример на днях команды, ваши марки появятся с первой записью</span>}
       </div>
       <h1 className="h1" style={{ fontSize: 46, marginBottom: 26 }}>
         Альбом марок

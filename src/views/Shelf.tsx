@@ -57,7 +57,7 @@ export default function Shelf() {
             <h1 className="h1">{greeting()}</h1>
           ) : (
             <h1 className="h1">
-              Фото помнят, как выглядел день. <em>Оттиск</em> — как он ощущался.
+              Фото помнят, как выглядел день. <em>Оттиск</em> помнит, как он ощущался.
             </h1>
           )}
           <div className="prompt-card">
@@ -121,7 +121,7 @@ export default function Shelf() {
             <ol>
               <li>
                 <b>1</b>
-                <span>Напиши пару строк о дне — как близкому другу.</span>
+                <span>Напиши пару строк о дне, как близкому другу.</span>
               </li>
               <li>
                 <b>2</b>

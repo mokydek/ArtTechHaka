@@ -304,7 +304,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
         <label className="there-drop">
           <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && pickFile(e.target.files[0])} />
           <b>Побывать там</b>
-          <span>Выберите фото — окажитесь в том месте, в ту минуту, под тем же небом.</span>
+          <span>Выберите фото, окажитесь в том месте, в ту минуту, под тем же небом.</span>
           <span className="mono">{step || 'выбрать фото'}</span>
           {err && <span className="mono there-err">{err}</span>}
         </label>
@@ -363,7 +363,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
             {where && <WherePicker onPick={setPlace} />}
             <div>
               <input className="there-date mono" type="date" value={ctx.local.slice(0, 10)} onChange={(e) => setDate(e.target.value)} /> <b>{hm(minute)}</b>{' '}
-              <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок — ${hm(photoMin)}`}</small>
+              <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок, ${hm(photoMin)}`}</small>
             </div>
             <div>
               {weather ? (
@@ -400,7 +400,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
               звук {sound ? 'вкл' : 'выкл'}
             </button>
           </div>
-          <div className="there-hint mono">WASD — идти · Shift — быстрее · тянуть — смотреть</div>
+          <div className="there-hint mono">WASD, идти · Shift, быстрее · тянуть, смотреть</div>
         </>
       )}
     </div>

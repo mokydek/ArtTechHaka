@@ -37,7 +37,6 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
   const [liveMsg, setLiveMsg] = useState('');
   const [dev, setDev] = useState<number | null>(develop ? 0 : null);
   const devRef = useRef<number | null>(develop ? 0 : null);
-  const [breath, setBreath] = useState(false);
   const mic = useRef<{ stop: () => void } | null>(null);
   const ptr = useRef<{ x: number; y: number; moved: number; down: boolean; lx: number; ly: number }>({ x: 0, y: 0, moved: 0, down: false, lx: 0, ly: 0 });
   const own = useRef<HTMLAudioElement | null>(null);
@@ -218,7 +217,7 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
     } catch (e) {
       console.error(e);
       setLiveState('off');
-      setLiveMsg('не получилось оживить — попробуйте ещё раз');
+      setLiveMsg('не получилось оживить, попробуйте ещё раз');
       setTimeout(() => setLiveMsg(''), 3000);
       return;
     }
@@ -316,53 +315,6 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
     }
   };
 
-  const blow = async () => {
-    if (mic.current) {
-      mic.current.stop();
-      mic.current = null;
-      setBreath(false);
-      return;
-    }
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      const ac = new AudioContext();
-      const an = ac.createAnalyser();
-      an.fftSize = 1024;
-      ac.createMediaStreamSource(s).connect(an);
-      const buf = new Float32Array(an.fftSize);
-      const fb = new Uint8Array(an.frequencyBinCount);
-      let raf = 0;
-      const loop = () => {
-        an.getFloatTimeDomainData(buf);
-        an.getByteFrequencyData(fb);
-        let e = 0;
-        for (let i = 0; i < buf.length; i++) e += buf[i] * buf[i];
-        const rms = Math.sqrt(e / buf.length);
-        // дыхание — широкий шум с упором в низ; речь и музыка — тональные пики
-        let lo = 0,
-          all = 0;
-        for (let i = 1; i < fb.length; i++) {
-          all += fb[i];
-          if (i < 24) lo += fb[i];
-        }
-        const flat = all / fb.length;
-        if (rms > 0.06 && lo / 23 > flat * 1.4) player.current?.r.blow(Math.min(1, (rms - 0.04) * 6));
-        raf = requestAnimationFrame(loop);
-      };
-      loop();
-      mic.current = {
-        stop: () => {
-          cancelAnimationFrame(raf);
-          s.getTracks().forEach((t) => t.stop());
-          ac.close();
-        },
-      };
-      setBreath(true);
-    } catch {
-      alert('Нет доступа к микрофону');
-    }
-  };
-
   useEffect(() => {
     const p = player.current;
     if (!p || title === undefined) return;
@@ -447,9 +399,8 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
           style={{ cursor: ready ? (dev != null ? 'grab' : 'pointer') : 'wait', touchAction: 'none' }}
         />
         {ready && dev != null && <div className="dev-hint mono">проявляется… потрите фото{'ontouchstart' in window ? ' или встряхните телефон' : ''}</div>}
-        {ready && breath && <div className="dev-hint mono">подуйте в микрофон — стекло запотеет, по нему можно рисовать пальцем</div>}
         {liveMsg && <div className="dev-hint mono live-hint">✦ {liveMsg}</div>}
-        {arrange && <div className="dev-hint mono live-hint">{sel ? 'тяните · колесо/два пальца — размер и поворот' : 'нажмите на вклейку'}</div>}
+        {arrange && <div className="dev-hint mono live-hint">{sel ? 'тяните · колесо/два пальца, размер и поворот' : 'нажмите на вклейку'}</div>}
         {!ready && (
           <div className="mono muted" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
             <span className="blink">{step}</span>
@@ -520,9 +471,6 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
         </button>
         <button className={'btn small' + (liveState === 'on' ? '' : ' ghost')} onClick={() => enableLive()} disabled={!ready || liveState === 'busy' || rec_ !== null} title="вырезать главное и оживить фото в 3D">
           ✦ {liveState === 'on' ? 'Живое 3D' : liveState === 'busy' ? 'Оживляю…' : 'Оживить 3D'}
-        </button>
-        <button className={'btn small' + (breath ? '' : ' ghost')} onClick={blow} disabled={!ready} title="подуть в микрофон">
-          🌬 {breath ? 'Слушаю дыхание' : 'Подуть'}
         </button>
         {!!rec.ambience?.length && (
           <button

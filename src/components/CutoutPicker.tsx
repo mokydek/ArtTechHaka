@@ -28,7 +28,7 @@ export default function CutoutPicker({ count, onAdded, compact }: { count: numbe
         onAdded({ rt: { id: newId(), img: canvas, ...spot }, blob, kind: mode });
       } catch (e) {
         console.error(e);
-        setErr('Не получилось вырезать — попробуйте «целиком».');
+        setErr('Не получилось вырезать, попробуйте «целиком».');
       } finally {
         setBusy((b) => b - 1);
       }

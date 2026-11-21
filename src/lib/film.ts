@@ -256,7 +256,7 @@ export class FilmEngine {
       g.fillStyle = '#5d5750';
       g.font = '500 22px "JetBrains Mono", monospace';
       g.letterSpacing = '6px';
-      g.fillText(`${humanDate(this.clips[0].rec.date).split(' · ')[0]} — ${humanDate(this.clips[n - 1].rec.date).split(' · ')[0]}`.toUpperCase(), W / 2, 1186);
+      g.fillText(`${humanDate(this.clips[0].rec.date).split(' · ')[0]}, ${humanDate(this.clips[n - 1].rec.date).split(' · ')[0]}`.toUpperCase(), W / 2, 1186);
       g.letterSpacing = '0px';
       g.restore();
     }

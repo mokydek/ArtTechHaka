@@ -7,7 +7,7 @@ import { lookupTrack, recommendSongs, resolveLink, searchTracks, type Ranked, ty
 import { bestExcerpt } from '../lib/analysis/audio';
 import Stage from '../components/Stage';
 import Why from '../components/Why';
-import { PROMPTS, PROMPT_STARTERS, dayPrompt } from '../lib/prompts';
+import { PROMPTS, dayPrompt } from '../lib/prompts';
 import { dayWeather, hereNow, nameAt, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
 import { readShot } from '../lib/scene/context';
 import type { ShotMeta } from '../lib/types';
@@ -89,7 +89,7 @@ export default function NewDay({ nb }: { nb?: string }) {
           notes.push('место');
         }
       }
-      if (!dead && notes.length) setFromPhoto(notes.join(' и ') + ' — из фото');
+      if (!dead && notes.length) setFromPhoto(notes.join(' и ') + ', из фото');
     });
     return () => {
       dead = true;
@@ -105,18 +105,6 @@ export default function NewDay({ nb }: { nb?: string }) {
   const [pi, setPi] = useState(-1);
   const prompt = pi < 0 ? dayPrompt(date) : PROMPTS[pi % PROMPTS.length];
   const ta = useRef<HTMLTextAreaElement>(null);
-  const addStarter = (st: string) => {
-    const base = text.trimEnd();
-    const next = (base ? base + (/[.!?…]$/.test(base) ? ' ' : '. ') : '') + st.replace('…', ' ');
-    setText(next);
-    requestAnimationFrame(() => {
-      const el = ta.current;
-      if (el) {
-        el.focus();
-        el.setSelectionRange(next.length, next.length);
-      }
-    });
-  };
 
   const missing: ['text' | 'photo' | 'song', string][] = [];
   if (text.trim().length < 3) missing.push(['text', 'Напишите хотя бы пару слов о дне.']);
@@ -129,8 +117,8 @@ export default function NewDay({ nb }: { nb?: string }) {
   useEffect(() => {
     if (phase === 'save') return;
     const H: Record<string, [string, Pose]> = {
-      text: ['Начни с пары слов о дне. Можно нажать подсказку «Свет был…» — я подхвачу.', 'point'],
-      photo: ['Теперь фото дня — хотя бы одно. Перетащи его или сними прямо сейчас.', 'point'],
+      text: ['Начни с пары слов о дне.', 'point'],
+      photo: ['Теперь фото дня. Хватит и одного.', 'point'],
       song: ['И песню, которая звучала в этот день. Найду её по названию.', 'point'],
       ready: ['Всё на месте! Жми «Проявить день».', 'happy'],
       build: ['Проявляю твой день, как в фотолаборатории…', 'think'],
@@ -236,7 +224,7 @@ export default function NewDay({ nb }: { nb?: string }) {
         />
         <div className="panel">
           <div className="sec">
-            <b>●</b> Папка дня — название придумала система, можно поправить
+            Название дня
           </div>
           <input className="title-edit" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} />
           <div className="mono muted" style={{ margin: '8px 0 18px', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -284,19 +272,12 @@ export default function NewDay({ nb }: { nb?: string }) {
             ↻
           </button>
         </div>
-        <div className="starters">
-          {PROMPT_STARTERS.map((st) => (
-            <button key={st} className="tab" onClick={() => addStarter(st)} disabled={phase === 'build'}>
-              {st}
-            </button>
-          ))}
-        </div>
         <div className="field" ref={(e) => void (secs.current.text = e)}>
           <textarea
             ref={ta}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Пишите как близкому другу: погода, свет, запахи, звуки, кто был рядом, мелочи, которые запомнились…"
+            placeholder="Пиши как другу…"
             disabled={phase === 'build'}
           />
           <div className="heard" aria-live="polite">
@@ -305,7 +286,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             ))}
           </div>
           <div className="hint" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-            <span>Система ищет в тексте время суток, сезон, погоду, места, людей и слова настроения.</span>
+            <span />
             <input
               type="date"
               value={date}
@@ -328,7 +309,7 @@ export default function NewDay({ nb }: { nb?: string }) {
           <Photos files={photos} onChange={setPhotos} disabled={phase === 'build'} />
         </div>
         <div className="sec" style={{ marginTop: 6 }}>
-          Вклейки — свои моменты поверх страницы
+          Вклейки
         </div>
         <div className="field">
           <CutoutPicker count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
@@ -342,7 +323,7 @@ export default function NewDay({ nb }: { nb?: string }) {
               ))}
             </div>
           )}
-          <div className="hint">Билет, рисунок, кот, друг, записка — главное вырежется в наклейку. Её можно разложить на странице после проявки.</div>
+          <div className="hint">Билет, рисунок, записка: главное вырежется в наклейку.</div>
         </div>
       </div>
       <div>
@@ -369,7 +350,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             <>
               <div className={'hint' + (nudge ? ' nudge' : '')} style={{ marginBottom: 12 }}>
                 {ready
-                  ? 'Всё на месте. Анализ идёт на устройстве — запись никуда не отправляется до сохранения.'
+                  ? 'Всё готово.'
                   : missing.map(([, m]) => m).join(' ')}
               </div>
               <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 13, padding: '14px 26px' }}>
@@ -487,13 +468,13 @@ function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicI
           asked = r.query;
           list = await searchTracks(r.query);
         } else {
-          setNote('Этот сервис не отдаёт название по ссылке. Впишите «исполнитель — название», а ссылку мы сохраним в папке дня.');
+          setNote('Этот сервис не отдаёт название по ссылке. Впишите «исполнитель, название», а ссылку мы сохраним в папке дня.');
           return;
         }
       } else list = await searchTracks(s);
       setRes(list);
-      if (!list.length) setNote('В каталоге такой песни нет. Загрузите свой файл — система сама найдёт припев, а отрывок можно подвинуть.');
-      else if (asked && list[0].match < 0.75) setNote('Точного совпадения в каталоге нет — ниже похожие. Если вашей песни среди них нет, загрузите свой файл.');
+      if (!list.length) setNote('В каталоге такой песни нет. Загрузите свой файл, система сама найдёт припев, а отрывок можно подвинуть.');
+      else if (asked && list[0].match < 0.75) setNote('Точного совпадения в каталоге нет, ниже похожие. Если вашей песни среди них нет, загрузите свой файл.');
       else setNote('');
     } finally {
       setBusy(false);
@@ -510,7 +491,7 @@ function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicI
     }
     a.src = t.previewUrl!;
     a.volume = 0.7;
-    a.play().catch(() => setNote('Браузер не дал включить звук — нажмите ▶ ещё раз.'));
+    a.play().catch(() => setNote('Браузер не дал включить звук, нажмите ▶ ещё раз.'));
     a.onended = () => setPlaying(null);
     setPlaying(t.trackId);
   };
@@ -523,7 +504,7 @@ function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicI
       <div>
         <b>{t.title}</b>
         <small>
-          {t.artist} · {t.year ?? '—'} · {t.genre ?? ''}
+          {t.artist} · {[t.year, t.genre].filter(Boolean).join(' · ')}
         </small>
       </div>
       <button
@@ -556,7 +537,7 @@ function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicI
               disabled={disabled}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && find()}
-              placeholder="Исполнитель и название — или ссылка Spotify / YouTube / Apple Music"
+              placeholder="Исполнитель и название или ссылка"
             />
             <button className="btn" onClick={find} disabled={busy || disabled}>
               {busy ? '…' : 'Найти'}
@@ -572,14 +553,13 @@ function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicI
               <div className="results">{recs.map(row)}</div>
             </div>
           )}
-          <div className="hint">Звучит официальный 30-секундный фрагмент из каталога Apple Music — песня целиком нигде не хранится. Его же система слушает: темп, тональность, энергию.</div>
         </>
       ) : (
         <FilePick value={value} onChange={onChange} disabled={disabled} />
       )}
       {value && (
         <div className="mono" style={{ marginTop: 12 }}>
-          ♪ выбрано: {value.kind === 'track' ? `${value.track.artist} — ${value.track.title}` : value.kind === 'file' ? value.file.name : `${value.artist} — ${value.title}`}
+          ♪ выбрано: {value.kind === 'track' ? `${value.track.artist} · ${value.track.title}` : value.kind === 'file' ? value.file.name : `${value.artist} · ${value.title}`}
         </div>
       )}
     </div>
@@ -713,7 +693,7 @@ function PlacePicker({ date, value, onChange, disabled }: { date: string; value:
     setNote('');
     const weather = await dayWeather(h.lat, h.lon, date).catch(() => undefined);
     onChange({ name: h.name, country: h.country, lat: h.lat, lon: h.lon, weather });
-    if (!weather) setNote('Погоду за этот день найти не удалось — место сохранится без неё.');
+    if (!weather) setNote('Погоду за этот день найти не удалось, место сохранится без неё.');
     setBusy(false);
   };
   // дата поменялась — погоду пересчитать
@@ -739,7 +719,7 @@ function PlacePicker({ date, value, onChange, disabled }: { date: string; value:
     try {
       await pick(await hereNow());
     } catch {
-      setNote('Геолокация недоступна — впишите город.');
+      setNote('Геолокация недоступна, впишите город.');
       setBusy(false);
     }
   };
@@ -757,7 +737,7 @@ function PlacePicker({ date, value, onChange, disabled }: { date: string; value:
         </div>
       ) : (
         <div className="place-row">
-          <input className="inp" value={q} onChange={(e) => type(e.target.value)} placeholder="Где это было? Город или место — подтянем погоду дня" disabled={disabled || busy} />
+          <input className="inp" value={q} onChange={(e) => type(e.target.value)} placeholder="Где это было?" disabled={disabled || busy} />
           <button className="btn ghost small" onClick={here} disabled={disabled || busy}>
             {busy ? '…' : '⌖ Я здесь'}
           </button>

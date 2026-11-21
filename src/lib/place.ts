@@ -55,7 +55,7 @@ const WMO: [number[], string, Weather[]][] = [
 
 export function wmo(code: number): { label: string; tags: Weather[] } {
   const row = WMO.find((w) => w[0].includes(code));
-  return row ? { label: row[1], tags: row[2] } : { label: '—', tags: [] };
+  return row ? { label: row[1], tags: row[2] } : { label: '·', tags: [] };
 }
 
 export function weatherTags(p: PlaceInfo): Weather[] {

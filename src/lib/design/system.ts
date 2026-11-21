@@ -19,7 +19,7 @@ export const MODES: Record<ModeId, ModeInfo> = {
     ref: 'Клод Моне и импрессионисты',
     technique: 'фото переписывается мазками; мягкий свет, размытые края, кадры «перекрашиваются» друг в друга',
     when: 'спокойный светлый день, природа и вода, дневной или золотой свет, тёплая неторопливая музыка',
-    why: 'раздробленный мазок растворяет детали — в памяти остаются свет и воздух, а не подробности',
+    why: 'раздробленный мазок растворяет детали, в памяти остаются свет и воздух, а не подробности',
   },
   construct: {
     id: 'construct',
@@ -35,7 +35,7 @@ export const MODES: Record<ModeId, ModeInfo> = {
     ref: 'любительская 35-мм плёнка, семейные альбомы 70–90-х',
     technique: 'плёночная лента с перфорацией, зерно, ореол светов, засветки, оранжевая дата',
     when: 'друзья, лето, поездки, ностальгия, песня из прошлого',
-    why: 'зерно и засветы — знаки прошедшего времени: так выглядят воспоминания, которые хочется пересматривать',
+    why: 'зерно и засветы, знаки прошедшего времени: так выглядят воспоминания, которые хочется пересматривать',
   },
   ma: {
     id: 'ma',
@@ -43,7 +43,7 @@ export const MODES: Record<ModeId, ModeInfo> = {
     ref: 'японская эстетика ма (間), тушь суми-э, минималистичная графика',
     technique: 'много пустоты, маленькое приглушённое фото, тушевой круг энсо, красная печать с датой',
     when: 'тихий, одинокий или задумчивый день; дождь, снег, туман, утро; медленная минорная песня',
-    why: 'пустота — тоже содержание: тихий день ощущается простором и паузой',
+    why: 'пустота, тоже содержание: тихий день ощущается простором и паузой',
   },
   collage: {
     id: 'collage',
@@ -59,7 +59,7 @@ export const MODES: Record<ModeId, ModeInfo> = {
     ref: 'Джеймс Уистлер, «Ноктюрны»; ночная тональная живопись',
     technique: 'синий тон, свечение огней, дрейфующий туман, медленное движение',
     when: 'вечер и ночь, огни города, спокойная или грустная музыка',
-    why: 'ночью предметы исчезают, остаются тон и свет — ощущение вместо картинки',
+    why: 'ночью предметы исчезают, остаются тон и свет, ощущение вместо картинки',
   },
 };
 
@@ -181,7 +181,7 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
   // музыка
   if (a) {
     const tempoWord = bpm < 92 ? 'медленный' : bpm < 126 ? 'средний' : 'быстрый';
-    rules.push({ group: 'music', from: `Темп песни ${Math.round(bpm)} BPM — ${tempoWord}`, to: `кадр меняется каждые ${cutBeats} долей ≈ ${(cutBeats * beat).toFixed(1)} с, анимация привязана к долям` });
+    rules.push({ group: 'music', from: `Темп песни ${Math.round(bpm)} BPM, ${tempoWord}`, to: `кадр меняется каждые ${cutBeats} долей ≈ ${(cutBeats * beat).toFixed(1)} с, анимация привязана к долям` });
     rules.push({
       group: 'music',
       from: `Тональность: ${keyName(a.key, a.mode)} (уверенность ${pct(a.modeConfidence)})`,
@@ -189,7 +189,7 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
     });
     rules.push({ group: 'music', from: `Энергия звука ${pct(a.energy)}: громкость ${pct(a.loudness)}, ${a.onsetRate.toFixed(1)} атак/с, яркость тембра ${pct(a.brightness)}`, to: energy > 0.55 ? 'резкие склейки и пульсация форм в такт' : 'плавные переходы и медленный дрейф кадра' });
   } else {
-    rules.push({ group: 'music', from: 'Аудио недоступно — работаем по описанию песни', to: `темп оценён по жанру ≈ ${Math.round(bpm)} BPM` });
+    rules.push({ group: 'music', from: 'Аудио недоступно, работаем по описанию песни', to: `темп оценён по жанру ≈ ${Math.round(bpm)} BPM` });
   }
   const gp = genrePrior(m.meta.genre);
   if (m.meta.genre || m.meta.year) {
@@ -217,27 +217,27 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
   rules.push({
     group: 'text',
     from: `Время: ${t.timeOfDay ? timeWords[t.timeOfDay] : 'не указано'}, сезон: ${seasonWords[t.season ?? 'autumn']}${t.seasonFromText ? '' : ' (по дате)'}`,
-    to: particle !== 'none' ? `«погода внутри» — ${PARTICLE_NAMES[particle]}` : 'без частиц — чистый воздух',
+    to: particle !== 'none' ? `«погода внутри», ${PARTICLE_NAMES[particle]}` : 'без частиц, чистый воздух',
   });
   if (t.companions.length || t.solitude) {
     rules.push({
       group: 'text',
       from: t.solitude ? 'День наедине с собой' : `Рядом: ${t.companions.map((c) => c.nom).join(', ')}`,
-      to: t.solitude ? 'больше пустоты вокруг кадра' : t.companions.some((c) => c.kind === 'group') ? 'компания — кадры плотнее и живее' : 'двое — близкий, интимный кадр',
+      to: t.solitude ? 'больше пустоты вокруг кадра' : t.companions.some((c) => c.kind === 'group') ? 'компания, кадры плотнее и живее' : 'двое, близкий, интимный кадр',
     });
   }
   // фото
   rules.push({
     group: 'photo',
     from: `Фото (${p.count}): свет ${pct(p.brightness)}, насыщенность ${pct(p.saturation)}, тепло ${sgn(p.warmth)}`,
-    to: `доминирующие цвета фото — основа палитры дня${night ? '; тёмный кадр с огнями → ночная тональность' : ''}`,
+    to: `доминирующие цвета фото, основа палитры дня${night ? '; тёмный кадр с огнями → ночная тональность' : ''}`,
   });
-  if (p.count >= 3) rules.push({ group: 'photo', from: `${p.count} кадра — много впечатлений`, to: mode === 'collage' ? 'кадры наклеиваются коллажем' : 'кадры сменяют друг друга в ритм песни' });
+  if (p.count >= 3) rules.push({ group: 'photo', from: `${p.count} кадра, много впечатлений`, to: mode === 'collage' ? 'кадры наклеиваются коллажем' : 'кадры сменяют друг друга в ритм песни' });
   // итог
   rules.push({
     group: 'mix',
     from: `Атмосфера дня: настроение ${sgn(valence)}, энергия ${pct(energy)}, тепло ${sgn(warmth)}, ностальгия ${pct(nostalgia)}`,
-    to: `приём «${MODES[mode].name}» (${pct(scores[mode] / sum)})${secondary ? ` с примесью «${MODES[secondary].name}»` : ''} — ${MODES[mode].ref}`,
+    to: `приём «${MODES[mode].name}» (${pct(scores[mode] / sum)})${secondary ? ` с примесью «${MODES[secondary].name}»` : ''}, ${MODES[mode].ref}`,
   });
 
   return {

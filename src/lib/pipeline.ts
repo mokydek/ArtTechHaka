@@ -140,7 +140,7 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   const music = musicFeatures(meta, feats);
   onStep({
     key: 'music',
-    label: `${meta.artist ? meta.artist + ' — ' : ''}${meta.title}`,
+    label: `${meta.artist ? meta.artist + ' · ' : ''}${meta.title}`,
     detail: feats ? `${Math.round(feats.bpm)} BPM · ${keyName(feats.key, feats.mode)} · энергия ${Math.round(feats.energy * 100)}%` : `${meta.genre ?? 'жанр по описанию'}${meta.year ? ', ' + meta.year : ''}`,
     done: true,
   });
@@ -152,11 +152,11 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   const { title, pattern } = makeTitle(text, input.date, design.mood.energy, design.mood.valence);
   if (input.place?.weather) {
     const w = input.place.weather;
-    design.rules.unshift({ group: 'mix', from: `Место и погода: ${input.place.name}, ${tempStr(w)} ${w.label} (Open-Meteo за ${input.date})`, to: fromData.length ? `в записи погоды нет — взята из данных: ${fromData.map((x) => ({ rain: 'дождь', snow: 'снег', sun: 'солнце', fog: 'туман', wind: 'ветер', cold: 'холод', hot: 'жара', storm: 'гроза', clouds: 'облака' })[x]).join(', ')} — это видно в частицах, свете и звуке` : 'в записи своя погода — она главнее, данные только для штампа места' });
+    design.rules.unshift({ group: 'mix', from: `Место и погода: ${input.place.name}, ${tempStr(w)} ${w.label} (Open-Meteo за ${input.date})`, to: fromData.length ? `в записи погоды нет, взята из данных: ${fromData.map((x) => ({ rain: 'дождь', snow: 'снег', sun: 'солнце', fog: 'туман', wind: 'ветер', cold: 'холод', hot: 'жара', storm: 'гроза', clouds: 'облака' })[x]).join(', ')}, это видно в частицах, свете и звуке` : 'в записи своя погода, она главнее, данные только для штампа места' });
   }
   const ambience = pickAmbience(analysis, design, input.place);
   if (ambience.length) design.rules.push({ group: 'mix', from: `Звуки дня: ${ambience.map((a) => a.why).join('; ')}`, to: `под песней тихо звучит ${ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')} (синтез на устройстве)` });
-  onStep({ key: 'design', label: `${MODES[design.mode].name} — ${MODES[design.mode].ref}`, detail: `папка «${title}»`, done: true });
+  onStep({ key: 'design', label: `${MODES[design.mode].name}, ${MODES[design.mode].ref}`, detail: `папка «${title}»`, done: true });
 
   const record: DayRecord = {
     id: input.id ?? newId(),
@@ -259,14 +259,14 @@ export async function folderZip(rec: DayRecord, media: DayMedia, video?: Blob): 
   f.file(
     'песня.txt',
     [
-      `${m.artist} — ${m.title}`,
+      `${m.artist}, ${m.title}`,
       m.genre ? `Жанр: ${m.genre}` : '',
       m.year ? `Год: ${m.year}` : '',
       a ? `Темп: ${Math.round(a.bpm)} BPM, ${keyName(a.key, a.mode)}, энергия ${Math.round(a.energy * 100)}%` : '',
       m.link ? `Ссылка: ${m.link}` : '',
       m.serviceUrl ? `Apple Music: ${m.serviceUrl}` : '',
-      m.source === 'itunes' ? 'Звучит официальный 30-секундный фрагмент из каталога Apple — песня целиком не хранится.' : '',
-      m.source === 'file' ? 'Из файла сохранены только 30 секунд (самый плотный фрагмент) — песня целиком не хранится.' : '',
+      m.source === 'itunes' ? 'Звучит официальный 30-секундный фрагмент из каталога Apple, песня целиком не хранится.' : '',
+      m.source === 'file' ? 'Из файла сохранены только 30 секунд (самый плотный фрагмент), песня целиком не хранится.' : '',
     ]
       .filter(Boolean)
       .join('\n'),
@@ -293,7 +293,7 @@ export async function folderZip(rec: DayRecord, media: DayMedia, video?: Blob): 
   f.file(
     'почему так.txt',
     [
-      `Приём: ${MODES[d.mode].name} — ${MODES[d.mode].ref}`,
+      `Приём: ${MODES[d.mode].name}, ${MODES[d.mode].ref}`,
       `Техника: ${MODES[d.mode].technique}`,
       `Почему: ${MODES[d.mode].why}`,
       `Погода внутри: ${PARTICLE_NAMES[d.particles.kind]}`,

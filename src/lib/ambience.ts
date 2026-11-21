@@ -28,14 +28,14 @@ export function pickAmbience(a: DayAnalysis, d: DesignSpec, place?: PlaceInfo): 
   const out: AmbLayer[] = [];
   const add = (kind: AmbKind, gain: number, why: string) => !out.some((o) => o.kind === kind) && out.push({ kind, gain, why });
   if (w.has('rain') || w.has('storm')) add('rain', 0.5, fromData('rain') ? `в этот день в ${place!.name} шёл дождь (данные погоды)` : 'в записи шёл дождь');
-  if (has(t.places, 'sea', 'beach', 'shore', 'embankment', 'lake')) add('sea', 0.45, 'вода рядом — море, берег, озеро');
-  if (has(t.objects, 'bonfire', 'fireplace', 'shashlik', 'candles')) add('fire', 0.42, 'огонь в записи — костёр, камин, шашлыки или свечи');
-  if (w.has('wind') || w.has('snow') || has(t.places, 'steppe', 'mountains', 'roof')) add('wind', 0.35, w.has('snow') ? 'снег — глухой зимний ветер' : 'открытое место, ветер');
+  if (has(t.places, 'sea', 'beach', 'shore', 'embankment', 'lake')) add('sea', 0.45, 'вода рядом, море, берег, озеро');
+  if (has(t.objects, 'bonfire', 'fireplace', 'shashlik', 'candles')) add('fire', 0.42, 'огонь в записи, костёр, камин, шашлыки или свечи');
+  if (w.has('wind') || w.has('snow') || has(t.places, 'steppe', 'mountains', 'roof')) add('wind', 0.35, w.has('snow') ? 'снег, глухой зимний ветер' : 'открытое место, ветер');
   const evening = t.timeOfDay === 'evening' || t.timeOfDay === 'night' || t.night;
-  if (t.season === 'summer' && evening && (t.nature || has(t.places, 'dacha', 'village', 'garden', 'field'))) add('crickets', 0.35, 'летний вечер за городом — сверчки');
-  if ((t.nature || has(t.places, 'park', 'forest', 'garden', 'dacha', 'village')) && !evening && !w.has('rain') && t.season !== 'winter') add('birds', 0.32, 'природа днём — птицы');
-  if (has(t.places, 'city', 'street', 'square', 'bridge', 'station', 'roof', 'balcony') || (d.mode === 'nocturne' && !t.nature)) add('city', 0.3, 'город вокруг — далёкий гул');
-  if (d.mode === 'film' || d.mood.nostalgia > 0.5) add('vinyl', 0.22, 'ностальгия — шорох старой пластинки');
+  if (t.season === 'summer' && evening && (t.nature || has(t.places, 'dacha', 'village', 'garden', 'field'))) add('crickets', 0.35, 'летний вечер за городом, сверчки');
+  if ((t.nature || has(t.places, 'park', 'forest', 'garden', 'dacha', 'village')) && !evening && !w.has('rain') && t.season !== 'winter') add('birds', 0.32, 'природа днём, птицы');
+  if (has(t.places, 'city', 'street', 'square', 'bridge', 'station', 'roof', 'balcony') || (d.mode === 'nocturne' && !t.nature)) add('city', 0.3, 'город вокруг, далёкий гул');
+  if (d.mode === 'film' || d.mood.nostalgia > 0.5) add('vinyl', 0.22, 'ностальгия, шорох старой пластинки');
   return out.slice(0, 3);
 }
 

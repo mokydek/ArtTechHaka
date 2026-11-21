@@ -155,7 +155,7 @@ export default function Mascot({ route }: { route: string }) {
         <p>Привет! Какое у тебя сегодня настроение?</p>
         <div className="bun-moods" role="group" aria-label="Настроение от 1 до 5">
           {([1, 2, 3, 4, 5] as Mood[]).map((m) => (
-            <button key={m} onClick={() => pick(m)} aria-label={`${m} — ${MOOD_WORDS[m]}`} title={MOOD_WORDS[m]}>
+            <button key={m} onClick={() => pick(m)} aria-label={`${m}, ${MOOD_WORDS[m]}`} title={MOOD_WORDS[m]}>
               <Face m={m} />
               <small>{m}</small>
             </button>
@@ -169,7 +169,7 @@ export default function Mascot({ route }: { route: string }) {
     body =
       m <= 2 ? (
         <>
-          <p>{bright.length ? 'Обнимаю. Смотри, какой светлый день у тебя был:' : 'Обнимаю. Я рядом. Запиши даже маленькую хорошую вещь — я потом тебе её напомню.'}</p>
+          <p>{bright.length ? 'Обнимаю. Смотри, какой светлый день у тебя был:' : 'Обнимаю. Я рядом. Запиши даже маленькую хорошую вещь, я потом тебе её напомню.'}</p>
           {show && card(show)}
           <div className="bun-acts">
             {bright.length > 1 && (
@@ -184,7 +184,7 @@ export default function Mascot({ route }: { route: string }) {
         </>
       ) : m === 3 ? (
         <>
-          <p>Обычный день — тоже день. Расскажешь в двух словах, что в нём было?</p>
+          <p>Обычный день тоже стоит запомнить. Расскажешь в двух словах?</p>
           <div className="bun-acts">
             <a className="btn small" href="#/new" onClick={close}>
               Записать день
@@ -226,7 +226,7 @@ export default function Mascot({ route }: { route: string }) {
   else if (talk?.kind === 'empty')
     body = (
       <>
-        <p>Здесь пока пусто. Запиши первый день — и я буду напоминать тебе о хорошем.</p>
+        <p>Здесь пока пусто. Запиши первый день, и я буду напоминать тебе о хорошем.</p>
         <div className="bun-acts">
           <a className="btn small" href="#/new" onClick={close}>
             Записать день
@@ -246,7 +246,7 @@ export default function Mascot({ route }: { route: string }) {
           {body}
         </div>
       )}
-      <button className="bun-me" onClick={poke} aria-label="Зайчик Пуговка — поговорить">
+      <button className="bun-me" onClick={poke} aria-label="Зайчик Пуговка, поговорить">
         <Bunny pose={pose} size={84} />
         {!mood && !talk && <i className="bun-dot" />}
       </button>

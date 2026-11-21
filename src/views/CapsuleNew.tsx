@@ -14,7 +14,7 @@ const PRESETS: [string, () => Date][] = [
   ['через полгода', () => addMonths(6)],
   ['через год', () => addMonths(12)],
   ['через 5 лет', () => addMonths(60)],
-  ['через минуту — попробовать', () => new Date(Date.now() + 60_000)],
+  ['через минуту, попробовать', () => new Date(Date.now() + 60_000)],
 ];
 function addMonths(n: number) {
   const d = new Date();
@@ -51,7 +51,7 @@ export default function CapsuleNew() {
         date: today,
         moon: `${m.name}, ${Math.round(m.illum * 100)}%`,
         lastDay: last?.title,
-        song: last ? [last.music.artist, last.music.title].filter(Boolean).join(' — ') : undefined,
+        song: last ? [last.music.artist, last.music.title].filter(Boolean).join(' · ') : undefined,
         place: last?.place?.name,
       },
       hasVoice: !!voice,
@@ -93,7 +93,7 @@ export default function CapsuleNew() {
           Письмо себе в будущее
         </h1>
         <p className="muted" style={{ marginTop: 0 }}>
-          Конверт ляжет на полку под сургучом и откроется только в назначенный день. До этого его не прочитать — даже тебе.
+          Конверт ляжет на полку под сургучом и откроется только в назначенный день. До этого его не прочитать, даже тебе.
         </p>
         <div className="letter">
           <div className="letter-date pt">{humanDate(todayISO())}</div>
@@ -118,7 +118,7 @@ export default function CapsuleNew() {
           <Envelope due={false} label={`вскрыть ${openAt.toLocaleDateString('ru-RU')}`} />
         </div>
         <p className="hint">
-          В конверт сам вложится «снимок момента»: дата, фаза луны{last ? `, последний день в дневнике — «${last.title}» и его песня` : ''}.
+          В конверт сам вложится «снимок момента»: дата, фаза луны{last ? `, последний день в дневнике, «${last.title}» и его песня` : ''}.
         </p>
         <button className="btn" onClick={seal} disabled={text.trim().length < 3 && !voice} style={{ padding: '14px 26px' }}>
           Запечатать сургучом

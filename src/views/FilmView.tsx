@@ -97,7 +97,7 @@ export default function FilmView({ kind, id }: { kind: string; id: string }) {
     const b = await e.record((x) => setRec(x));
     setRec(null);
     setPlaying(false);
-    download(b, `${title} — фильм.${b.type.includes('mp4') ? 'mp4' : 'webm'}`);
+    download(b, `${title}, фильм.${b.type.includes('mp4') ? 'mp4' : 'webm'}`);
   };
 
   if (!loading && !chosen.length) return <p className="muted">Здесь пока нет дней для фильма.</p>;

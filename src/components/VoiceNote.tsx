@@ -76,7 +76,7 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
         if (fin.trim()) onText(fin.trim());
         setInterim(mid);
       };
-      r.onerror = (e) => e.error !== 'no-speech' && e.error !== 'aborted' && setErr('Распознавание речи недоступно — голос всё равно записывается.');
+      r.onerror = (e) => e.error !== 'no-speech' && e.error !== 'aborted' && setErr('Распознавание речи недоступно, голос всё равно записывается.');
       r.onend = () => {
         // Chrome сам останавливает распознавание после паузы — перезапускаем, пока идёт запись
         if (rec.current?.state === 'recording') {

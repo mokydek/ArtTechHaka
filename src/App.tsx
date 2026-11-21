@@ -18,10 +18,9 @@ import CapsuleView from './views/CapsuleView';
 import Stamps from './views/Stamps';
 import FilmView from './views/FilmView';
 import PostcardView from './views/PostcardView';
-import StampAward from './components/StampAward';
 import { AtmosBackdrop, AtmosChip, useAtmosColors } from './components/Atmosphere';
 import { computeAtmos, mix, readable, type Motif } from './lib/atmos';
-import { earnedStamps, type Earned } from './lib/stamps';
+import { earnedStamps } from './lib/stamps';
 
 export const DEMO_NOTEBOOK: Notebook = {
   id: 'demo',
@@ -161,28 +160,15 @@ export default function App() {
     [store],
   );
 
-  // вручение марок: только за свои дни, по одной
-  const [awards, setAwards] = useState<Earned[]>([]);
+  // марки копятся в альбоме тихо, без всплывающего окна
   useEffect(() => {
     if (loading) return;
-    const own = days.filter((d) => !d.demo);
-    const e = earnedStamps(own, capsules);
-    let known: string[] | null = null;
+    const e = earnedStamps(days.filter((d) => !d.demo), capsules);
     try {
-      known = JSON.parse(localStorage.getItem('ottisk:stamps') ?? 'null');
-    } catch {
-      known = null;
-    }
-    if (known === null) {
-      // первый запуск: уже заработанное не вручаем повторно
       localStorage.setItem('ottisk:stamps', JSON.stringify(e.map((x) => x.def.id)));
-      return;
+    } catch {
+      /* без хранилища */
     }
-    const fresh = e.filter((x) => !known!.includes(x.def.id));
-    if (!fresh.length) return;
-    localStorage.setItem('ottisk:stamps', JSON.stringify([...known, ...fresh.map((x) => x.def.id)]));
-    // даём странице дня проявиться, потом вручаем
-    setTimeout(() => setAwards((a) => [...a, ...fresh]), 2600);
   }, [days, capsules, loading]);
 
   const saveCapsule = useCallback(
@@ -263,7 +249,6 @@ export default function App() {
       </main>
       {msg && <div className="toast">{msg}</div>}
       <Mascot route={parts[0] ?? ''} />
-      {awards.length > 0 && !hash.startsWith('#/new') && !hash.startsWith('#/p/') && !hash.startsWith('#/there') && <StampAward list={awards} onClose={() => setAwards([])} />}
     </Ctx.Provider>
   );
 }

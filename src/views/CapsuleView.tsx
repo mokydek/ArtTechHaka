@@ -86,7 +86,7 @@ export default function CapsuleView({ id }: { id: string }) {
           {txt}
           {justOpened && shown < c.text.length && <span className="blink">▌</span>}
         </div>
-        <div className="letter-sign">— ты, {ago(c.createdAt)}</div>
+        <div className="letter-sign">ты, {ago(c.createdAt)}</div>
       </div>
       {voiceUrl && (
         <p>
@@ -107,7 +107,7 @@ export default function CapsuleView({ id }: { id: string }) {
           {c.context.lastDay && (
             <>
               <span className="k">в дневнике</span>
-              <span>последний день — «{c.context.lastDay}»</span>
+              <span>последний день, «{c.context.lastDay}»</span>
             </>
           )}
           {c.context.song && (

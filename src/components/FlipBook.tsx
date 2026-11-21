@@ -55,7 +55,7 @@ function TextPage({ d }: { d: DayRecord }) {
       )}
       <p className="fb-hand">{d.text}</p>
       <div className="fb-foot pt">
-        <span>♪ {[d.music.artist, d.music.title].filter(Boolean).join(' — ')}</span>
+        <span>♪ {[d.music.artist, d.music.title].filter(Boolean).join(' · ')}</span>
         <span style={{ color: pal.accent }}>{MODES[d.design.mode].name}</span>
       </div>
     </div>

@@ -25,7 +25,7 @@ export default function PostcardView({ token }: { token: string }) {
       .then(setAssets)
       .catch((e) => {
         console.error(e);
-        setErr('Открытка не открылась — возможно, ссылка устарела.');
+        setErr('Открытка не открылась, возможно, ссылка устарела.');
       });
   }, [token]);
 

@@ -21,7 +21,7 @@ export default function Camera({ onShot, onClose }: { onShot: (f: File) => void;
           video.current.play().catch(() => {});
         }
       })
-      .catch(() => setErr('Камера недоступна — разрешите доступ в браузере или добавьте фото из галереи.'));
+      .catch(() => setErr('Камера недоступна, разрешите доступ в браузере или добавьте фото из галереи.'));
     return () => {
       dead = true;
       s?.getTracks().forEach((t) => t.stop());

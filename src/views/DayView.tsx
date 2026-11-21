@@ -79,7 +79,7 @@ const SEAL_PRESETS: [string, () => Date][] = [
     d.setHours(9, 0, 0, 0);
     return d;
   }],
-  ['через минуту — попробовать', () => new Date(Date.now() + 60_000)],
+  ['через минуту, попробовать', () => new Date(Date.now() + 60_000)],
 ];
 function addMonths(n: number) {
   const d = new Date();
@@ -173,7 +173,7 @@ function SharePanel({ rec }: { rec: DayRecord }) {
         </>
       ) : (
         <>
-          <div className="mono muted">ссылка на открытку — откроется без регистрации, живёт год</div>
+          <div className="mono muted">ссылка на открытку, откроется без регистрации, живёт год</div>
           <input className="inp" readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -278,7 +278,7 @@ function DayPage({ id }: { id: string }) {
   const onVideo = async (b: Blob) => {
     setVideo(b);
     const ext = b.type.includes('mp4') ? 'mp4' : 'webm';
-    download(b, `${rec.folder} — воспоминание.${ext}`);
+    download(b, `${rec.folder}, воспоминание.${ext}`);
     try {
       if (rec.demo) await demoLocal.saveBlob(rec.id, 'video', b);
       else if (store) {
@@ -308,7 +308,7 @@ function DayPage({ id }: { id: string }) {
     setStoryBusy(true);
     try {
       const b = await renderStory(rec, assets.bitmaps, 6, cuts);
-      const file = new File([b], `${rec.folder} — сторис.png`, { type: 'image/png' });
+      const file = new File([b], `${rec.folder}, сторис.png`, { type: 'image/png' });
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
       if (nav.canShare?.({ files: [file] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) await nav.share({ files: [file], title: rec.title }).catch(() => download(b, file.name));
       else download(b, file.name);
@@ -387,21 +387,21 @@ function DayPage({ id }: { id: string }) {
             <span className="folder-ic" style={{ display: 'inline-block', marginRight: 8, verticalAlign: '-1px' }} />
             {rec.folder}/
           </div>
-          <div>├─ запись.txt <span className="k">— {t.wordCount} слов</span></div>
-          <div>├─ фото/ <span className="k">— {rec.photoCount} шт.</span></div>
+          <div>├─ запись.txt <span className="k">{t.wordCount} слов</span></div>
+          <div>├─ фото/ <span className="k">{rec.photoCount} шт.</span></div>
           <div>
-            ├─ песня <span className="k">— {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}</span>
+            ├─ песня <span className="k">{[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}</span>
           </div>
-          {rec.hasExcerpt && <div>├─ фрагмент песни.wav <span className="k">— 30 с</span></div>}
+          {rec.hasExcerpt && <div>├─ фрагмент песни.wav <span className="k">30 с</span></div>}
           {!!rec.ambience?.length && (
             <div>
-              ├─ звуки дня.wav <span className="k">— {rec.ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')}</span>
+              ├─ звуки дня.wav <span className="k">{rec.ambience.map((a) => AMB_NAMES[a.kind]).join(' + ')}</span>
             </div>
           )}
-          <div>├─ воспоминание.{rec.videoName?.split('.').pop() ?? 'webm'} <span className="k">— {rec.hasVideo || video ? 'сохранено' : 'нажмите «Сохранить видео»'}</span></div>
+          <div>├─ воспоминание.{rec.videoName?.split('.').pop() ?? 'webm'} <span className="k">{rec.hasVideo || video ? 'сохранено' : 'нажмите «Сохранить видео»'}</span></div>
           <div>├─ обложка.jpg</div>
-          {rec.hasVoice && <div>├─ мой голос <span className="k">— запись автора</span></div>}
-          <div>├─ озвучка <span className="k">— {rec.design.voice.character}</span></div>
+          {rec.hasVoice && <div>├─ мой голос <span className="k">запись автора</span></div>}
+          <div>├─ озвучка <span className="k">{rec.design.voice.character}</span></div>
           <div>└─ почему так.txt</div>
         </div>
 
@@ -415,7 +415,7 @@ function DayPage({ id }: { id: string }) {
           <div className="kv">
             <span className="k">трек</span>
             <span>
-              {[rec.music.artist, rec.music.title].filter(Boolean).join(' — ')}
+              {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}
               {rec.music.year ? `, ${rec.music.year}` : ''}
             </span>
             {rec.music.genre && (
@@ -480,7 +480,7 @@ function DayPage({ id }: { id: string }) {
                 setCuts(next);
                 await store.update({ ...rec, cutouts: [...(rec.cutouts ?? []), { id: c.rt.id, kind: c.kind, x: c.rt.x, y: c.rt.y, s: c.rt.s, rot: c.rt.rot }] });
                 await reload();
-                toast('Вклейка на странице — её можно разложить');
+                toast('Вклейка на странице, её можно разложить');
               }}
             />
           )}
@@ -494,7 +494,7 @@ function DayPage({ id }: { id: string }) {
           </div>
         )}
         <p className="hint" style={{ marginTop: 24 }}>
-          Настроение здесь — художественная интерпретация записи, а не психологическая оценка.
+          Настроение здесь, художественная интерпретация записи, а не психологическая оценка.
         </p>
       </div>
     </div>
