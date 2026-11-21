@@ -95,7 +95,12 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
       {list.map((u, i) => {
         const one = list.length === 1;
         const rot = (r() - 0.5) * (one ? 5 : 9);
-        const style = one ? { left: '50%', top: '47%', width: '74%' } : i === 0 ? { left: '40%', top: '33%', width: '62%' } : { left: '60%', top: '66%', width: '62%' };
+        const P: Record<number, [number, number][]> = {
+          2: [[40, 33], [60, 66]],
+          3: [[36, 28], [65, 46], [40, 74]],
+          4: [[32, 27], [68, 31], [34, 71], [66, 74]],
+        };
+        const style = one ? { left: '50%', top: '47%', width: '74%' } : { left: P[list.length][i][0] + '%', top: P[list.length][i][1] + '%', width: list.length === 2 ? '62%' : list.length === 3 ? '52%' : '45%' };
         return (
           <figure key={i} className="jp-pola" style={{ ...style, transform: `translate(-50%, -50%) rotate(${rot}deg)`, zIndex: i + 1 }}>
             <img src={u} alt="" draggable={false} />

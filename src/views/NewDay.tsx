@@ -10,7 +10,8 @@ import Why from '../components/Why';
 import { PROMPTS, dayPrompt } from '../lib/prompts';
 import { dayWeather, hereNow, nameAt, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
 import { readShot } from '../lib/scene/context';
-import type { ShotMeta } from '../lib/types';
+import type { DayRecord, PhotoLayout, ShotMeta } from '../lib/types';
+import { PhotoPage } from '../components/Journal';
 import type { PlaceInfo } from '../lib/types';
 import VoiceNote from '../components/VoiceNote';
 import Camera from '../components/Camera';
@@ -65,6 +66,10 @@ export default function NewDay({ nb }: { nb?: string }) {
   }, [text, date, setDraft]);
   useEffect(() => () => setDraft(null), [setDraft]);
   const [photos, setPhotos] = useState<File[]>([]);
+  // как фото вклеены: пока человек не выбрал сам, 1–2 фото — полароиды, больше — коллаж
+  const [lay, setLay] = useState<PhotoLayout>({ kind: 'polaroid' });
+  const [chosen, setChosen] = useState(false);
+  const layout: PhotoLayout = chosen ? lay : { kind: photos.length <= 2 ? 'polaroid' : 'collage' };
   // EXIF фото: где и когда снято — подставляем место и дату, если их не задали
   const [metas, setMetas] = useState<(ShotMeta | null)[]>([]);
   const [fromPhoto, setFromPhoto] = useState('');
@@ -184,6 +189,7 @@ export default function NewDay({ nb }: { nb?: string }) {
       const rec = retitle(built.record, title || built.record.title);
       rec.notebookId = nbId || defaultNotebook;
       rec.live3d = live;
+      rec.layout = layout;
       if (metas.some(Boolean)) rec.photoMeta = metas;
       if (cuts.length) rec.cutouts = cuts.map((c) => ({ id: c.rt.id, kind: c.kind, x: c.rt.x, y: c.rt.y, s: c.rt.s, rot: c.rt.rot }));
       if (voice) {
@@ -246,72 +252,54 @@ export default function NewDay({ nb }: { nb?: string }) {
   }
 
   return (
-    <div className="new">
-      <div>
-        <div className="sec step">
-          <b>1</b> Запись
+    <div className="nd">
+      {own.length > 1 && (
+        <div className="nb-pick">
+          <span className="muted">в тетрадь</span>
+          <select className="inp" value={nbId} onChange={(e) => setNbId(e.target.value)} disabled={phase === 'build'}>
+            {own.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.title}
+              </option>
+            ))}
+          </select>
         </div>
-        <h1 className="h1" style={{ fontSize: 44, marginBottom: 18 }}>
-          Как прошёл день?
-        </h1>
-        {own.length > 1 && (
-          <div className="nb-pick">
-            <span className="mono muted">в тетрадь</span>
-            <select className="inp" value={nbId} onChange={(e) => setNbId(e.target.value)} disabled={phase === 'build'}>
-              {own.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.title}
-                </option>
+      )}
+      <div className="nd-book">
+        <section className="nd-page nd-left" ref={(e) => void (secs.current.photo = e)}>
+          <div className="nd-row">
+            <h2 className="nd-sub">Фото</h2>
+            <div className="nd-seg" role="radiogroup" aria-label="Как вклеить фото">
+              {LAYOUTS.map(([k, label]) => (
+                <button
+                  key={k}
+                  role="radio"
+                  aria-checked={layout.kind === k}
+                  className={'tab' + (layout.kind === k ? ' on' : '')}
+                  disabled={phase === 'build'}
+                  onClick={() => {
+                    setLay(k === 'free' ? { kind: 'free', items: scatter(photos.length, lay.kind === 'free' ? lay.items : undefined) } : { kind: k });
+                    setChosen(true);
+                  }}
+                >
+                  {label}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-        )}
-        <div className="ask">
-          <span className="prompt-q">{prompt}</span>
-          <button className="ask-more" onClick={() => setPi((x) => (x < 0 ? Math.floor(Math.random() * PROMPTS.length) : x + 1))} title="другой вопрос" disabled={phase === 'build'}>
-            ↻
-          </button>
-        </div>
-        <div className="field" ref={(e) => void (secs.current.text = e)}>
-          <textarea
-            ref={ta}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Пиши как другу…"
+          <PhotoBoard
+            files={photos}
+            onChange={(f) => {
+              setPhotos(f);
+              if (lay.kind === 'free') setLay({ kind: 'free', items: scatter(f.length, lay.items) });
+            }}
+            layout={layout}
+            onLayout={setLay}
             disabled={phase === 'build'}
           />
-          <div className="heard" aria-live="polite">
-            {heard.map((k) => (
-              <span key={k}>✦ {MOTIF_NAMES[k]}</span>
-            ))}
-          </div>
-          <div className="hint" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-            <span />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => {
-                dateTouched.current = true;
-                setDate(e.target.value);
-              }}
-              className="inp"
-              style={{ width: 170, padding: '6px 10px' }}
-            />
-          </div>
-        </div>
-        <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
-        {fromPhoto && <div className="mono muted" style={{ margin: '-6px 0 10px' }}>⌖ {fromPhoto}</div>}
-        <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
-        <div className="sec step">
-          <b>2</b> Фото
-        </div>
-        <div ref={(e) => void (secs.current.photo = e)}>
-          <Photos files={photos} onChange={setPhotos} disabled={phase === 'build'} />
-        </div>
-        <div className="sec" style={{ marginTop: 6 }}>
-          Вклейки
-        </div>
-        <div className="field">
+          <h2 className="nd-sub" style={{ marginTop: 26 }}>
+            Вклейки
+          </h2>
           <CutoutPicker count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
           {!!cuts.length && (
             <div className="cut-list">
@@ -324,48 +312,94 @@ export default function NewDay({ nb }: { nb?: string }) {
             </div>
           )}
           <div className="hint">Билет, рисунок, записка: главное вырежется в наклейку.</div>
-        </div>
-      </div>
-      <div>
-        <div className="sec step">
-          <b>3</b> Песня дня
-        </div>
-        <div ref={(e) => void (secs.current.song = e)}>
-          <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
-        </div>
-        <div style={{ marginTop: 34 }}>
-          {phase === 'build' ? (
-            <div className="steps">
-              {steps.map((s, i) => (
-                <div className="st" key={i}>
-                  <i>{s.done ? '✓' : <span className="blink">▌</span>}</i>
-                  <div>
-                    {s.label}
-                    {s.detail && <div className="det">{s.detail}</div>}
-                  </div>
-                </div>
+        </section>
+        <section className="nd-page nd-right">
+          <div className="nd-row">
+            <h1 className="nd-h">Как прошёл день?</h1>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                dateTouched.current = true;
+                setDate(e.target.value);
+              }}
+              className="inp nd-date"
+              aria-label="Дата"
+            />
+          </div>
+          <div className="ask">
+            <span className="prompt-q">{prompt}</span>
+            <button className="ask-more" onClick={() => setPi((x) => (x < 0 ? Math.floor(Math.random() * PROMPTS.length) : x + 1))} title="другой вопрос" disabled={phase === 'build'}>
+              ↻
+            </button>
+          </div>
+          <div className="field" ref={(e) => void (secs.current.text = e)}>
+            <textarea ref={ta} value={text} onChange={(e) => setText(e.target.value)} placeholder="Пиши как другу…" disabled={phase === 'build'} />
+            <div className="heard" aria-live="polite">
+              {heard.map((k) => (
+                <span key={k}>✦ {MOTIF_NAMES[k]}</span>
               ))}
             </div>
-          ) : (
-            <>
-              <div className={'hint' + (nudge ? ' nudge' : '')} style={{ marginBottom: 12 }}>
-                {ready
-                  ? 'Всё готово.'
-                  : missing.map(([, m]) => m).join(' ')}
+          </div>
+          <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
+          {fromPhoto && <div className="muted" style={{ margin: '-6px 0 10px', fontSize: 13 }}>⌖ {fromPhoto}</div>}
+          <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
+          <h2 className="nd-sub" style={{ marginTop: 22 }}>
+            Песня дня
+          </h2>
+          <div ref={(e) => void (secs.current.song = e)}>
+            <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
+          </div>
+          <div className="nd-go">
+            {phase === 'build' ? (
+              <div className="steps">
+                {steps.map((s, i) => (
+                  <div className="st" key={i}>
+                    <i>{s.done ? '✓' : <span className="blink">▌</span>}</i>
+                    <div>
+                      {s.label}
+                      {s.detail && <div className="det">{s.detail}</div>}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 13, padding: '14px 26px' }}>
-                Проявить день
-              </button>
-              {err && <p style={{ color: '#a33' }}>{err}</p>}
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <div className={'hint' + (nudge ? ' nudge' : '')} style={{ marginBottom: 12 }}>
+                  {ready ? 'Всё готово.' : missing.map(([, m]) => m).join(' ')}
+                </div>
+                <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 14, padding: '14px 26px' }}>
+                  Проявить день
+                </button>
+                {err && <p style={{ color: '#a33' }}>{err}</p>}
+              </>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );
 }
 
-function Photos({ files, onChange, disabled }: { files: File[]; onChange: (f: File[]) => void; disabled?: boolean }) {
+const LAYOUTS: [PhotoLayout['kind'], string][] = [
+  ['polaroid', 'Полароиды'],
+  ['collage', 'Коллаж'],
+  ['free', 'Как хочу'],
+];
+/** стартовая «россыпь» для свободной раскладки; уже разложенные фото не двигаем */
+function scatter(n: number, prev?: NonNullable<PhotoLayout['items']>) {
+  const out = (prev ?? []).slice(0, n);
+  for (let i = out.length; i < n; i++) {
+    const col = i % 2,
+      row = Math.floor(i / 2);
+    out.push({ x: 0.32 + col * 0.36 + (Math.random() - 0.5) * 0.06, y: 0.25 + row * 0.3 + (Math.random() - 0.5) * 0.05, w: n === 1 ? 0.7 : 0.5, rot: Math.round((Math.random() - 0.5) * 14) });
+  }
+  return out;
+}
+const DRAFT_COLORS = ['#3b3a4a', '#7d8fb0', '#e8c37a', '#e6b5ac', '#b8d0c4'];
+
+/** Фото дня прямо на странице: вклеиваются полароидами, коллажем или как человек разложит сам */
+function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: File[]; onChange: (f: File[]) => void; layout: PhotoLayout; onLayout: (l: PhotoLayout) => void; disabled?: boolean }) {
   const inp = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [urls, setUrls] = useState<string[]>([]);
@@ -382,44 +416,121 @@ function Photos({ files, onChange, disabled }: { files: File[]; onChange: (f: Fi
     const imgs = [...list].filter((f) => f.type.startsWith('image/') || (!f.type && /\.(jpe?g|png|webp|heic|heif|gif|avif)$/i.test(f.name)));
     onChange([...files, ...imgs].slice(0, 8));
   };
+  const drop = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setOver(true);
+    },
+    onDragLeave: () => setOver(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setOver(false);
+      add(e.dataTransfer.files);
+    },
+  };
+  const draft = { id: 'draft-' + files.length, layout, design: { palette: { colors: DRAFT_COLORS } } } as unknown as DayRecord;
   return (
-    <div className="field">
-      <div
-        className={'drop' + (over ? ' over' : '')}
-        onClick={() => !disabled && inp.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setOver(false);
-          add(e.dataTransfer.files);
-        }}
-      >
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 21 }}>Перетащите фото дня сюда</div>
-        <div className="hint" style={{ marginTop: 2 }}>
-          или нажмите, чтобы выбрать · от 1 до 8 снимков
+    <div className="pb">
+      <input ref={inp} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
+      {!files.length ? (
+        <button className={'pb-empty' + (over ? ' over' : '')} onClick={() => !disabled && inp.current?.click()} {...drop} disabled={disabled}>
+          <span className="pb-plus">+</span>
+          <span>Вклеить фото</span>
+          <small>или перетащи сюда</small>
+        </button>
+      ) : (
+        <div className={'pb-sheet' + (over ? ' over' : '')} {...drop}>
+          {layout.kind === 'free' && layout.items ? (
+            <FreeBoard urls={urls} items={layout.items} onItems={(items) => onLayout({ kind: 'free', items })} disabled={disabled} />
+          ) : (
+            <PhotoPage d={draft} photos={urls} />
+          )}
         </div>
-        <input ref={inp} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
-      </div>
+      )}
+      {!!files.length && (
+        <div className="thumbs">
+          {urls.map((u, i) => (
+            <div key={u}>
+              <img src={u} alt="" />
+              {!disabled && (
+                <button onClick={() => onChange(files.filter((_, j) => j !== i))} aria-label="Убрать фото">
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          {!disabled && files.length < 8 && (
+            <button className="pb-add" onClick={() => inp.current?.click()} aria-label="Добавить фото">
+              +
+            </button>
+          )}
+        </div>
+      )}
       {!disabled && !!navigator.mediaDevices?.getUserMedia && (
         <button className="btn ghost small" style={{ marginTop: 10 }} onClick={() => setCam(true)}>
           📷 Снять сейчас
         </button>
       )}
       {cam && <Camera onShot={(f) => onChange([...filesRef.current, f].slice(0, 8))} onClose={() => setCam(false)} />}
-      {!!files.length && (
-        <div className="thumbs">
-          {urls.map((u, i) => (
-            <div key={u}>
-              <img src={u} alt="" />
-              {!disabled && <button onClick={() => onChange(files.filter((_, j) => j !== i))}>×</button>}
-            </div>
-          ))}
+    </div>
+  );
+}
+
+/** «Как хочу»: фото можно двигать пальцем, поворачивать и менять размер */
+function FreeBoard({ urls, items, onItems, disabled }: { urls: string[]; items: NonNullable<PhotoLayout['items']>; onItems: (i: NonNullable<PhotoLayout['items']>) => void; disabled?: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [sel, setSel] = useState(-1);
+  const drag = useRef<{ i: number; x: number; y: number; ox: number; oy: number } | null>(null);
+  const set = (i: number, p: Partial<(typeof items)[number]>) => onItems(items.map((it, j) => (j === i ? { ...it, ...p } : it)));
+  return (
+    <div
+      className="fr-board jp"
+      ref={box}
+      onPointerDown={(e) => {
+        if (e.target === box.current) setSel(-1);
+      }}
+    >
+      {items.slice(0, urls.length).map((it, i) => (
+        <figure
+          key={i}
+          className={'jp-free' + (sel === i ? ' sel' : '')}
+          style={{ left: `${it.x * 100}%`, top: `${it.y * 100}%`, width: `${it.w * 100}%`, transform: `translate(-50%, -50%) rotate(${it.rot}deg)`, zIndex: sel === i ? 50 : i + 1 }}
+          onPointerDown={(e) => {
+            if (disabled) return;
+            e.preventDefault();
+            setSel(i);
+            drag.current = { i, x: e.clientX, y: e.clientY, ox: it.x, oy: it.y };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const g = drag.current;
+            if (!g || g.i !== i || !box.current) return;
+            const r = box.current.getBoundingClientRect();
+            set(i, { x: Math.max(0.05, Math.min(0.95, g.ox + (e.clientX - g.x) / r.width)), y: Math.max(0.05, Math.min(0.95, g.oy + (e.clientY - g.y) / r.height)) });
+          }}
+          onPointerUp={() => (drag.current = null)}
+          onWheel={(e) => !disabled && set(i, { w: Math.max(0.22, Math.min(0.95, it.w - e.deltaY * 0.0008)) })}
+        >
+          <img src={urls[i]} alt="" draggable={false} />
+        </figure>
+      ))}
+      {sel >= 0 && items[sel] && !disabled && (
+        <div className="fr-tools" onPointerDown={(e) => e.stopPropagation()}>
+          <button onClick={() => set(sel, { rot: items[sel].rot - 8 })} aria-label="Повернуть влево">
+            ⟲
+          </button>
+          <button onClick={() => set(sel, { rot: items[sel].rot + 8 })} aria-label="Повернуть вправо">
+            ⟳
+          </button>
+          <button onClick={() => set(sel, { w: Math.max(0.22, items[sel].w - 0.08) })} aria-label="Меньше">
+            −
+          </button>
+          <button onClick={() => set(sel, { w: Math.min(0.95, items[sel].w + 0.08) })} aria-label="Больше">
+            +
+          </button>
         </div>
       )}
+      {sel < 0 && !disabled && <div className="fr-tip">тяни фото пальцем, нажми, чтобы повернуть</div>}
     </div>
   );
 }
