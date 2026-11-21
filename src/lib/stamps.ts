@@ -141,7 +141,7 @@ export function stampArt(def: StampDef, no: number, locked = false): string {
     const dark = ['#2f3a5e', '#1f2740'].includes(def.bg);
     g.fillStyle = dark ? '#f3e9c8' : '#2a2320';
     g.textAlign = 'left';
-    g.font = '500 15px "JetBrains Mono", monospace';
+    g.font = '500 15px "Echo Text", serif';
     g.letterSpacing = '3px';
     g.fillText('ECHO', m + 18, m + 32);
     g.textAlign = 'right';

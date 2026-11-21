@@ -15,6 +15,27 @@
   font-display: swap;
   size-adjust: 86%;
 }
+@font-face {
+  font-family: 'Echo Text';
+  src: url('/fonts/echo-text-regular.woff2') format('woff2');
+  font-weight: 100 549;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Echo Text';
+  src: url('/fonts/echo-text-bold.woff2') format('woff2');
+  font-weight: 550 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Echo Text';
+  src: url('/fonts/echo-text-italic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
 /* цвета следуют за атмосферой дневника — переменные зарегистрированы, чтобы переход был плавным */
 @property --paper {
   syntax: '<color>';
@@ -59,9 +80,9 @@
   /* свет настольной лампы — для мягкого свечения */
   --lamp: #f2c27b;
   --serif: 'Echo Serif', Georgia, serif;
-  --sans: Manrope, 'Helvetica Neue', Arial, sans-serif;
+  --sans: 'Echo Text', Georgia, serif;
   /* служебные подписи: спокойный гротеск с табличными цифрами */
-  --mono: Manrope, 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'Echo Text', Georgia, serif;
   --hand: Caveat, cursive;
 }
 * {
@@ -1037,7 +1058,7 @@ button {
 
 /* ——— шрифт машинописи (подписи, как в Footnotes) ——— */
 .pt {
-  font-family: 'PT Mono', var(--mono);
+  font-family: var(--mono);
   font-size: 13.5px;
   letter-spacing: 0.01em;
 }
@@ -1438,7 +1459,7 @@ body.ce-mode .top {
   line-height: 1;
 }
 .tl-date span {
-  font-family: 'PT Mono', var(--mono);
+  font-family: var(--mono);
   font-size: 13px;
   color: var(--ink-2);
 }
@@ -1963,7 +1984,7 @@ a.tab {
   border: 1.5px solid var(--accent);
   color: var(--accent);
   border-radius: 3px;
-  font-family: 'PT Mono', var(--mono);
+  font-family: var(--mono);
   font-size: 14px;
   transform: rotate(-1deg);
 }
@@ -2337,7 +2358,7 @@ a.tab {
   left: 8%;
   bottom: 9%;
   z-index: 3;
-  font-family: 'PT Mono', var(--mono);
+  font-family: var(--mono);
   font-size: 0.75em;
   color: rgba(40, 30, 20, 0.6);
   max-width: 40%;
@@ -2904,7 +2925,7 @@ a.tab {
   text-shadow: 2px 0 rgba(255, 60, 60, 0.6), -2px 0 rgba(60, 200, 255, 0.6);
 }
 .rw-date {
-  font-family: 'PT Mono', var(--mono);
+  font-family: var(--mono);
   font-size: clamp(26px, 5vw, 56px);
   text-shadow: 3px 0 rgba(255, 60, 60, 0.55), -3px 0 rgba(60, 200, 255, 0.55);
   font-variant-numeric: tabular-nums;
@@ -3825,7 +3846,7 @@ a.tab {
   text-transform: uppercase;
 }
 .dater b {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 17px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -5600,7 +5621,7 @@ a.tab {
   position: absolute;
   right: 7%;
   bottom: 6%;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: clamp(15px, 3.4vw, 20px);
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -5623,7 +5644,7 @@ a.tab {
   75% { transform: translate(-1%, -2%); }
 }
 .ss-film .ss-line {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   font-style: normal;
   font-size: clamp(14px, 3.4vw, 18px);
   bottom: 14%;

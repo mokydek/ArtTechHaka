@@ -201,7 +201,7 @@ export async function renderCover(style: CoverStyle, title: string, images: Canv
       g.fillStyle = 'rgba(47,63,99,0.85)';
       g.fillRect(W * 0.14, H * 0.74, W * 0.72, H * 0.13);
       g.fillStyle = '#f0d9a0';
-      g.font = `500 ${W * 0.06}px "PT Mono", monospace`;
+      g.font = `500 ${W * 0.06}px "Echo Text", serif`;
       g.textAlign = 'center';
       g.fillText(title.toLowerCase(), W / 2, H * 0.825);
       g.textAlign = 'left';

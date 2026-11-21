@@ -1,14 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource/caveat/500.css';
-import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
-import '@fontsource/manrope/400.css';
-import '@fontsource/manrope/500.css';
-import '@fontsource/manrope/600.css';
-import '@fontsource/manrope/700.css';
-import '@fontsource/manrope/800.css';
-import '@fontsource/pt-mono/400.css';
 import './styles.css';
 import App from './App';
 import { initI18n } from './lib/i18n';
@@ -24,11 +16,9 @@ const preload = [
   'italic 500 40px "Echo Serif"',
   '500 40px "Echo Serif"',
   '500 40px Caveat',
-  '400 16px "JetBrains Mono"',
-  '500 16px "JetBrains Mono"',
-  '800 40px Manrope',
-  '600 16px Manrope',
-  '400 16px "PT Mono"',
+  '400 16px "Echo Text"',
+  '700 16px "Echo Text"',
+  'italic 400 16px "Echo Text"',
 ];
 Promise.all(preload.map((f) => document.fonts.load(f, 'Аа Zz 1'))).catch(() => {});
 

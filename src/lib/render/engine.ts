@@ -27,8 +27,8 @@ export const FIELD = { x: 72, y: 128, w: 936, h: 872 };
 
 export const FONTS = {
   serif: '"Echo Serif", Georgia, serif',
-  sans: 'Manrope, "Helvetica Neue", Arial, sans-serif',
-  mono: '"JetBrains Mono", ui-monospace, monospace',
+  sans: '"Echo Text", Georgia, serif',
+  mono: '"Echo Text", Georgia, serif',
   hand: 'Caveat, cursive',
 };
 

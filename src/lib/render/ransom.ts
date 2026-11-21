@@ -2,8 +2,9 @@ import { mulberry32 } from '../color';
 
 // «Вырезанные буквы» как в скрапбуке: каждая буква — свой кусочек бумаги, шрифт, цвет и наклон
 
-const FAMS = ['"Echo Serif", serif', 'Manrope, sans-serif', '"JetBrains Mono", monospace', 'Caveat, cursive', '"PT Mono", monospace'];
-const WEIGHTS = ['600', '800', '500', '500', '400'];
+// только свои шрифты (и рукописный): разные начертания дают пестроту вырезок
+const FAMS = ['"Echo Serif", serif', '"Echo Text", serif', '"Echo Serif", serif', 'Caveat, cursive', '"Echo Text", serif'];
+const WEIGHTS = ['600', '700', 'italic 600', '500', 'italic 400'];
 
 export interface RansomOpts {
   x: number;
