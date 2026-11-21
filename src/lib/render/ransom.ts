@@ -3,7 +3,7 @@ import { mulberry32 } from '../color';
 // «Вырезанные буквы» как в скрапбуке: каждая буква — свой кусочек бумаги, шрифт, цвет и наклон
 
 // только свои шрифты (и рукописный): разные начертания дают пестроту вырезок
-const FAMS = ['"Echo Serif", serif', '"Echo Text", serif', '"Echo Serif", serif', 'Caveat, cursive', '"Echo Text", serif'];
+const FAMS = ['"Imprint Serif", serif', '"Imprint Text", serif', '"Imprint Serif", serif', 'Caveat, cursive', '"Imprint Text", serif'];
 const WEIGHTS = ['600', '700', 'italic 600', '500', 'italic 400'];
 
 export interface RansomOpts {

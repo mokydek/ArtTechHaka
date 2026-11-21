@@ -26,9 +26,9 @@ export const PAGE_H = 1350;
 export const FIELD = { x: 72, y: 128, w: 936, h: 872 };
 
 export const FONTS = {
-  serif: '"Echo Serif", Georgia, serif',
-  sans: '"Echo Text", Georgia, serif',
-  mono: '"Echo Text", Georgia, serif',
+  serif: '"Imprint Serif", Georgia, serif',
+  sans: '"Imprint Text", Georgia, serif',
+  mono: '"Imprint Text", Georgia, serif',
   hand: 'Caveat, cursive',
 };
 
@@ -854,7 +854,7 @@ export class MemoryRenderer {
       g.fillStyle = '#e8873a';
       g.fillText(`${(k + 14) % 40}  ▸  ${(k + 14) % 40}A`, fx + 10, y + h - 3);
       g.textAlign = 'right';
-      g.fillText('ECHO 400', fx + fw - 10, y + h - 3);
+      g.fillText('IMPRINT 400', fx + fw - 10, y + h - 3);
     }
     // перфорация
     const step = 46;

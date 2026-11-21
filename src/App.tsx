@@ -237,7 +237,7 @@ export default function App() {
       <header className="top">
         <span className="brand-wrap">
           <a className="brand" href="#/">
-            Echo
+            Imprint
           </a>
           <AtmosChip atmos={atmos} />
         </span>

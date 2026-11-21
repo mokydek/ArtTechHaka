@@ -27,7 +27,7 @@ export default function Stamps() {
             <div key={def.id} className={'stamp' + (e ? '' : ' locked')}>
               <a className="stamp-img" href={e?.day ? `#/day/${encodeURIComponent(e.day.id)}` : undefined} style={{ ['--r' as string]: `${((i * 41) % 9) - 4}deg` }}>
                 <img src={stampArt(def, i + 1, !e)} alt={def.title} />
-                {e && <span className="postmark">{e.day ? e.day.date.split('-').reverse().join('.') : 'ECHO'}</span>}
+                {e && <span className="postmark">{e.day ? e.day.date.split('-').reverse().join('.') : 'IMPRINT'}</span>}
               </a>
               <div className="stamp-cap">
                 <div className="stamp-title">{e ? def.title : '???'}</div>

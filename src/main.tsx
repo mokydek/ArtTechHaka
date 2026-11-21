@@ -13,12 +13,12 @@ import { analyzeText, makeTitle } from './lib/analysis/text';
 
 // шрифты нужны холсту заранее
 const preload = [
-  'italic 500 40px "Echo Serif"',
-  '500 40px "Echo Serif"',
+  'italic 500 40px "Imprint Serif"',
+  '500 40px "Imprint Serif"',
   '500 40px Caveat',
-  '400 16px "Echo Text"',
-  '700 16px "Echo Text"',
-  'italic 400 16px "Echo Text"',
+  '400 16px "Imprint Text"',
+  '700 16px "Imprint Text"',
+  'italic 400 16px "Imprint Text"',
 ];
 Promise.all(preload.map((f) => document.fonts.load(f, 'Аа Zz 1'))).catch(() => {});
 

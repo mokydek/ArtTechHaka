@@ -57,7 +57,7 @@ export default function Shelf() {
             <h1 className="h1">{greeting()}</h1>
           ) : (
             <h1 className="h1">
-              Фото помнят, как выглядел день. <em>Echo</em> помнит, как он ощущался.
+              Фото помнят, как выглядел день. <em>Imprint</em> помнит, как он ощущался.
             </h1>
           )}
           <div className="prompt-card">
@@ -183,7 +183,7 @@ function greeting() {
 
 const MON = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'];
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
-/** Сегодняшняя дата — оттиск штемпеля-датера: сам Echo начинается с печати */
+/** Сегодняшняя дата — оттиск штемпеля-датера: сам Imprint начинается с печати */
 function Dater({ date }: { date: string }) {
   const [y, m, d] = date.split('-').map(Number);
   const wd = WD[new Date(y, m - 1, d).getDay()];
@@ -256,7 +256,7 @@ function HowItWorks() {
           </div>
           <p>
             <b>3</b>
-            <span>Echo проявит живую страницу: цвета, движение и звук дня.</span>
+            <span>Imprint проявит живую страницу: цвета, движение и звук дня.</span>
           </p>
         </li>
       </ol>

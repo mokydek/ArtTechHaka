@@ -1,4 +1,4 @@
-// Общие типы Echo
+// Общие типы Imprint
 
 export type RGB = [number, number, number];
 

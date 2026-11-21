@@ -206,7 +206,7 @@ export class FilmEngine {
       drawRansom(g, this.title, { x: 90, y: 600, size: 92, maxWidth: W - 180, seed: 11, palette: ['#fbf8f1', '#f3e3b5', '#e6d2c4', '#d9e2e6', '#efe2c9'], ink: '#1d1b1f', align: 'center', appear });
       g.globalAlpha = ease(a) * Math.min(1, Math.max(0, (t - 1.2) / 0.8));
       g.fillStyle = '#5d5750';
-      g.font = '500 24px "Echo Text", serif';
+      g.font = '500 24px "Imprint Text", serif';
       g.letterSpacing = '6px';
       g.textAlign = 'center';
       g.fillText(this.subtitle.toUpperCase(), W / 2, 860);
@@ -251,10 +251,10 @@ export class FilmEngine {
       g.globalAlpha = ease(Math.max(0, a)) * Math.min(1, Math.max(0, (local - 1) / 0.8));
       g.fillStyle = '#1d1b1f';
       g.textAlign = 'center';
-      g.font = 'italic 500 64px "Echo Serif", serif';
+      g.font = 'italic 500 64px "Imprint Serif", serif';
       g.fillText(this.title, W / 2, 1130);
       g.fillStyle = '#5d5750';
-      g.font = '500 22px "Echo Text", serif';
+      g.font = '500 22px "Imprint Text", serif';
       g.letterSpacing = '6px';
       g.fillText(`${humanDate(this.clips[0].rec.date).split(' · ')[0]}, ${humanDate(this.clips[n - 1].rec.date).split(' · ')[0]}`.toUpperCase(), W / 2, 1186);
       g.letterSpacing = '0px';

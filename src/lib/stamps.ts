@@ -118,7 +118,7 @@ export function stampArt(def: StampDef, no: number, locked = false): string {
     g.strokeRect(m, m, W - m * 2, H - m * 2);
     g.setLineDash([]);
     g.fillStyle = 'rgba(40,30,20,0.25)';
-    g.font = 'italic 500 120px "Echo Serif", serif';
+    g.font = 'italic 500 120px "Imprint Serif", serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText('?', W / 2, H / 2 - 6);
@@ -141,14 +141,14 @@ export function stampArt(def: StampDef, no: number, locked = false): string {
     const dark = ['#2f3a5e', '#1f2740'].includes(def.bg);
     g.fillStyle = dark ? '#f3e9c8' : '#2a2320';
     g.textAlign = 'left';
-    g.font = '500 15px "Echo Text", serif';
+    g.font = '500 15px "Imprint Text", serif';
     g.letterSpacing = '3px';
-    g.fillText('ECHO', m + 18, m + 32);
+    g.fillText('IMPRINT', m + 18, m + 32);
     g.textAlign = 'right';
     g.fillText(String(no).padStart(2, '0'), W - m - 18, m + 32);
     g.letterSpacing = '0px';
     g.textAlign = 'center';
-    g.font = 'italic 500 30px "Echo Serif", serif';
+    g.font = 'italic 500 30px "Imprint Serif", serif';
     g.fillText(def.title, W / 2, H - m - 26);
   }
   const url = c.toDataURL('image/png');
