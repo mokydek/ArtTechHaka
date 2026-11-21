@@ -4,6 +4,7 @@ import '@fontsource/caveat/500.css';
 import './styles.css';
 import App from './App';
 import { initI18n } from './lib/i18n';
+import { initReveal } from './lib/reveal';
 import { buzz, play, type Sound } from './lib/feel';
 import { analyzeAudio, bestExcerpt, excerptToWav } from './lib/analysis/audio';
 import { analyzeText, makeTitle } from './lib/analysis/text';
@@ -24,6 +25,7 @@ Promise.all(preload.map((f) => document.fonts.load(f, 'Аа Zz 1'))).catch(() =>
 
 // язык интерфейса: до первого рендера, чтобы английский режим сразу перехватывал текст и холсты
 initI18n();
+initReveal();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

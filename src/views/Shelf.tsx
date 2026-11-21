@@ -216,15 +216,13 @@ function HowItWorks() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // записка «пишется», когда блок попадает на экран
+    // записка «пишется», когда блок попадает на экран, и заново — при каждом возвращении
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) {
-          el.classList.add('seen');
-          io.disconnect();
-        }
+        if (e.isIntersecting && e.intersectionRatio >= 0.35) el.classList.add('seen');
+        else if (!e.isIntersecting) el.classList.remove('seen');
       },
-      { threshold: 0.35 },
+      { threshold: [0, 0.35] },
     );
     io.observe(el);
     return () => io.disconnect();
