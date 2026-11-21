@@ -40,6 +40,8 @@ export default function Shelf() {
   const otd = onThisDay(days.filter((d) => d.date !== today), today);
   const own = days.filter((d) => !d.demo);
   const recent = [...own].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
+  // для облака фото: сначала свои дни, если их мало — примеры
+  const cloudDays = [...recent, ...days.filter((d) => d.demo && !d.sealedUntil)].filter((d) => !d.sealedUntil && d.id !== otd?.day.id).slice(0, 7);
   const items = [...notebooks.map((nb) => ({ nb })), { nb: null }];
   const rows: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += perRow) rows.push(items.slice(i, i + perRow));
@@ -54,10 +56,18 @@ export default function Shelf() {
             {store && <span className="muted">{store.kind === 'cloud' ? 'хранится в облаке' : 'хранится на этом устройстве'}</span>}
           </div>
           {own.length ? (
-            <h1 className="h1">{greeting()}</h1>
+            <h1 className="h1 hero-h">
+              <span className="hero-pre">
+                Фото помнят, как выглядел день. <em>Imprint</em> помнит, как он ощущался.
+              </span>
+              <span className="hero-main">{greeting()}</span>
+            </h1>
           ) : (
-            <h1 className="h1">
-              Фото помнят, как выглядел день. <em>Imprint</em> помнит, как он ощущался.
+            <h1 className="h1 hero-h">
+              <span className="hero-pre">Фото помнят, как выглядел день.</span>
+              <span className="hero-main">
+                <em>Imprint</em> помнит, как он ощущался.
+              </span>
             </h1>
           )}
           <div className="prompt-card">
@@ -78,16 +88,19 @@ export default function Shelf() {
             </div>
           </div>
         </div>
-        {otd && (
-          <a className="otd" href={`#/day/${otd.day.id}`}>
-            <div className="mono" style={{ color: 'var(--accent)' }}>
-              ↺ {otd.label}
-            </div>
-            {covers[otd.day.id] && <img src={covers[otd.day.id]} alt="" />}
-            <div className="otd-title">{otd.day.title}</div>
-            <div className="mono muted">{humanDate(otd.day.date)}</div>
-          </a>
-        )}
+        <div className="hero-art">
+          <MemoryCloud days={cloudDays} />
+          {otd && (
+            <a className="otd" href={`#/day/${otd.day.id}`}>
+              <div className="mono" style={{ color: 'var(--accent)' }}>
+                ↺ {otd.label}
+              </div>
+              {covers[otd.day.id] && <img src={covers[otd.day.id]} alt="" />}
+              <div className="otd-title">{otd.day.title}</div>
+              <div className="mono muted">{humanDate(otd.day.date)}</div>
+            </a>
+          )}
+        </div>
       </section>
 
       {recent.length > 0 ? (
@@ -261,5 +274,58 @@ function HowItWorks() {
         </li>
       </ol>
     </section>
+  );
+}
+
+// места пузырей: центр в % от ширины/высоты, размер в % ширины
+const SLOTS = [
+  { x: 50, y: 44, s: 40 },
+  { x: 16, y: 20, s: 24 },
+  { x: 84, y: 15, s: 21 },
+  { x: 87, y: 62, s: 27 },
+  { x: 14, y: 72, s: 19 },
+  { x: 57, y: 5, s: 14 },
+  { x: 56, y: 90, s: 15 },
+];
+
+/** Облако воспоминаний: круглые фото дней в радужной кайме, слегка покачиваются; клик — открыть день */
+function MemoryCloud({ days }: { days: DayRecord[] }) {
+  const { photos, loadPhotos } = useDiary();
+  const key = days.map((d) => d.id).join();
+  useEffect(() => {
+    if (days.length) loadPhotos(days);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  // все фото выбранных дней по очереди: первое фото каждого дня, потом вторые…
+  const shots: { d: DayRecord; src?: string }[] = [];
+  for (let k = 0; k < 4 && shots.length < SLOTS.length; k++)
+    for (const d of days) {
+      const list = photos[d.id] ?? d.photoUrls ?? [];
+      if (k === 0 || list[k]) shots.push({ d, src: list[k] });
+      if (shots.length >= SLOTS.length) break;
+    }
+  return (
+    <div className="mc" aria-hidden={!days.length}>
+      {SLOTS.map((sl, i) => {
+        const d = shots[i]?.d;
+        const src = shots[i]?.src;
+        const st = { left: sl.x + '%', top: sl.y + '%', '--s': sl.s, '--d': i } as React.CSSProperties;
+        const face = <img className="mc-face" src={`/ui/mood-${5 - i}.webp`} alt="" draggable={false} />;
+        return d ? (
+          <a key={d.id + i} className="mc-b" href={`#/day/${encodeURIComponent(d.id)}`} style={st} title={d.title}>
+            <span className="mc-f">
+              {src ? <img src={src} alt="" loading="lazy" /> : <span className="mc-ph" style={{ background: `linear-gradient(150deg, ${d.design.palette.colors[1]}, ${d.design.palette.colors[3]})` }} />}
+            </span>
+          </a>
+        ) : (
+          <span key={'e' + i} className="mc-b mc-e" style={st}>
+            <span className="mc-f">
+              <span className="mc-ph" />
+              {!days.length && i < 3 && face}
+            </span>
+          </span>
+        );
+      })}
+    </div>
   );
 }
