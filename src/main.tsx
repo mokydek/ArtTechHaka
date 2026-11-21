@@ -11,6 +11,7 @@ import '@fontsource/manrope/800.css';
 import '@fontsource/pt-mono/400.css';
 import './styles.css';
 import App from './App';
+import { initI18n } from './lib/i18n';
 import { buzz, play, type Sound } from './lib/feel';
 import { analyzeAudio, bestExcerpt, excerptToWav } from './lib/analysis/audio';
 import { analyzeText, makeTitle } from './lib/analysis/text';
@@ -30,6 +31,9 @@ const preload = [
   '400 16px "PT Mono"',
 ];
 Promise.all(preload.map((f) => document.fonts.load(f, 'Аа Zz 1'))).catch(() => {});
+
+// язык интерфейса: до первого рендера, чтобы английский режим сразу перехватывал текст и холсты
+initI18n();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

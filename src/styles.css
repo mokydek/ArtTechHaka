@@ -6465,3 +6465,27 @@ body:has(.ce-catalog) .bun {
   pointer-events: none;
   transition: opacity 0.2s;
 }
+
+/* переключатель языка — рядом со звуками */
+.lang-sw {
+  border-radius: 0;
+}
+.lang-ic {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font: 700 12px/1 var(--sans);
+  letter-spacing: 0.02em;
+}
+.lang-sw small i {
+  font-style: normal;
+  opacity: 0.55;
+}
+.lang-sw small i.on {
+  opacity: 1;
+  font-weight: 700;
+  color: var(--ink);
+}

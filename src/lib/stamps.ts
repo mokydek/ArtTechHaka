@@ -143,7 +143,7 @@ export function stampArt(def: StampDef, no: number, locked = false): string {
     g.textAlign = 'left';
     g.font = '500 15px "JetBrains Mono", monospace';
     g.letterSpacing = '3px';
-    g.fillText('ОТТИСК', m + 18, m + 32);
+    g.fillText('AURA', m + 18, m + 32);
     g.textAlign = 'right';
     g.fillText(String(no).padStart(2, '0'), W - m - 18, m + 32);
     g.letterSpacing = '0px';

@@ -38,7 +38,9 @@ export function speak(text: string, p: VoiceProfile, onEnd?: () => void, onStart
   if (!('speechSynthesis' in window)) return false;
   stopSpeaking();
   cancelled = false;
-  const voice = pickVoice(p);
+  // текст записи читается на его языке: кириллица — русский голос, иначе английский
+  const ru = /[А-Яа-яЁё]/.test(text);
+  const voice = ru ? pickVoice(p) : speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith('en'));
   const parts = text
     .replace(/\s+/g, ' ')
     .split(/(?<=[.!?…])\s+/)
@@ -52,7 +54,7 @@ export function speak(text: string, p: VoiceProfile, onEnd?: () => void, onStart
       return;
     }
     const u = new SpeechSynthesisUtterance(parts[i++]);
-    u.lang = 'ru-RU';
+    u.lang = ru ? 'ru-RU' : 'en-US';
     if (voice) u.voice = voice;
     u.rate = p.rate;
     u.pitch = p.pitch;

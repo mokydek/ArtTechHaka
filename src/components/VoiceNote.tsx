@@ -1,3 +1,4 @@
+import { speechLang } from '../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { buzz, play as sfx } from '../lib/feel';
 
@@ -74,7 +75,7 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
     }
     if (SRClass) {
       const r = new SRClass();
-      r.lang = 'ru-RU';
+      r.lang = speechLang();
       r.continuous = true;
       r.interimResults = true;
       r.onresult = (e) => {

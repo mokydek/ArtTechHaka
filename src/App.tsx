@@ -1,3 +1,4 @@
+import { getLang, setLang } from './lib/i18n';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Capsule, DayRecord, Notebook } from './lib/types';
 import { getStore, newId, type DiaryStore } from './lib/store';
@@ -304,6 +305,7 @@ function More({ on }: { on: (p: string) => string }) {
             </a>
           ))}
           <SoundSwitch />
+          <LangSwitch />
         </span>
       )}
     </span>
@@ -334,6 +336,7 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
               </a>
             ))}
             <SoundSwitch />
+          <LangSwitch />
           </div>
         </div>
       )}
@@ -364,6 +367,33 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
 }
 
 /** звуки интерфейса: включить или выключить */
+/** Язык интерфейса: русский / английский */
+function LangSwitch() {
+  const l = getLang();
+  return (
+    <button
+      type="button"
+      className="sound-sw lang-sw"
+      data-sfx="none"
+      aria-label="Язык / Language"
+      onClick={(e) => {
+        e.preventDefault();
+        setLang(l === 'ru' ? 'en' : 'ru');
+      }}
+    >
+      <span className="lang-ic" aria-hidden>
+        {l === 'ru' ? 'Ру' : 'En'}
+      </span>
+      <span>
+        <b>Язык</b>
+        <small>
+          <i className={l === 'ru' ? 'on' : ''}>RU</i> / <i className={l === 'en' ? 'on' : ''}>EN</i>
+        </small>
+      </span>
+    </button>
+  );
+}
+
 function SoundSwitch() {
   const [v, setV] = useState(soundOn());
   return (

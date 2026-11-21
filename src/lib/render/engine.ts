@@ -854,7 +854,7 @@ export class MemoryRenderer {
       g.fillStyle = '#e8873a';
       g.fillText(`${(k + 14) % 40}  ▸  ${(k + 14) % 40}A`, fx + 10, y + h - 3);
       g.textAlign = 'right';
-      g.fillText('ОТТИСК 400', fx + fw - 10, y + h - 3);
+      g.fillText('AURA 400', fx + fw - 10, y + h - 3);
     }
     // перфорация
     const step = 46;
