@@ -6273,48 +6273,65 @@ input {
 
 /* ═══════════ графика из ChatGPT (public/ui) ═══════════ */
 
-/* зайчик: растровые позы, дыхание и прыжки остаются, вместо глаз — лёгкий наклон к курсору */
+/* зайчик: чёткие картинки в точном размере — без масштабирования и поворотов, чтобы не мылились */
 .bunny {
   position: relative;
-  display: inline-block;
-  vertical-align: bottom;
+  display: block;
+  width: 96px;
+  height: 112px;
 }
 .bunny .b-all {
   position: absolute;
   inset: 0;
-  display: block;
-  transform-origin: 50% 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: bunny-bob 3.4s steps(1, end) infinite !important;
 }
 .bunny img {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: 50% 100%;
-  filter: drop-shadow(0 3px 2px rgba(40, 25, 10, 0.18));
-  transform: rotate(calc(var(--ex, 0) * 1.4deg)) translateX(calc(var(--ex, 0) * 0.6px));
-  transition: transform 0.25s ease-out;
-  animation: bunny-swap 0.28s cubic-bezier(0.3, 1.6, 0.5, 1);
+  flex: none;
+  max-width: none;
+  image-rendering: auto;
+  animation: bunny-swap 0.26s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+/* дыхание: сдвиг ровно на 1 px, картинка не пересчитывается */
+@keyframes bunny-bob {
+  0%,
+  55% {
+    transform: translateY(0);
+  }
+  56%,
+  100% {
+    transform: translateY(-1px);
+  }
 }
 @keyframes bunny-swap {
   from {
-    transform: scale(0.88, 1.08) translateY(3px);
-    opacity: 0.6;
+    transform: translateY(4px);
+    opacity: 0.4;
   }
 }
+.bunny.pose-happy .b-all {
+  animation: b-hop 0.62s cubic-bezier(0.3, 0, 0.5, 1) 3 !important;
+}
 .bun-me .bunny {
-  width: 92px !important;
+  width: 96px !important;
   height: 112px !important;
 }
 @media (max-width: 720px) {
   .bun-me .bunny {
-    width: 70px !important;
+    width: 74px !important;
     height: 86px !important;
+  }
+  .bun-me .bunny img {
+    width: auto;
+    height: calc(var(--h, 110) * 0.775px);
   }
 }
 .bun-dot {
   top: 4px;
-  right: 6px;
+  right: 2px;
 }
 
 /* лица настроения */
