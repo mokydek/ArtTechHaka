@@ -3,6 +3,7 @@ import { useDiary } from '../App';
 import { COVERS, coverInfo } from '../lib/covers';
 import { useCoverUrl } from '../components/Book';
 import { newId } from '../lib/store';
+import { play, stampMark } from '../lib/feel';
 import CutoutPicker from '../components/CutoutPicker';
 import type { CoverStyle, Notebook } from '../lib/types';
 
@@ -35,6 +36,7 @@ function Slide({ cover, title, nbId, pos, onClick }: { cover: Cover; title: stri
  */
 export default function CoverEditor({ id }: { id?: string }) {
   const { notebooks, saveNotebook, toast } = useDiary();
+  void toast;
   const existing = notebooks.find((n) => n.id === id && !n.demo);
   const [title, setTitle] = useState(existing?.title ?? '');
   const start: Cover[] = useMemo(() => {
@@ -72,6 +74,11 @@ export default function CoverEditor({ id }: { id?: string }) {
     return () => document.body.classList.remove('ce-mode');
   }, [info.bg, info.ink]);
 
+  const moved = useRef(false);
+  useEffect(() => {
+    if (moved.current) play('page');
+    moved.current = true;
+  }, [i]);
   const choose = (c: Cover) => {
     // выбранная из каталога или своя встаёт второй, чтобы её сразу было видно
     const rest = slides.filter((s) => s.style !== c.style && s.style !== 'custom');
@@ -87,7 +94,7 @@ export default function CoverEditor({ id }: { id?: string }) {
     const nb: Notebook = { id: nbId, title: title.trim() || 'Без названия', cover: cur, createdAt: existing?.createdAt ?? new Date().toISOString() };
     try {
       await saveNotebook(nb);
-      toast(existing ? 'Обложка обновлена' : `Тетрадь «${nb.title}» на полке`);
+      stampMark(existing ? 'Готово' : 'На полке');
       location.hash = `#/nb/${nb.id}`;
     } catch (e) {
       console.error(e);
@@ -128,7 +135,7 @@ export default function CoverEditor({ id }: { id?: string }) {
           onClick={() => i !== last && setI(last)}
         >
           <b>Другая обложка</b>
-          <button className="btn" onClick={() => setMode('catalog')} tabIndex={i === last ? 0 : -1}>
+          <button className="btn" onClick={() => (play('pop'), setMode('catalog'))} tabIndex={i === last ? 0 : -1}>
             Каталог обложек
           </button>
           <button className="btn ghost" onClick={() => setMode('custom')} tabIndex={i === last ? 0 : -1}>

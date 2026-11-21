@@ -3,37 +3,14 @@ import type { DayRecord, Notebook } from '../lib/types';
 import { useDiary } from '../App';
 import { useCoverUrl } from './Book';
 import { MOOD_COLORS, moods, valenceMood } from '../lib/moods';
+import { play } from '../lib/feel';
 
 /**
  * Дневник как настоящая тетрадь (по мотивам Paper): открывается, листается пальцем или стрелками,
  * на развороте дня слева вклеены фото, справа мысли от руки и песня-билетик.
  */
 
-let ac: AudioContext | null = null;
-function rustle() {
-  try {
-    ac ??= new AudioContext();
-    const len = 0.34;
-    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * len), ac.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) {
-      const t = i / d.length;
-      d[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.6)), 2) * (1 - t);
-    }
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    const bp = ac.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = 2600;
-    bp.Q.value = 0.5;
-    const g = ac.createGain();
-    g.gain.value = 0.18;
-    src.connect(bp).connect(g).connect(ac.destination);
-    src.start();
-  } catch {
-    /* без звука */
-  }
-}
+const rustle = () => play('page');
 
 const MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
@@ -339,6 +316,11 @@ export default function Journal({ nb, days, ready = true, onPage }: { nb: Notebo
           {!single && <div className="jr-block left" />}
           <div className="jr-block right" />
           <div className="jr-base">{base}</div>
+          {!closed && f < n && (
+            <button className="jr-curl" onClick={() => flipTo(f + 1)} aria-label="Перелистнуть" data-sfx="none">
+              <i />
+            </button>
+          )}
           {leaves.map((lf, k) => {
             const flipped = k < f;
             const dragging = dragA?.leaf === k;

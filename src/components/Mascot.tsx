@@ -4,6 +4,7 @@ import { useDiary } from '../App';
 import type { DayRecord } from '../lib/types';
 import { humanDate } from '../lib/render/engine';
 import { MOOD_COLORS, MOOD_WORDS, moods, setMood, todayIso, type Mood } from '../lib/moods';
+import { burst, buzz, play } from '../lib/feel';
 
 /**
  * Пуговка — зайчик-компаньон (как питомец в Finch): раз в день спрашивает настроение 1–5,
@@ -55,6 +56,7 @@ export default function Mascot({ route }: { route: string }) {
   useEffect(rest, [rest]);
 
   const close = useCallback(() => {
+    play('popDown');
     clearTimeout(timer.current);
     setTalk(null);
     rest();
@@ -98,9 +100,50 @@ export default function Mascot({ route }: { route: string }) {
     addEventListener('ottisk:bunny', on);
     return () => removeEventListener('ottisk:bunny', on);
   }, []);
+  const wasOpen = useRef(false);
   useEffect(() => {
     if (!talk) rest();
+    else if (talk.kind !== 'hint' && !wasOpen.current) play('pop');
+    wasOpen.current = !!talk;
   }, [talk, rest]);
+  // на действия человека зайчик отвечает позой (если сейчас не разговаривает)
+  const talkRef = useRef(talk);
+  talkRef.current = talk;
+  useEffect(() => {
+    let t = 0;
+    const on = (e: Event) => {
+      const { pose, ms } = (e as CustomEvent<{ pose: Pose; ms: number }>).detail;
+      if (talkRef.current && talkRef.current.kind !== 'hint') return;
+      setPose(pose);
+      clearTimeout(t);
+      t = window.setTimeout(() => !talkRef.current && rest(), ms);
+    };
+    addEventListener('ottisk:bunny-react', on);
+    return () => (removeEventListener('ottisk:bunny-react', on), clearTimeout(t));
+  }, [rest]);
+  // глаза следят за курсором
+  const me = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reduced()) return;
+    let raf = 0;
+    const mv = (e: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = me.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2),
+          dy = e.clientY - (r.top + r.height * 0.42);
+        const d = Math.hypot(dx, dy) || 1;
+        const k = Math.min(1, d / 260);
+        el.style.setProperty('--ex', ((dx / d) * 4.2 * k).toFixed(2));
+        el.style.setProperty('--ey', ((dy / d) * 3.2 * k).toFixed(2));
+      });
+    };
+    addEventListener('pointermove', mv, { passive: true });
+    return () => removeEventListener('pointermove', mv);
+  }, []);
+  const [squish, setSquish] = useState(0);
   useEffect(() => {
     lastHint.current = '';
     setTalk((cur) => (cur?.kind === 'ask' ? cur : null));
@@ -118,14 +161,21 @@ export default function Mascot({ route }: { route: string }) {
     setTalk({ kind: 'remember', day });
   }
 
-  function pick(m: Mood) {
+  function pick(m: Mood, el?: HTMLElement) {
     setMood(today, m);
     setM(m);
+    play('mood', m);
+    buzz(m >= 4 ? 18 : 10);
+    const r = el?.getBoundingClientRect();
+    if (r) burst(r.left + r.width / 2, r.top + r.height / 2, m >= 4 ? 'hearts' : m === 3 ? 'sparks' : 'drops', m >= 4 ? 10 : 6);
     setPose(m <= 2 ? 'sad' : m === 3 ? 'think' : 'happy');
     setTalk({ kind: 'answer', mood: m, i: 0 });
   }
 
   function poke() {
+    play('boing');
+    buzz(8);
+    setSquish((x) => x + 1);
     if (talk) return close();
     if (!mood) {
       setPose('wave');
@@ -155,7 +205,7 @@ export default function Mascot({ route }: { route: string }) {
         <p>Привет! Какое у тебя сегодня настроение?</p>
         <div className="bun-moods" role="group" aria-label="Настроение от 1 до 5">
           {([1, 2, 3, 4, 5] as Mood[]).map((m) => (
-            <button key={m} onClick={() => pick(m)} aria-label={`${m}, ${MOOD_WORDS[m]}`} title={MOOD_WORDS[m]}>
+            <button key={m} onClick={(e) => pick(m, e.currentTarget)} aria-label={`${m}, ${MOOD_WORDS[m]}`} title={MOOD_WORDS[m]}>
               <Face m={m} />
               <small>{m}</small>
             </button>
@@ -237,16 +287,16 @@ export default function Mascot({ route }: { route: string }) {
   else if (talk?.kind === 'hint') body = <p>{talk.text}</p>;
 
   return (
-    <div className={'bun' + (talk ? ' open' : '') + (reduced() ? ' still' : '')}>
+    <div className={'bun' + (talk ? ' open' : '') + (reduced() ? ' still' : '')} ref={me}>
       {talk && (
         <div className={'bun-say' + (talk.kind === 'hint' ? ' hint' : '')} role="dialog" aria-live="polite" aria-label="Зайчик Пуговка">
-          <button className="bun-x" onClick={close} aria-label="Закрыть">
+          <button className="bun-x" onClick={close} aria-label="Закрыть" data-sfx="none">
             ×
           </button>
           {body}
         </div>
       )}
-      <button className="bun-me" onClick={poke} aria-label="Зайчик Пуговка, поговорить">
+      <button className={'bun-me' + (squish % 2 ? ' sq1' : squish ? ' sq2' : '')} onClick={poke} aria-label="Зайчик Пуговка, поговорить">
         <Bunny pose={pose} size={84} />
         {!mood && !talk && <i className="bun-dot" />}
       </button>

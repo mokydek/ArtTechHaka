@@ -3,6 +3,7 @@ import type { Capsule, DayRecord, Notebook } from './lib/types';
 import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
 import Mascot from './components/Mascot';
+import { play, setSoundOn, soundOn } from './lib/feel';
 import Shelf from './views/Shelf';
 import JournalHome from './views/JournalHome';
 import NotebookView from './views/NotebookView';
@@ -87,6 +88,7 @@ export default function App() {
   const asked = useRef(new Set<string>());
 
   const toast = useCallback((s: string) => {
+    play('note');
     setMsg(s);
     setTimeout(() => setMsg(''), 3200);
   }, []);
@@ -290,7 +292,7 @@ function More({ on }: { on: (p: string) => string }) {
   const act = MORE.some(([p]) => on(p));
   return (
     <span className="more" ref={ref}>
-      <button type="button" className={act ? 'on' : ''} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button type="button" className={act ? 'on' : ''} onClick={() => setOpen((o) => (play(o ? 'popDown' : 'pop'), !o))} aria-expanded={open} data-sfx="none">
         Ещё ▾
       </button>
       {open && (
@@ -301,6 +303,7 @@ function More({ on }: { on: (p: string) => string }) {
               <small>{d}</small>
             </a>
           ))}
+          <SoundSwitch />
         </span>
       )}
     </span>
@@ -325,7 +328,7 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
   return (
     <>
       {more && (
-        <div className="tab-sheet" onClick={() => setMore(false)}>
+        <div className="tab-sheet" onClick={() => (play('popDown'), setMore(false))}>
           <div onClick={(e) => e.stopPropagation()}>
             {MORE.map(([p, t, d]) => (
               <a key={p} href={'#' + p} className={on(p)}>
@@ -333,6 +336,7 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
                 <small>{d}</small>
               </a>
             ))}
+            <SoundSwitch />
           </div>
         </div>
       )}
@@ -353,11 +357,39 @@ function TabBar({ on, hint }: { on: (p: string) => string; hint: boolean }) {
           {I('M3 19l6-9 4 5 3-4 5 8zM16 7.5a1.5 1.5 0 1 0 0-.01')}
           <span>Побывать</span>
         </a>
-        <button type="button" className={MORE.some(([p]) => on(p)) ? 'on' : ''} onClick={() => setMore((m) => !m)}>
+        <button type="button" className={MORE.some(([p]) => on(p)) ? 'on' : ''} onClick={() => setMore((m) => (play(m ? 'popDown' : 'pop'), !m))} data-sfx="none">
           {I('M5 12h.01M12 12h.01M19 12h.01')}
           <span>Ещё</span>
         </button>
       </nav>
     </>
+  );
+}
+
+/** звуки интерфейса: включить или выключить */
+function SoundSwitch() {
+  const [v, setV] = useState(soundOn());
+  return (
+    <button
+      type="button"
+      className="sound-sw"
+      role="switch"
+      aria-checked={v}
+      data-sfx="none"
+      onClick={(e) => {
+        e.preventDefault();
+        setSoundOn(!v);
+        setV(!v);
+      }}
+    >
+      <span className="sound-ic" aria-hidden>
+        {v ? '🔊' : '🔈'}
+      </span>
+      <span>
+        <b>Звуки</b>
+        <small>{v ? 'включены' : 'выключены'}</small>
+      </span>
+      <i className={'sw' + (v ? ' on' : '')} />
+    </button>
   );
 }

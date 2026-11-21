@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { buzz, play as sfx } from '../lib/feel';
 
 // Диктовка: речь → текст записи (Web Speech API) и одновременно запись своего голоса (MediaRecorder)
 
@@ -59,7 +60,10 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
         s.getTracks().forEach((t) => t.stop());
         if (b.size <= 2000) return;
         const text = said.current.trim();
-        if (text) setAsk({ blob: b, text });
+        if (text) {
+          setAsk({ blob: b, text });
+          sfx('pop');
+        }
         else onVoice(b); // распознать не вышло — остаётся голосовым
       };
       r.start(500);
@@ -102,6 +106,8 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
         /* */
       }
     }
+    sfx('recOn');
+    buzz(12);
     setOn(true);
     setSec(0);
     const t0 = Date.now();
@@ -109,6 +115,7 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
   };
 
   function stop() {
+    if (rec.current) sfx('recOff');
     clearInterval(timer.current);
     const r = rec.current;
     rec.current = null;
@@ -138,11 +145,11 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
   return (
     <div className="voice-note">
       {on ? (
-        <button className="btn small rec-on" onClick={stop}>
+        <button className="btn small rec-on" onClick={stop} data-sfx="none">
           ■ Стоп · {fmt(sec)}
         </button>
       ) : (
-        <button className="btn ghost small" onClick={start} disabled={disabled}>
+        <button className="btn ghost small" onClick={start} disabled={disabled} data-sfx="none">
           🎙 {voice ? 'Перезаписать' : 'Записать голосом'}
         </button>
       )}

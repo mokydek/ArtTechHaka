@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { bunnySay } from '../components/Mascot';
+import { bunnyReact, burst, buzz, play, stampMark } from '../lib/feel';
 import type { Pose } from '../components/Bunny';
 import { useDiary } from '../App';
 import { TAIL, buildDay, fragment, renderCover, retitle, type BuiltDay, type MusicInput, type Step } from '../lib/pipeline';
@@ -17,7 +18,7 @@ import VoiceNote from '../components/VoiceNote';
 import Camera from '../components/Camera';
 import CutoutPicker, { type NewCut } from '../components/CutoutPicker';
 import { analyzeText } from '../lib/analysis/text';
-import { MOTIF_NAMES, dayMotifs, type Motif } from '../lib/atmos';
+import { MOTIFS as MOTIF_ORDER, MOTIF_NAMES, dayMotifs, type Motif } from '../lib/atmos';
 
 const today = () => {
   const d = new Date();
@@ -25,7 +26,7 @@ const today = () => {
 };
 
 export default function NewDay({ nb }: { nb?: string }) {
-  const { store, days, reload, setCover, toast, notebooks, defaultNotebook, setDraft } = useDiary();
+  const { store, days, reload, setCover, notebooks, defaultNotebook, setDraft } = useDiary();
   const own = notebooks.filter((n) => !n.demo);
   const [nbId, setNbId] = useState(nb && own.some((n) => n.id === nb) ? nb : defaultNotebook);
   useEffect(() => {
@@ -60,7 +61,12 @@ export default function NewDay({ nb }: { nb?: string }) {
       const m = dayMotifs(tf, text);
       setDraft(m);
       setMood({ valence: tf.valence, arousal: tf.arousal });
-      setHeard((Object.keys(m) as Motif[]).filter((k) => (m[k] ?? 0) >= 0.5).sort((a, b) => (m[b] ?? 0) - (m[a] ?? 0)));
+      const next = (Object.keys(m) as Motif[]).filter((k) => (m[k] ?? 0) >= 0.5).sort((a, b) => (m[b] ?? 0) - (m[a] ?? 0));
+      setHeard((prev) => {
+        // система что-то услышала — тихий колокольчик, нота своя для каждого нового мотива
+        next.filter((k) => !prev.includes(k)).forEach((k, i) => setTimeout(() => play('chime', MOTIF_ORDER.indexOf(k)), i * 140));
+        return next;
+      });
     }, 350);
     return () => clearTimeout(id);
   }, [text, date, setDraft]);
@@ -150,6 +156,9 @@ export default function NewDay({ nb }: { nb?: string }) {
     el?.classList.add('flash');
     setTimeout(() => el?.classList.remove('flash'), 1700);
     setNudge(true);
+    play('nope');
+    buzz(30);
+    bunnyReact('point');
     setTimeout(() => setNudge(false), 900);
   };
 
@@ -161,6 +170,7 @@ export default function NewDay({ nb }: { nb?: string }) {
       const pageNo = Math.max(0, ...days.map((d) => d.pageNo)) + 1;
       const b = await buildDay({ text, date, photos, music: music ?? { kind: 'none' }, pageNo, place: place ?? undefined }, (s) =>
         setSteps((old) => {
+          if (s.done) play('tick');
           const i = old.findIndex((o) => o.key === s.key);
           if (i >= 0) {
             const c = [...old];
@@ -175,6 +185,8 @@ export default function NewDay({ nb }: { nb?: string }) {
       setBuilt(b);
       setTitle(b.record.title);
       setPhase('preview');
+      play('develop');
+      bunnyReact('happy', 2200);
     } catch (e) {
       console.error(e);
       setErr('Не получилось: ' + (e instanceof Error ? e.message : String(e)));
@@ -208,7 +220,8 @@ export default function NewDay({ nb }: { nb?: string }) {
       }
       setCover(rec.id, URL.createObjectURL(cover));
       await reload();
-      toast(`Сохранено в папку «${rec.folder}»`);
+      stampMark('Сохранено');
+      bunnyReact('happy', 2200);
       location.hash = `#/day/${rec.id}`;
     } catch (e) {
       console.error(e);
@@ -237,7 +250,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             <span className="folder-ic" style={{ marginTop: 0 }} /> {date} {title}
           </div>
           <div className="ctrl" style={{ marginTop: 0 }}>
-            <button className="btn" onClick={() => save()} disabled={phase === 'save' || !title.trim()}>
+            <button className="btn" onClick={() => save()} disabled={phase === 'save' || !title.trim()} data-sfx="none">
               {phase === 'save' ? 'Сохраняю…' : 'Сохранить в дневник'}
             </button>
             <button className="btn ghost" onClick={() => setPhase('form')} disabled={phase === 'save'}>
@@ -274,10 +287,12 @@ export default function NewDay({ nb }: { nb?: string }) {
                 <button
                   key={k}
                   role="radio"
+                  data-sfx="none"
                   aria-checked={layout.kind === k}
                   className={'tab' + (layout.kind === k ? ' on' : '')}
                   disabled={phase === 'build'}
                   onClick={() => {
+                    play('shuffle');
                     setLay(k === 'free' ? { kind: 'free', items: scatter(photos.length, lay.kind === 'free' ? lay.items : undefined) } : { kind: k });
                     setChosen(true);
                   }}
@@ -348,14 +363,34 @@ export default function NewDay({ nb }: { nb?: string }) {
             Песня дня
           </h2>
           <div ref={(e) => void (secs.current.song = e)}>
-            <SongPicker value={music} onChange={setMusic} disabled={phase === 'build'} motifs={heard} mood={mood} />
+            <SongPicker
+              value={music}
+              onChange={(m) => {
+                if (m) {
+                  play('needle');
+                  bunnyReact('happy', 1200);
+                }
+                setMusic(m);
+              }}
+              disabled={phase === 'build'}
+              motifs={heard}
+              mood={mood}
+            />
           </div>
           <div className="nd-go">
             {phase === 'build' ? (
               <div className="steps">
                 {steps.map((s, i) => (
                   <div className="st" key={i}>
-                    <i>{s.done ? '✓' : <span className="blink">▌</span>}</i>
+                    <i>
+                      {s.done ? (
+                        <svg viewBox="0 0 16 16" width="15" height="15" aria-label="готово">
+                          <path d="M2.5 8.5l3.4 3.3L13.5 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <span className="blink">▌</span>
+                      )}
+                    </i>
                     <div>
                       {s.label}
                       {s.detail && <div className="det">{s.detail}</div>}
@@ -414,7 +449,26 @@ function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: Fi
   const add = (list: FileList | null) => {
     if (!list) return;
     const imgs = [...list].filter((f) => f.type.startsWith('image/') || (!f.type && /\.(jpe?g|png|webp|heic|heif|gif|avif)$/i.test(f.name)));
+    if (!imgs.length) return;
     onChange([...files, ...imgs].slice(0, 8));
+    // фото «прилипло» на скотч: звук, искорки над листом, зайчик радуется
+    play('tape');
+    buzz(10);
+    bunnyReact('happy');
+    requestAnimationFrame(() => {
+      const r = sheet.current?.getBoundingClientRect();
+      if (r) burst(r.left + r.width / 2, r.top + r.height * 0.4, 'sparks', 8);
+    });
+  };
+  const sheet = useRef<HTMLDivElement>(null);
+  const [leaving, setLeaving] = useState(-1);
+  const remove = (i: number) => {
+    play('tear');
+    setLeaving(i);
+    setTimeout(() => {
+      setLeaving(-1);
+      onChange(filesRef.current.filter((_, j) => j !== i));
+    }, 220);
   };
   const drop = {
     onDragOver: (e: React.DragEvent) => {
@@ -439,7 +493,7 @@ function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: Fi
           <small>или перетащи сюда</small>
         </button>
       ) : (
-        <div className={'pb-sheet' + (over ? ' over' : '')} {...drop}>
+        <div className={'pb-sheet' + (over ? ' over' : '')} {...drop} ref={sheet} key={layout.kind}>
           {layout.kind === 'free' && layout.items ? (
             <FreeBoard urls={urls} items={layout.items} onItems={(items) => onLayout({ kind: 'free', items })} disabled={disabled} />
           ) : (
@@ -450,10 +504,10 @@ function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: Fi
       {!!files.length && (
         <div className="thumbs">
           {urls.map((u, i) => (
-            <div key={u}>
+            <div key={u} className={leaving === i ? 'leaving' : undefined}>
               <img src={u} alt="" />
               {!disabled && (
-                <button onClick={() => onChange(files.filter((_, j) => j !== i))} aria-label="Убрать фото">
+                <button onClick={() => remove(i)} aria-label="Убрать фото" data-sfx="none">
                   ×
                 </button>
               )}

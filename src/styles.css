@@ -5925,3 +5925,348 @@ a.tab {
 html:has(body.ce-mode) {
   background: var(--ce-bg);
 }
+
+/* ═══════════ микродетали: что отвечает на действие ═══════════ */
+
+/* выделение текста — жёлтым маркером, курсор — синей ручкой */
+::selection {
+  background: rgba(242, 194, 123, 0.55);
+  color: inherit;
+}
+textarea,
+input {
+  caret-color: #2c3a78;
+}
+/* тонкая полоса прокрутки цвета бумаги */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 22%, transparent) transparent;
+}
+
+/* фото проявляются мягко, а не выскакивают */
+:is(.jp img, .recent-card img, .bun-card img, .thumbs img, .there-tiles img, .book-cover img, .ce-slide img, .ce-item img, .otd img, .pw img, .jr-face img) {
+  transition:
+    opacity 0.5s ease,
+    filter 0.7s ease;
+}
+:is(.jp img, .recent-card img, .bun-card img, .thumbs img, .there-tiles img, .book-cover img, .ce-slide img, .ce-item img, .otd img, .pw img, .jr-face img):not(.loaded) {
+  opacity: 0;
+  filter: blur(8px);
+}
+
+/* большой оттиск печати поверх экрана: «Сохранено» */
+.feel-stamp {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  z-index: 400;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-9deg);
+  animation: feel-stamp 1.6s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.feel-stamp span {
+  display: block;
+  padding: 14px 30px 12px;
+  border-radius: 14px;
+  color: var(--stamp);
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: clamp(30px, 7vw, 54px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 0 0 4px var(--stamp),
+    inset 0 0 0 9px transparent,
+    inset 0 0 0 11px var(--stamp);
+  filter: url(#ink-rough);
+  mix-blend-mode: multiply;
+  background: rgba(255, 252, 245, 0.55);
+}
+@keyframes feel-stamp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-16deg) scale(2.2);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(0.94);
+  }
+  22% {
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1.03);
+  }
+  30%,
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1);
+  }
+}
+
+/* искорки, сердечки, конфетти из точки нажатия */
+.feel-bit {
+  position: fixed;
+  z-index: 410;
+  pointer-events: none;
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1;
+  margin: -8px 0 0 -5px;
+  animation: feel-bit 0.95s cubic-bezier(0.15, 0.7, 0.3, 1) both;
+}
+.feel-bit.hearts {
+  font-size: 17px;
+}
+.feel-bit.confetti {
+  width: 6px;
+  height: 10px;
+  border-radius: 1px;
+}
+@keyframes feel-bit {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3) rotate(0);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1) rotate(var(--rot));
+  }
+}
+
+/* фото уходит из ленты: сжимается и отклеивается */
+.thumbs > div.leaving {
+  animation: peel-off 0.22s ease-in forwards !important;
+}
+@keyframes peel-off {
+  to {
+    opacity: 0;
+    transform: rotate(14deg) translateY(-10px) scale(0.6);
+  }
+}
+/* смена раскладки: фото заново вклеиваются по одному */
+.pb-sheet :is(.jp-pola, .jp-free, .jp-collage) {
+  animation: paste-in 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.pb-sheet :is(.jp-pola, .jp-free):nth-child(2) {
+  animation-delay: 0.07s;
+}
+.pb-sheet :is(.jp-pola, .jp-free):nth-child(3) {
+  animation-delay: 0.14s;
+}
+.pb-sheet :is(.jp-pola, .jp-free):nth-child(4) {
+  animation-delay: 0.21s;
+}
+.pb-sheet .jp-pola,
+.pb-sheet .jp-free {
+  --r: 0deg;
+}
+
+/* загнутый уголок страницы: тетрадь можно перелистнуть */
+.jr-curl {
+  all: unset;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  width: 64px;
+  height: 64px;
+  cursor: pointer;
+}
+.jr-curl i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 0 0 6px 0;
+  background: linear-gradient(315deg, var(--paper) 0 49%, #e9e0cf 50%, #fffaf0 72%, #e2d7c3);
+  box-shadow: -3px -3px 6px -3px rgba(40, 25, 10, 0.35);
+  transition:
+    width 0.3s cubic-bezier(0.3, 1.4, 0.5, 1),
+    height 0.3s cubic-bezier(0.3, 1.4, 0.5, 1);
+  animation: curl-hint 4s 2.5s ease-in-out infinite;
+}
+.jr-curl:hover i,
+.jr-curl:focus-visible i {
+  width: 52px;
+  height: 52px;
+  animation: none;
+}
+@keyframes curl-hint {
+  0%,
+  86%,
+  100% {
+    width: 26px;
+    height: 26px;
+  }
+  92% {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* зайчик: глаза следят за курсором, на касание пружинит */
+.bunny .b-look {
+  transform: translate(calc(var(--ex, 0) * 1px), calc(var(--ey, 0) * 1px));
+  transition: transform 0.18s ease-out;
+}
+.bun-me.sq1 .bunny,
+.bun-me.sq2 .bunny {
+  transform-origin: 50% 100%;
+}
+.bun-me.sq1 .bunny {
+  animation: squish1 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.bun-me.sq2 .bunny {
+  animation: squish2 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes squish1 {
+  30% {
+    transform: scale(1.12, 0.84);
+  }
+  60% {
+    transform: scale(0.94, 1.08) translateY(-4px);
+  }
+}
+@keyframes squish2 {
+  30% {
+    transform: scale(1.12, 0.84);
+  }
+  60% {
+    transform: scale(0.94, 1.08) translateY(-4px);
+  }
+}
+
+/* переключатель звуков в «Ещё» */
+.sound-sw {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+  border-radius: 0 0 10px 10px;
+}
+.sound-sw b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+}
+.sound-sw small {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.sound-sw:focus-visible {
+  outline: 2px solid var(--stamp);
+}
+.sw {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  transition: background 0.25s;
+}
+.sw::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.sw.on {
+  background: var(--stamp);
+}
+.sw.on::after {
+  transform: translateX(16px);
+}
+
+/* шаги проявки: галочка дорисовывается от руки */
+.steps .st {
+  animation: paste-in 0.35s ease both;
+  --r: 0deg;
+}
+.steps .st i svg path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: draw-check 0.4s ease-out forwards;
+}
+@keyframes draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* «Ещё»: меню раскрывается из кнопки, нижний лист выезжает снизу */
+.more-pop {
+  transform-origin: 90% 0;
+  animation: menu-in 0.28s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.94);
+  }
+}
+@media (max-width: 720px) {
+  .tab-sheet > div {
+    animation: sheet-up 0.38s cubic-bezier(0.25, 1.2, 0.4, 1) both;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+
+/* текстовые ссылки подчёркиваются линией от руки */
+:is(.recent-all, .day-song a, .ce-top a, .cc-back) {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat;
+  transition: background-size 0.3s ease;
+  text-decoration: none;
+}
+:is(.recent-all, .day-song a, .ce-top a, .cc-back):hover {
+  background-size: 100% 1.5px;
+}
+
+/* вкладки и кнопки чуть пружинят при нажатии */
+.tab:active,
+.nav a:active,
+.more > button:active {
+  transform: scale(0.94);
+}
+.nav a,
+.more > button {
+  transition:
+    color 0.2s,
+    transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feel-stamp,
+  .feel-bit,
+  .jr-curl i,
+  .pb-sheet *,
+  .bun-me .bunny,
+  .more-pop,
+  .tab-sheet > div {
+    animation: none !important;
+  }
+}

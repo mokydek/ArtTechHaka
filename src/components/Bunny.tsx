@@ -40,6 +40,7 @@ export default function Bunny({ pose = 'idle', size = 88 }: { pose?: Pose; size?
         {/* лицо */}
         <ellipse cx="37" cy="73" rx="7" ry="4.3" fill={PINK} opacity=".6" />
         <ellipse cx="83" cy="73" rx="7" ry="4.3" fill={PINK} opacity=".6" />
+        <g className="b-look">
         <g className="b-eyes">
           {closedHappy ? (
             <>
@@ -59,6 +60,7 @@ export default function Bunny({ pose = 'idle', size = 88 }: { pose?: Pose; size?
               <circle cx="74.7" cy="59.6" r="1.7" fill="#fff" />
             </g>
           )}
+        </g>
         </g>
         {sad && (
           <path d="M41 53.5 l8 -2.5 M79 53.5 l-8 -2.5" stroke={INK} strokeWidth="2" strokeLinecap="round" />
