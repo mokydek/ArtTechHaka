@@ -64,6 +64,13 @@ export const EN: Record<string, string> = {
   // атмосферы
   вода: 'water', город: 'city', дожди: 'rain', закаты: 'sunsets', лето: 'summer', любовь: 'love', ночи: 'nights',
   осень: 'autumn', праздники: 'holidays', природа: 'nature', снег: 'snow', уют: 'cozy',
+  Карта: 'Map',
+  'все дни на карте, по местам': 'all your days on the map, by place',
+  'Все дни на карте': 'All days on the map',
+  'Здесь появятся твои дни': 'Your days will appear here',
+  'Добавь место в записи или фото с геометкой, и день встанет на карту.': 'Add a place to an entry or a photo with a location, and the day will land on the map.',
+  'Это место': 'This place',
+  места: 'places', мест: 'places',
   // ---- общее ----
   день: 'day', дня: 'days', дней: 'days',
   запись: 'entry', записи: 'entries', записей: 'entries', Запись: 'Entry',
@@ -422,6 +429,7 @@ export const RULES: Rule[] = [
   [/^(\d+)\s(запись|записи|записей)$/, (m) => `${m[1]} ${pl(m[1], 'entry', 'entries')}`],
   [/^(\d+)\s(песня|песни|песен)$/, (m) => `${m[1]} ${pl(m[1], 'song', 'songs')}`],
   [/^(\d+)\s(марка|марки|марок)$/, (m) => `${m[1]} ${pl(m[1], 'stamp', 'stamps')}`],
+  [/^(\d+)\s(место|места|мест)$/, (m) => `${m[1]} ${pl(m[1], 'place', 'places')}`],
   [/^(\d+)\s(экспонат|экспоната|экспонатов)$/, (m) => `${m[1]} ${pl(m[1], 'exhibit', 'exhibits')}`],
   [/^(\d+)\s(день|дня|дней) подряд$/, (m) => `${m[1]} ${pl(m[1], 'day', 'days')} in a row`],
   [/^(\d+)\s(день|дня|дней) назад$/, (m) => `${m[1]} ${pl(m[1], 'day', 'days')} ago`],
