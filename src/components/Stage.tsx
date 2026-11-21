@@ -329,6 +329,19 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
     setPlaying(p.playing);
   };
 
+  // своё голосовое звучит поверх музыки само, как только воспоминание заиграло
+  const voiced = useRef(false);
+  useEffect(() => {
+    if (!playing || !voiceUrl || voiced.current) return;
+    const t = setTimeout(() => {
+      if (!player.current?.playing || own.current) return;
+      voiced.current = true;
+      listen();
+    }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, voiceUrl]);
+
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
     const b = e.currentTarget.getBoundingClientRect();
     player.current?.seek(((e.clientX - b.left) / b.width) * dur);
@@ -466,9 +479,11 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
             ✎ Разложить вклейки
           </button>
         )}
-        <button className="btn ghost small" onClick={listen} disabled={!ready || rec_ !== null}>
-          {voice ? '■ Остановить голос' : voiceUrl ? '◉ Мой голос' : '◉ Слушать запись'}
-        </button>
+        {(voiceUrl || rec.text.trim()) && (
+          <button className="btn ghost small" onClick={listen} disabled={!ready || rec_ !== null}>
+            {voice ? '■ Остановить голос' : voiceUrl ? '◉ Мой голос' : '◉ Прочитать запись'}
+          </button>
+        )}
         <button className={'btn small' + (liveState === 'on' ? '' : ' ghost')} onClick={() => enableLive()} disabled={!ready || liveState === 'busy' || rec_ !== null} title="вырезать главное и оживить фото в 3D">
           ✦ {liveState === 'on' ? 'Живое 3D' : liveState === 'busy' ? 'Оживляю…' : 'Оживить 3D'}
         </button>

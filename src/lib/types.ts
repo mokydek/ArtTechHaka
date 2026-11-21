@@ -88,7 +88,7 @@ export interface AudioFeatures {
 }
 
 export interface MusicMeta {
-  source: 'itunes' | 'file' | 'link';
+  source: 'itunes' | 'file' | 'link' | 'none';
   title: string;
   artist: string;
   genre?: string;

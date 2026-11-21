@@ -32,7 +32,8 @@ import { voiceLabel } from './voice';
 export type MusicInput =
   | { kind: 'track'; track: TrackCandidate; link?: string }
   | { kind: 'file'; file: File; start?: number } // start — выбранный человеком отрывок (сек)
-  | { kind: 'manual'; artist: string; title: string; genre?: string; year?: number; link?: string };
+  | { kind: 'manual'; artist: string; title: string; genre?: string; year?: number; link?: string }
+  | { kind: 'none' }; // без песни: воспоминание из одного фото
 
 export interface DayInput {
   text: string;
@@ -133,14 +134,16 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
       meta.year = found2[0].year;
       if (!meta.artist) meta.artist = found2[0].artist;
     }
-  } else {
+  } else if (mi.kind === 'manual') {
     meta = { source: 'link', title: mi.title, artist: mi.artist, genre: mi.genre, year: mi.year, link: mi.link };
+  } else {
+    meta = { source: 'none', title: '', artist: '' };
   }
   if (audio) feats = await analyzeAudio(audio);
   const music = musicFeatures(meta, feats);
   onStep({
     key: 'music',
-    label: `${meta.artist ? meta.artist + ' · ' : ''}${meta.title}`,
+    label: meta.source === 'none' ? 'Без песни' : `${meta.artist ? meta.artist + ' · ' : ''}${meta.title}`,
     detail: feats ? `${Math.round(feats.bpm)} BPM · ${keyName(feats.key, feats.mode)} · энергия ${Math.round(feats.energy * 100)}%` : `${meta.genre ?? 'жанр по описанию'}${meta.year ? ', ' + meta.year : ''}`,
     done: true,
   });

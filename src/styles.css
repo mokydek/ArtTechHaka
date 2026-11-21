@@ -4948,6 +4948,7 @@ a.tab {
   align-items: flex-start;
   gap: 10px;
   padding-top: 10px;
+  margin-top: auto;
 }
 .jp-ticket {
   display: inline-flex;
@@ -5325,4 +5326,27 @@ a.tab {
   .pb-sheet {
     --pw: 340px;
   }
+}
+
+/* голосовое: перевести в текст или оставить голосом */
+.vn-ask {
+  flex-basis: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: #fffaf2;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--stamp) 45%, transparent);
+  animation: bun-pop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.vn-ask p {
+  margin: 0 0 10px;
+  font-family: var(--hand);
+  font-size: 21px;
+  color: #2c3a78;
+  line-height: 1.2;
+}
+.vn-ask div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }

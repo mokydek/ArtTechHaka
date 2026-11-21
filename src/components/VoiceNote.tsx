@@ -29,6 +29,9 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
   const timer = useRef(0);
   const audio = useRef<HTMLAudioElement | null>(null);
   const url = useRef('');
+  // после записи спрашиваем: перевести в текст или оставить голосовым
+  const said = useRef('');
+  const [ask, setAsk] = useState<{ blob: Blob; text: string } | null>(null);
 
   useEffect(
     () => () => {
@@ -42,6 +45,8 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
 
   const start = async () => {
     setErr('');
+    said.current = '';
+    setAsk(null);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       stream.current = s;
@@ -51,8 +56,11 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
       r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       r.onstop = () => {
         const b = new Blob(chunks, { type: (type || 'audio/webm').split(';')[0] });
-        if (b.size > 2000) onVoice(b);
         s.getTracks().forEach((t) => t.stop());
+        if (b.size <= 2000) return;
+        const text = said.current.trim();
+        if (text) setAsk({ blob: b, text });
+        else onVoice(b); // распознать не вышло — остаётся голосовым
       };
       r.start(500);
       rec.current = r;
@@ -73,7 +81,7 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
           if (res.isFinal) fin += res[0].transcript;
           else mid += res[0].transcript;
         }
-        if (fin.trim()) onText(fin.trim());
+        if (fin.trim()) said.current += (said.current ? ' ' : '') + fin.trim();
         setInterim(mid);
       };
       r.onerror = (e) => e.error !== 'no-speech' && e.error !== 'aborted' && setErr('Распознавание речи недоступно, голос всё равно записывается.');
@@ -135,7 +143,7 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
         </button>
       ) : (
         <button className="btn ghost small" onClick={start} disabled={disabled}>
-          🎙 {voice ? 'Перезаписать' : 'Надиктовать'}
+          🎙 {voice ? 'Перезаписать' : 'Записать голосом'}
         </button>
       )}
       {voice && !on && (
@@ -149,6 +157,32 @@ export default function VoiceNote({ onText, voice, onVoice, disabled }: { onText
         </>
       )}
       {on && interim && <span className="interim">{interim}</span>}
+      {ask && (
+        <div className="vn-ask" role="dialog" aria-label="Что сделать с голосовым">
+          <p>«{ask.text.length > 90 ? ask.text.slice(0, 90) + '…' : ask.text}»</p>
+          <div>
+            <button
+              className="btn small"
+              onClick={() => {
+                onText(ask.text);
+                onVoice(null);
+                setAsk(null);
+              }}
+            >
+              Перевести в текст
+            </button>
+            <button
+              className="btn ghost small"
+              onClick={() => {
+                onVoice(ask.blob);
+                setAsk(null);
+              }}
+            >
+              Оставить голосовым
+            </button>
+          </div>
+        </div>
+      )}
       {err && <span className="hint">{err}</span>}
     </div>
   );

@@ -111,20 +111,20 @@ export default function NewDay({ nb }: { nb?: string }) {
   const prompt = pi < 0 ? dayPrompt(date) : PROMPTS[pi % PROMPTS.length];
   const ta = useRef<HTMLTextAreaElement>(null);
 
+  // воспоминание собирается даже из одного фото: текст, голос и песня — по желанию
   const missing: ['text' | 'photo' | 'song', string][] = [];
-  if (text.trim().length < 3) missing.push(['text', 'Напишите хотя бы пару слов о дне.']);
-  if (!photos.length) missing.push(['photo', 'Добавьте хотя бы одно фото.']);
-  if (!music) missing.push(['song', 'Выберите песню.']);
+  if (!photos.length) missing.push(['photo', 'Добавь хотя бы одно фото.']);
   const ready = !missing.length;
+  const extra = !text.trim() && !voice ? 'Можно без текста и песни, хватит фото.' : !music ? 'Песню можно не выбирать.' : '';
   const secs = useRef<Record<string, HTMLElement | null>>({});
   /* зайчик подсказывает следующий шаг (не перебивая, пока человек печатает) */
-  const stepKey = phase === 'build' ? 'build' : phase === 'preview' ? 'preview' : (missing[0]?.[0] ?? 'ready');
+  const stepKey = phase === 'build' ? 'build' : phase === 'preview' ? 'preview' : missing.length ? 'photo' : !text.trim() && !voice ? 'text' : !music ? 'song' : 'ready';
   useEffect(() => {
     if (phase === 'save') return;
     const H: Record<string, [string, Pose]> = {
-      text: ['Начни с пары слов о дне.', 'point'],
-      photo: ['Теперь фото дня. Хватит и одного.', 'point'],
-      song: ['И песню, которая звучала в этот день. Найду её по названию.', 'point'],
+      text: ['Напиши пару слов или надиктуй голосом. Можно и без этого.', 'point'],
+      photo: ['Начни с фото дня. Хватит и одного.', 'point'],
+      song: ['Добавь песню этого дня, если хочешь.', 'point'],
       ready: ['Всё на месте! Жми «Проявить день».', 'happy'],
       build: ['Проявляю твой день, как в фотолаборатории…', 'think'],
       preview: ['Красиво получилось! Можно поправить название и сохранить в дневник.', 'happy'],
@@ -159,7 +159,7 @@ export default function NewDay({ nb }: { nb?: string }) {
     setSteps([]);
     try {
       const pageNo = Math.max(0, ...days.map((d) => d.pageNo)) + 1;
-      const b = await buildDay({ text, date, photos, music: music!, pageNo, place: place ?? undefined }, (s) =>
+      const b = await buildDay({ text, date, photos, music: music ?? { kind: 'none' }, pageNo, place: place ?? undefined }, (s) =>
         setSteps((old) => {
           const i = old.findIndex((o) => o.key === s.key);
           if (i >= 0) {
@@ -366,7 +366,7 @@ export default function NewDay({ nb }: { nb?: string }) {
             ) : (
               <>
                 <div className={'hint' + (nudge ? ' nudge' : '')} style={{ marginBottom: 12 }}>
-                  {ready ? 'Всё готово.' : missing.map(([, m]) => m).join(' ')}
+                  {ready ? extra || 'Всё готово.' : missing.map(([, m]) => m).join(' ')}
                 </div>
                 <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 14, padding: '14px 26px' }}>
                   Проявить день
@@ -670,7 +670,7 @@ function SongPicker({ value, onChange, disabled, motifs, mood }: { value: MusicI
       )}
       {value && (
         <div className="mono" style={{ marginTop: 12 }}>
-          ♪ выбрано: {value.kind === 'track' ? `${value.track.artist} · ${value.track.title}` : value.kind === 'file' ? value.file.name : `${value.artist} · ${value.title}`}
+          ♪ выбрано: {value.kind === 'track' ? `${value.track.artist} · ${value.track.title}` : value.kind === 'file' ? value.file.name : value.kind === 'manual' ? `${value.artist} · ${value.title}` : ''}
         </div>
       )}
     </div>
