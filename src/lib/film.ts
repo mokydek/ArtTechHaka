@@ -251,7 +251,7 @@ export class FilmEngine {
       g.globalAlpha = ease(Math.max(0, a)) * Math.min(1, Math.max(0, (local - 1) / 0.8));
       g.fillStyle = '#1d1b1f';
       g.textAlign = 'center';
-      g.font = 'italic 500 64px "Cormorant Garamond", serif';
+      g.font = 'italic 500 64px Ottisk, serif';
       g.fillText(this.title, W / 2, 1130);
       g.fillStyle = '#5d5750';
       g.font = '500 22px "JetBrains Mono", monospace';

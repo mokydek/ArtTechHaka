@@ -26,7 +26,7 @@ export const PAGE_H = 1350;
 export const FIELD = { x: 72, y: 128, w: 936, h: 872 };
 
 export const FONTS = {
-  serif: '"Cormorant Garamond", Georgia, serif',
+  serif: 'Ottisk, Georgia, serif',
   sans: 'Manrope, "Helvetica Neue", Arial, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, monospace',
   hand: 'Caveat, cursive',

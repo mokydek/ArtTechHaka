@@ -1,10 +1,5 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource/cormorant-garamond/400.css';
-import '@fontsource/cormorant-garamond/500.css';
-import '@fontsource/cormorant-garamond/600.css';
-import '@fontsource/cormorant-garamond/400-italic.css';
-import '@fontsource/cormorant-garamond/500-italic.css';
 import '@fontsource/caveat/500.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
@@ -25,11 +20,8 @@ import { analyzeText, makeTitle } from './lib/analysis/text';
 
 // шрифты нужны холсту заранее
 const preload = [
-  '500 italic 40px "Cormorant Garamond"',
-  '400 italic 40px "Cormorant Garamond"',
-  '400 40px "Cormorant Garamond"',
-  '500 40px "Cormorant Garamond"',
-  '600 40px "Cormorant Garamond"',
+  'italic 500 40px Ottisk',
+  '500 40px Ottisk',
   '500 40px Caveat',
   '400 16px "JetBrains Mono"',
   '500 16px "JetBrains Mono"',

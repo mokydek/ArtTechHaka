@@ -1,3 +1,20 @@
+/* «Оттиск» — свой шрифт сайта: мягкие углы, краска растекается в стыках, край чуть неровный, как у печати. Собран из Lora (OFL), см. tools/font */
+@font-face {
+  font-family: 'Ottisk';
+  src: url('/fonts/ottisk-regular.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 86%;
+}
+@font-face {
+  font-family: 'Ottisk';
+  src: url('/fonts/ottisk-italic.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: italic;
+  font-display: swap;
+  size-adjust: 86%;
+}
 /* цвета следуют за атмосферой дневника — переменные зарегистрированы, чтобы переход был плавным */
 @property --paper {
   syntax: '<color>';
@@ -31,7 +48,7 @@
   --stamp-deep: #3d2f7d;
   /* свет настольной лампы — для мягкого свечения */
   --lamp: #f2c27b;
-  --serif: 'Cormorant Garamond', Georgia, serif;
+  --serif: 'Ottisk', Georgia, serif;
   --sans: Manrope, 'Helvetica Neue', Arial, sans-serif;
   /* служебные подписи: спокойный гротеск с табличными цифрами */
   --mono: Manrope, 'Helvetica Neue', Arial, sans-serif;
