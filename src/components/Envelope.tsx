@@ -48,7 +48,7 @@ export default function Envelope({ due, label, small, onOpened, tint = '#e7d7bb'
       <div className="env-seal" title={due ? 'сломать печать' : 'ещё рано'}>
         <span className="half l" />
         <span className="half r" />
-        <b>A</b>
+        <b>E</b>
       </div>
       {label && <div className="env-label">{label}</div>}
     </div>

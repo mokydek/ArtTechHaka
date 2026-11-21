@@ -26,7 +26,7 @@ export const PAGE_H = 1350;
 export const FIELD = { x: 72, y: 128, w: 936, h: 872 };
 
 export const FONTS = {
-  serif: '"Aura Serif", Georgia, serif',
+  serif: '"Echo Serif", Georgia, serif',
   sans: 'Manrope, "Helvetica Neue", Arial, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, monospace',
   hand: 'Caveat, cursive',
@@ -854,7 +854,7 @@ export class MemoryRenderer {
       g.fillStyle = '#e8873a';
       g.fillText(`${(k + 14) % 40}  ▸  ${(k + 14) % 40}A`, fx + 10, y + h - 3);
       g.textAlign = 'right';
-      g.fillText('AURA 400', fx + fw - 10, y + h - 3);
+      g.fillText('ECHO 400', fx + fw - 10, y + h - 3);
     }
     // перфорация
     const step = 46;

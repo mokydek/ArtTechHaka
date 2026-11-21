@@ -1,15 +1,15 @@
-/* Aura Serif — свой шрифт сайта: мягкие углы, краска растекается в стыках, край чуть неровный, как у печати. Собран из Lora (OFL), см. tools/font */
+/* Echo Serif — свой шрифт сайта: мягкие углы, краска растекается в стыках, край чуть неровный, как у печати. Собран из Lora (OFL), см. tools/font */
 @font-face {
-  font-family: 'Aura Serif';
-  src: url('/fonts/aura-serif-regular.woff2') format('woff2');
+  font-family: 'Echo Serif';
+  src: url('/fonts/echo-serif-regular.woff2') format('woff2');
   font-weight: 300 800;
   font-style: normal;
   font-display: swap;
   size-adjust: 86%;
 }
 @font-face {
-  font-family: 'Aura Serif';
-  src: url('/fonts/aura-serif-italic.woff2') format('woff2');
+  font-family: 'Echo Serif';
+  src: url('/fonts/echo-serif-italic.woff2') format('woff2');
   font-weight: 300 800;
   font-style: italic;
   font-display: swap;
@@ -58,7 +58,7 @@
   --card-shadow: 0 18px 40px -26px rgba(60, 48, 130, 0.45), 0 0 0 1px rgba(36, 35, 58, 0.05);
   /* свет настольной лампы — для мягкого свечения */
   --lamp: #f2c27b;
-  --serif: 'Aura Serif', Georgia, serif;
+  --serif: 'Echo Serif', Georgia, serif;
   --sans: Manrope, 'Helvetica Neue', Arial, sans-serif;
   /* служебные подписи: спокойный гротеск с табличными цифрами */
   --mono: Manrope, 'Helvetica Neue', Arial, sans-serif;

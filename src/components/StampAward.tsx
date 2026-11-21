@@ -26,7 +26,7 @@ export default function StampAward({ list, onClose }: { list: Earned[]; onClose:
               <div key={e.def.id} className={'award-stamp' + (one ? '' : ' many')} style={{ animationDelay: `${i * 0.26}s`, ['--rot' as string]: `${(i - (shown.length - 1) / 2) * 7 - 3}deg` }}>
                 <img src={stampArt(e.def, no)} alt="" />
                 <span className={'postmark' + (one ? ' big' : '')} style={{ animationDelay: `${0.55 + i * 0.26}s` }}>
-                  {e.day ? e.day.date.split('-').reverse().join('.') : 'AURA'}
+                  {e.day ? e.day.date.split('-').reverse().join('.') : 'ECHO'}
                 </span>
               </div>
             );

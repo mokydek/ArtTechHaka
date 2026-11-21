@@ -1,4 +1,4 @@
-// Aura: офлайн-оболочка. Ассеты с хешами — из кэша, страница — сначала сеть.
+// Echo: офлайн-оболочка. Ассеты с хешами — из кэша, страница — сначала сеть.
 const CACHE = 'ottisk-v1';
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/paper-noise.png', '/favicon.svg'])).then(() => self.skipWaiting()));

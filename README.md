@@ -1,6 +1,6 @@
-# Aura — дневник атмосферы
+# Echo — дневник атмосферы
 
-> Фото помнят, как выглядел день. Aura — как он ощущался.
+> Фото помнят, как выглядел день. Echo — как он ощущался.
 
 Кейс **ArtTech: Make the Invisible Visible** (Genesis Hackathon, 2026).
 Человек пишет пару строк о дне, добавляет фото и песню — система читает настроение, свет и музыку и «проявляет» день как живую страницу дневника: со своей палитрой, обработкой фото, ритмом под песню, «погодой внутри», рукописной подписью и голосом. Каждый день лежит в отдельной папке с названием, которое система придумала по записи.
@@ -70,7 +70,7 @@ src/views          полка, тетрадь (лента/книга/фото/г
 
 ## Использованные инструменты
 
-React 19, Vite, TypeScript, Supabase (Postgres, Auth, Storage), JSZip; шрифты Aura Serif (свой, на основе Lora), Caveat, JetBrains Mono, Manrope (Fontsource, OFL); Web Audio API, Canvas 2D, MediaRecorder, Web Speech API; iTunes Search API (официальные 30-секундные фрагменты, песня целиком не хранится), oEmbed Spotify и noembed (название по ссылке), Open-Meteo (место и погода за день), BigDataCloud (название места по геолокации); шрифт PT Mono. Демо-фото — Unsplash (Unsplash License). Нейросеть одна — U²-Netp (Apache-2.0) для вырезания объекта, работает на устройстве через onnxruntime-web; модель копируется из npm-пакета `@rmbg/model-u2netp` в `public/ml` при сборке (`scripts/copy-ml.mjs`). Остальной анализ и графика — собственный код команды.
+React 19, Vite, TypeScript, Supabase (Postgres, Auth, Storage), JSZip; шрифты Echo Serif (свой, на основе Lora), Caveat, JetBrains Mono, Manrope (Fontsource, OFL); Web Audio API, Canvas 2D, MediaRecorder, Web Speech API; iTunes Search API (официальные 30-секундные фрагменты, песня целиком не хранится), oEmbed Spotify и noembed (название по ссылке), Open-Meteo (место и погода за день), BigDataCloud (название места по геолокации); шрифт PT Mono. Демо-фото — Unsplash (Unsplash License). Нейросеть одна — U²-Netp (Apache-2.0) для вырезания объекта, работает на устройстве через onnxruntime-web; модель копируется из npm-пакета `@rmbg/model-u2netp` в `public/ml` при сборке (`scripts/copy-ml.mjs`). Остальной анализ и графика — собственный код команды.
 
 Настроение — художественная интерпретация записи, а не психологическая или медицинская оценка.
 

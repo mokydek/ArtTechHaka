@@ -185,7 +185,7 @@ export async function renderCover(style: CoverStyle, title: string, images: Canv
       g.lineWidth = 10;
       g.strokeRect(8, 8, W - 16, H - 16);
       g.fillStyle = '#5a1f1a';
-      g.font = `600 ${W * 0.07}px "Aura Serif", serif`;
+      g.font = `600 ${W * 0.07}px "Echo Serif", serif`;
       g.textAlign = 'center';
       g.fillText(title.toLowerCase(), W / 2, H * 0.86);
       g.textAlign = 'left';
@@ -223,7 +223,7 @@ export async function renderCover(style: CoverStyle, title: string, images: Canv
       noise(g, W, H, 10, seed);
       // тиснение
       g.textAlign = 'center';
-      g.font = `italic 500 ${W * 0.085}px "Aura Serif", serif`;
+      g.font = `italic 500 ${W * 0.085}px "Echo Serif", serif`;
       g.fillStyle = 'rgba(255,255,255,0.6)';
       g.fillText(title, W / 2 + 1.5, H * 0.46 + 1.5);
       g.fillStyle = 'rgba(80,66,50,0.75)';
@@ -252,7 +252,7 @@ export async function renderCover(style: CoverStyle, title: string, images: Canv
       g.arc(W * 0.75, H * 0.22, W * 0.085, 0, 6.3);
       g.fill();
       g.fillStyle = '#f2e6c4';
-      g.font = `italic 500 ${W * 0.08}px "Aura Serif", serif`;
+      g.font = `italic 500 ${W * 0.08}px "Echo Serif", serif`;
       g.textAlign = 'center';
       g.fillText(title, W / 2, H * 0.8);
       g.textAlign = 'left';
@@ -269,7 +269,7 @@ export async function renderCover(style: CoverStyle, title: string, images: Canv
       g.strokeRect(26, 26, W - 52, H - 52);
       g.setLineDash([]);
       g.fillStyle = 'rgba(30,30,20,0.35)';
-      g.font = `600 ${W * 0.07}px "Aura Serif", serif`;
+      g.font = `600 ${W * 0.07}px "Echo Serif", serif`;
       g.textAlign = 'center';
       g.fillText(title.toUpperCase(), W / 2 + 1, H * 0.5 + 2);
       g.fillStyle = '#e8dcb8';

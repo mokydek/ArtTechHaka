@@ -114,7 +114,7 @@ export async function loadDemo(onDay?: (r: DayRecord, cover: string) => void): P
         rec = b.record;
         await local.save(rec, { photos: [], cover: b.cover });
       } catch (e) {
-        console.warn('[Aura] демо-день не собрался', inp.id, e);
+        console.warn('[Echo] демо-день не собрался', inp.id, e);
         continue;
       }
     }

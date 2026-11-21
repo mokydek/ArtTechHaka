@@ -58,7 +58,7 @@ export const EN: Record<string, string> = {
   'Мой дневник': 'My diary',
   'Дни команды': 'Team days',
   'дневник атмосферы': 'atmosphere diary',
-  'Aura — дневник атмосферы': 'Aura — atmosphere diary',
+  'Echo — дневник атмосферы': 'Echo — atmosphere diary',
   'Дневник подстроился под ваши дни': 'The diary has tuned itself to your days',
   'Цвета, небо и мелочи на фоне меняются с каждой новой записью.': 'Colours, sky and little background details change with every new entry.',
   // атмосферы
@@ -125,7 +125,7 @@ export const EN: Record<string, string> = {
   'Как это работает': 'How it works',
   'Напиши пару строк о дне, как близкому другу.': 'Write a couple of lines about your day, as if to a close friend.',
   'Добавь фото и песню, которые были в этот день.': 'Add the photos and song from that day.',
-  'Aura проявит живую страницу: цвета, движение и звук дня.': "Aura develops a living page: the day's colours, motion and sound.",
+  'Echo проявит живую страницу: цвета, движение и звук дня.': "Echo develops a living page: the day's colours, motion and sound.",
   '+ новая тетрадь': '+ new notebook',
   'Капсулы времени': 'Time capsules',
   '+ письмо себе в будущее': '+ letter to your future self',
@@ -392,8 +392,8 @@ export const EN: Record<string, string> = {
   'Как:': 'How:', 'Когда:': 'When:', 'Частицы из текста:': 'Particles from the text:',
   'Каждая страница, вертикальный лист 4:5 (1080×1350), живой: движется в ритм песни и звучит. Постоянные элементы делают ленту дневником одного человека, переменные, делают каждый день своим. Ни одна страница не выбирается из готовых шаблонов: всё считается из текста, фото и музыки.': 'Every page is a vertical 4:5 sheet (1080×1350) and it\'s alive: it moves to the song\'s rhythm and makes sound. Constant elements make the feed one person\'s diary; variable ones make each day its own. No page is picked from ready-made templates: everything is computed from the text, photos and music.',
   'Поля 72 px; шапка с номером страницы и датой; поле фото 936×872; блок названия; рукописная подпись; подвал.': 'Margins of 72 px; a header with the page number and date; a 936×872 photo field; a title block; a handwritten caption; a footer.',
-  'Aura Serif, свой шрифт для названий (мягкие углы и растёкшаяся краска, на основе Lora); Caveat, рукописная подпись; JetBrains Mono, служебные строки; Manrope, для «громких» дней. Меняется начертание, не семейство.':
-    "Aura Serif, our own typeface for titles (soft corners and spreading ink, based on Lora); Caveat for the handwritten caption; JetBrains Mono for service lines; Manrope for “loud” days. The style changes, not the family.",
+  'Echo Serif, свой шрифт для названий (мягкие углы и растёкшаяся краска, на основе Lora); Caveat, рукописная подпись; JetBrains Mono, служебные строки; Manrope, для «громких» дней. Меняется начертание, не семейство.':
+    "Echo Serif, our own typeface for titles (soft corners and spreading ink, based on Lora); Caveat for the handwritten caption; JetBrains Mono for service lines; Manrope for “loud” days. The style changes, not the family.",
   'Самая «чувственная» фраза записи (запахи, звуки, свет, слова настроения), написанная от руки и появляющаяся буква за буквой.': 'The most “sensory” phrase of the entry (smells, sounds, light, mood words), handwritten and appearing letter by letter.',
   'Внизу каждой страницы, волна выбранного фрагмента, окрашенная палитрой дня, и строка «исполнитель, песня · BPM · лад · приём».': "At the bottom of every page: the waveform of the chosen clip, coloured with the day's palette, and the line “artist, song · BPM · key · style”.",
   'Кружок с точкой: по горизонтали тепло, по вертикали энергия. Пять квадратов, палитра дня.': "A circle with a dot: warmth horizontally, energy vertically. Five squares, the day's palette.",

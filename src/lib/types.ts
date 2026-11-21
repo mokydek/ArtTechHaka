@@ -1,4 +1,4 @@
-// Общие типы Aura
+// Общие типы Echo
 
 export type RGB = [number, number, number];
 

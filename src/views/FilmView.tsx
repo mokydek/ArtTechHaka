@@ -53,7 +53,7 @@ export default function FilmView({ kind, id }: { kind: string; id: string }) {
           }
           clips.push({ rec: d, r, audio: a.audio, cover });
         } catch (e) {
-          console.warn('[Aura] день не попал в фильм', d.id, e);
+          console.warn('[Echo] день не попал в фильм', d.id, e);
         }
         if (dead) return;
       }

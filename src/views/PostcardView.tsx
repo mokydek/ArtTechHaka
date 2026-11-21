@@ -33,7 +33,7 @@ export default function PostcardView({ token }: { token: string }) {
   if (!card) return <p className="mono muted blink">Почтальон несёт открытку…</p>;
   const rec = card.rec;
   const icon = stickersFor(rec.analysis.text)[0] ?? 'heart';
-  const def: StampDef = { id: 'pc-' + rec.id, title: rec.design.mode === 'nocturne' ? 'Ноктюрн' : 'Aura', hint: '', icon, bg: rec.design.palette.colors[3] ?? '#d9c7a3', test: () => null };
+  const def: StampDef = { id: 'pc-' + rec.id, title: rec.design.mode === 'nocturne' ? 'Ноктюрн' : 'Echo', hint: '', icon, bg: rec.design.palette.colors[3] ?? '#d9c7a3', test: () => null };
 
   return (
     <div className="pc-wrap">
