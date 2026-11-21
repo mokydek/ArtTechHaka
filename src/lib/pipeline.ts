@@ -227,7 +227,7 @@ const TIME_W: Record<string, string> = { morning: 'утро', day: 'день', e
 const WEATHER_W: Record<string, string> = { rain: 'дождь', snow: 'снег', sun: 'солнце', fog: 'туман', wind: 'ветер', cold: 'холод', hot: 'жара', storm: 'гроза', clouds: 'пасмурно' };
 export function moodLabel(rec: DayRecord) {
   const t = rec.analysis.text;
-  return [t.season ? SEASON_W[t.season] : '', t.timeOfDay ? TIME_W[t.timeOfDay] : '', t.weather[0] ? WEATHER_W[t.weather[0]] : ''].filter(Boolean).join(' · ');
+  return [t.season && t.seasonFromText ? SEASON_W[t.season] : '', t.timeOfDay ? TIME_W[t.timeOfDay] : '', t.weather[0] ? WEATHER_W[t.weather[0]] : ''].filter(Boolean).join(' · ');
 }
 
 export async function renderCover(rec: DayRecord, bitmaps: ImageBitmap[], w = 720, cutouts: CutoutRt[] = []): Promise<Blob> {

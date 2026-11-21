@@ -53,7 +53,7 @@ export function dayMotifs(t: TextFeatures, text = '', ph?: PhotosSummary | null)
   if (has(t, ['girlfriend', 'boyfriend', 'wife', 'husband', 'date'])) add('love', 0.9);
   if (/люблю|любим|любов|поцел|обнял|обнима|романт|влюб|свидан/.test(raw)) add('love', 0.6);
   if (t.weather.includes('snow') || has(t, ['firstsnow'])) add('snow', 1);
-  else if (t.season === 'winter') add('snow', 0.4);
+  else if (t.season === 'winter' && t.seasonFromText) add('snow', 0.4);
   if (t.weather.includes('rain') || t.weather.includes('storm')) add('rain', 1);
   else if (t.weather.includes('fog')) add('rain', 0.4);
   if (t.timeOfDay === 'night' || t.night) add('night', 0.9);
@@ -61,9 +61,10 @@ export function dayMotifs(t: TextFeatures, text = '', ph?: PhotosSummary | null)
   if (ph && ph.lights > 0.3) add('night', 0.3);
   if (kind(t, 'urban') || has(t, ['lights'])) add('city', 0.7);
   if (kind(t, 'nature') || t.nature) add('nature', kind(t, 'nature') ? 0.8 : 0.4);
-  if (t.season === 'autumn') add('autumn', 0.8);
+  // сезон по одной лишь дате не красит день: только если о нём сказано или он виден в деталях
+  if (t.season === 'autumn' && t.seasonFromText) add('autumn', 0.8);
   if (has(t, ['leaves'])) add('autumn', 0.6);
-  if (t.season === 'summer') add('summer', 0.7);
+  if (t.season === 'summer' && t.seasonFromText) add('summer', 0.7);
   if (t.weather.includes('hot') || t.weather.includes('sun')) add('summer', 0.35);
   if (t.celebration) add('party', 0.9);
   if (kind(t, 'party') || has(t, ['fireworks', 'dances'])) add('party', 0.6);

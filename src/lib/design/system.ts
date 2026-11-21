@@ -149,9 +149,9 @@ export function designDay(an: DayAnalysis, dateISO: string, seedStr: string): De
   else if (t.weather.includes('rain') || t.weather.includes('storm')) particle = 'rain';
   else if (objKeys.has('bonfire')) particle = 'sparks';
   else if (t.celebration && energy > 0.5) particle = 'confetti';
-  else if (t.season === 'autumn' && (t.nature || objKeys.has('leaves'))) particle = 'leaves';
-  else if (t.season === 'spring' && t.nature) particle = 'petals';
-  else if (t.season === 'summer' && (t.timeOfDay === 'evening' || t.timeOfDay === 'night')) particle = 'fireflies';
+  else if (objKeys.has('leaves') || (t.season === 'autumn' && t.seasonFromText && t.nature)) particle = 'leaves';
+  else if (t.season === 'spring' && t.seasonFromText && t.nature) particle = 'petals';
+  else if (t.season === 'summer' && t.seasonFromText && (t.timeOfDay === 'evening' || t.timeOfDay === 'night')) particle = 'fireflies';
   else if (night && (objKeys.has('stars') || t.nature)) particle = 'stars';
   else if (t.weather.includes('sun') || (t.season === 'summer' && !night) || mode === 'impression') particle = 'motes';
   let density = clamp(0.3 + 0.5 * energy) * (mode === 'ma' ? 0.5 : 1) * (particle === 'rain' ? 1.4 : 1);

@@ -333,7 +333,9 @@ export function makeTitle(t: TextFeatures, dateISO: string, energy: number, vale
   if (ev && place && ev.phrase && ev.key !== place.key) add(`${time.nom} ${place.loc} ${ev.phrase}`, 5.6 + tw + ev.hits * 0.2, 'время + где + событие');
   if (ev && place && ev.key !== place.key) add(`${cap(ev.nom)} ${place.loc}`, 4.6 + ev.hits * 0.2 + (ev.kind === 'celebration' || ev.kind === 'nature' ? 1.6 : 0), 'событие + где');
   const objS = objs.find((o) => o.key !== 'leaves' && o.key !== 'stars');
-  if (place && objS && place.gender && place.key !== 'home') add(`${adj(sStem, sDecl, place.gender)} ${place.nom} и ${objS.nom}`, 4.8 + (t.seasonFromText ? 0.5 : 0) + objS.hits * 0.3, 'сезон + место + деталь');
+  // сезон в названии — только если о нём сказано в тексте: иначе каждый ноябрьский день становится «осенним»
+  const sw = t.seasonFromText ? 0 : -3.5;
+  if (place && objS && place.gender && place.key !== 'home') add(`${adj(sStem, sDecl, place.gender)} ${place.nom} и ${objS.nom}`, 4.8 + sw + (t.seasonFromText ? 0.5 : 0) + objS.hits * 0.3, 'сезон + место + деталь');
   if (w && WEATHER_ADJ[w] && place) {
     const [ws, wd] = WEATHER_ADJ[w];
     add(`${adj(ws, wd, time.g)} ${time.nom} ${place.loc}`, 4.2 + tw, 'погода + время + где');
@@ -341,7 +343,7 @@ export function makeTitle(t: TextFeatures, dateISO: string, energy: number, vale
   if (obj && obj2 && place) add(`${obj.nom} и ${obj2.nom} ${place.loc}`, 3.6, 'детали + где');
   if (comp) add(`${adj(mStem, mDecl, time.g)} ${time.nom} ${comp.inst}`, 3.5 + tw * 0.5, 'настроение + время + с кем');
   if (comp && obj) add(`${obj.nom} ${comp.inst}`, 1.5, 'деталь + с кем'); // обычно короче 3 слов — отсеется
-  if (place) add(`${adj(sStem, sDecl, time.g)} ${time.nom} ${place.loc}`, 3 + tw, 'сезон + время + где');
+  if (place) add(`${adj(sStem, sDecl, time.g)} ${time.nom} ${place.loc}`, 3 + tw + sw, 'сезон + время + где');
   if (ev && ev.phrase) add(`${adj(monStem, monDecl, time.g)} ${time.nom} ${ev.phrase}`, 3.2, 'месяц + время + событие');
   if (obj && comp && place) add(`${obj.nom} ${comp.inst} ${place.loc}`, 4.2 + obj.hits * 0.2, 'деталь + с кем + где');
   if (w && WEATHER_ADJ[w]) {

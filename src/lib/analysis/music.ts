@@ -169,8 +169,10 @@ const MOOD_SONGS: Record<string, string[]> = {
   summer: ['Harry Styles — Watermelon Sugar', 'Max Korzh — Горы по колено', 'Daft Punk — Get Lucky', 'Kino — Звезда по имени Солнце'],
   party: ['ABBA — Dancing Queen', 'Daft Punk — Get Lucky', 'Ирина Кайратовна — Айдахар', 'Mark Ronson — Uptown Funk'],
   cozy: ['Norah Jones — Don\'t Know Why', 'Frank Sinatra — Fly Me to the Moon', 'Ryuichi Sakamoto — Merry Christmas Mr. Lawrence', 'Kino — Кукушка'],
-  calm: ['Ryuichi Sakamoto — Merry Christmas Mr. Lawrence', 'Norah Jones — Don\'t Know Why', 'Bon Iver — Holocene', 'Radiohead — No Surprises'],
-  bright: ['Daft Punk — Get Lucky', 'Harry Styles — Watermelon Sugar', 'ABBA — Dancing Queen', 'Max Korzh — Горы по колено'],
+  calm: ['Bon Iver — Holocene', 'Norah Jones — Don\'t Know Why', 'Cigarettes After Sex — Apocalypse', 'Coldplay — Sparks'],
+  bright: ['Daft Punk — Get Lucky', 'Harry Styles — Watermelon Sugar', 'Max Korzh — Горы по колено', 'Mark Ronson — Uptown Funk'],
+  sad: ['Billie Eilish — when the party\'s over', 'Radiohead — No Surprises', 'Zemfira — Хочешь', 'Lana Del Rey — Video Games'],
+  tense: ['Arctic Monkeys — Do I Wanna Know', 'The Weeknd — Save Your Tears', 'Kino — Группа крови', 'Billie Eilish — bad guy'],
 };
 const recCache = new Map<string, Promise<Ranked | null>>();
 const VERSION = /remix|mix\b|live|version|edit|acoustic|instrumental|karaoke|sped|slowed|session|demo|remaster/i;
@@ -187,9 +189,12 @@ async function original(q: string): Promise<Ranked | null> {
 }
 /** До 6 песен под мотивы/настроение — проверенные оригиналы из каталога */
 export async function recommendSongs(motifs: string[], mood: { valence: number; arousal: number }): Promise<Ranked[]> {
+  // по одной песне от каждого мотива по очереди (самый сильный первым), чтобы один мотив не забивал подборку;
+  // настроение текста — отдельным списком из четырёх «четвертей»
+  const q4 = mood.valence >= 0 ? (mood.arousal > 0.1 ? 'bright' : 'calm') : mood.arousal > 0.1 ? 'tense' : 'sad';
+  const lists = [...motifs.slice(0, 3).map((m) => MOOD_SONGS[m] ?? []), MOOD_SONGS[q4]];
   const qs: string[] = [];
-  for (const m of motifs) for (const q of MOOD_SONGS[m] ?? []) if (!qs.includes(q)) qs.push(q);
-  for (const q of MOOD_SONGS[mood.arousal > 0.15 || mood.valence > 0.4 ? 'bright' : 'calm']) if (!qs.includes(q)) qs.push(q);
+  for (let i = 0; i < 4; i++) for (const l of lists) if (l[i] && !qs.includes(l[i])) qs.push(l[i]);
   const pick = qs.slice(0, 6);
   const found = await Promise.all(
     pick.map((q) => {
