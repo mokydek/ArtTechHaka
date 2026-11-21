@@ -85,9 +85,10 @@ export interface Atmos {
   tint: string; // общий тон снимков
 }
 
-const BASE_PAPER = '#efe9df',
-  BASE_PAPER2 = '#f6f2ea',
-  BASE_ACCENT = '#55449e';
+// светлая пастель: тёплый белый лист, белые карточки, лавандово-фиолетовый акцент
+const BASE_PAPER = '#fffdf8',
+  BASE_PAPER2 = '#ffffff',
+  BASE_ACCENT = '#5b4bc4';
 
 export const EMPTY: Atmos = {
   weights: Object.fromEntries(MOTIFS.map((k) => [k, 0])) as Record<Motif, number>,
@@ -147,9 +148,10 @@ export function computeAtmos(days: DayRecord[], draft?: { motifs: Partial<Record
     top,
     counts,
     days: sorted.length,
-    paper: mix(mix(BASE_PAPER, tintHex, 0.08), motifTint, 0.28 * k),
-    paper2: mix(mix(BASE_PAPER2, tintHex, 0.05), motifTint, 0.18 * k),
-    accent: readable(mix(mix(BASE_ACCENT, dayAcc, 0.35), motifAcc, 0.55 * k)),
+    // фон только чуть подкрашен атмосферой — лист остаётся светлым и свежим
+    paper: mix(mix(BASE_PAPER, tintHex, 0.04), motifTint, 0.12 * k),
+    paper2: mix(BASE_PAPER2, motifTint, 0.04 * k),
+    accent: readable(mix(mix(BASE_ACCENT, dayAcc, 0.25), motifAcc, 0.35 * k)),
     tint: tintHex,
   };
 }

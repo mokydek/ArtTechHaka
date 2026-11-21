@@ -19,33 +19,43 @@
 @property --paper {
   syntax: '<color>';
   inherits: true;
-  initial-value: #efe9df;
+  initial-value: #fffdf8;
 }
 @property --paper-2 {
   syntax: '<color>';
   inherits: true;
-  initial-value: #f6f2ea;
+  initial-value: #ffffff;
 }
 @property --accent {
   syntax: '<color>';
   inherits: true;
-  initial-value: #55449e;
+  initial-value: #5b4bc4;
 }
 :root {
   transition:
     --paper 1.6s ease,
     --paper-2 1.6s ease,
     --accent 1.6s ease;
-  --paper: #efe9df;
-  --paper-2: #f6f2ea;
-  /* тёплые чернила сепии вместо холодного чёрного */
-  --ink: #2b211c;
-  --ink-2: #6f6058;
-  --line: rgba(43, 33, 28, 0.15);
-  --accent: #55449e;
-  /* штемпельная краска — фиолетовый оттиск печати */
-  --stamp: #4f3f99;
-  --stamp-deep: #3d2f7d;
+  --paper: #fffdf8;
+  --paper-2: #ffffff;
+  /* глубокие чернила с фиолетовым отливом */
+  --ink: #24233a;
+  --ink-2: #74728a;
+  --line: rgba(36, 35, 58, 0.09);
+  --accent: #5b4bc4;
+  /* фиолетовый акцент для мелких меток и линий */
+  --stamp: #5b4bc4;
+  --stamp-deep: #473aa6;
+  /* пастель: лаванда, небо, коралл, солнце, мята */
+  --lav: #b9a8f4;
+  --lav-soft: #efeafd;
+  --lav-deep: #5a4bb3;
+  --sky: #9bc8e8;
+  --coral: #f49b83;
+  --sun: #f4d77d;
+  --mint: #a9d7c2;
+  --btn: #24233a;
+  --card-shadow: 0 18px 40px -26px rgba(60, 48, 130, 0.45), 0 0 0 1px rgba(36, 35, 58, 0.05);
   /* свет настольной лампы — для мягкого свечения */
   --lamp: #f2c27b;
   --serif: 'Aura Serif', Georgia, serif;
@@ -720,7 +730,7 @@ button {
   display: block;
   margin: 0 auto;
   border-radius: 3px;
-  box-shadow: 0 24px 60px -28px rgba(40, 25, 10, 0.55);
+  box-shadow: 0 24px 60px -28px rgba(52, 40, 110, 0.55);
   background: var(--paper-2);
 }
 .ctrl {
@@ -4184,7 +4194,7 @@ a.tab {
   object-fit: cover;
   border-radius: 4px;
   display: block;
-  box-shadow: 0 4px 10px -6px rgba(40, 25, 10, 0.6);
+  box-shadow: 0 4px 10px -6px rgba(52, 40, 110, 0.6);
 }
 .bun-card b {
   display: block;
@@ -4457,7 +4467,7 @@ a.tab {
   padding: 8px 8px 12px;
   text-decoration: none;
   color: var(--ink);
-  box-shadow: 0 14px 24px -18px rgba(40, 25, 10, 0.7), 0 1px 0 rgba(40, 25, 10, 0.08);
+  box-shadow: 0 14px 24px -18px rgba(52, 40, 110, 0.7), 0 1px 0 rgba(52, 40, 110, 0.08);
   transform: rotate(var(--r));
   transition: transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1), box-shadow 0.3s;
   animation: paste-in 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
@@ -4475,7 +4485,7 @@ a.tab {
 .recent-card:hover,
 .recent-card:focus-visible {
   transform: rotate(0) translateY(-6px);
-  box-shadow: 0 22px 30px -18px rgba(40, 25, 10, 0.7);
+  box-shadow: 0 22px 30px -18px rgba(52, 40, 110, 0.7);
 }
 .recent-card img,
 .recent-ph {
@@ -4619,7 +4629,7 @@ a.tab {
   bottom: 0;
   width: 50%;
   background: #f6f0e4;
-  box-shadow: 0 22px 40px -22px rgba(40, 25, 10, 0.55);
+  box-shadow: 0 22px 40px -22px rgba(52, 40, 110, 0.55);
 }
 .jr-block.right {
   left: 50%;
@@ -4628,7 +4638,7 @@ a.tab {
     3px 0 0 -1px #efe7d8,
     5px 0 0 -2px #e8dfcd,
     7px 1px 0 -3px #e2d7c2,
-    0 26px 44px -24px rgba(40, 25, 10, 0.6);
+    0 26px 44px -24px rgba(52, 40, 110, 0.6);
 }
 .jr-block.left {
   left: 0;
@@ -4637,7 +4647,7 @@ a.tab {
     -3px 0 0 -1px #efe7d8,
     -5px 0 0 -2px #e8dfcd,
     -7px 1px 0 -3px #e2d7c2,
-    0 26px 44px -24px rgba(40, 25, 10, 0.6);
+    0 26px 44px -24px rgba(52, 40, 110, 0.6);
   transition: opacity 0.4s;
 }
 .jr-book.closed .jr-block.left {
@@ -4702,14 +4712,14 @@ a.tab {
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(40, 25, 10, 0.16), rgba(40, 25, 10, 0.04) 6%, transparent 14%);
+  background: linear-gradient(90deg, rgba(52, 40, 110, 0.16), rgba(52, 40, 110, 0.04) 6%, transparent 14%);
 }
 .jr-face.back::before {
-  background: linear-gradient(270deg, rgba(40, 25, 10, 0.16), rgba(40, 25, 10, 0.04) 6%, transparent 14%);
+  background: linear-gradient(270deg, rgba(52, 40, 110, 0.16), rgba(52, 40, 110, 0.04) 6%, transparent 14%);
 }
 .jr.single .jr-face::before,
 .jr.single .jr-base::before {
-  background: linear-gradient(90deg, rgba(40, 25, 10, 0.12), transparent 5%);
+  background: linear-gradient(90deg, rgba(52, 40, 110, 0.12), transparent 5%);
 }
 .jr-leaf.is-cover .jr-face.front::before {
   display: none;
@@ -4783,7 +4793,7 @@ a.tab {
   padding: 18px 30px;
   background: #fffdf8;
   border-radius: 8px;
-  box-shadow: 0 0 0 1.5px rgba(43, 33, 28, 0.18), 0 8px 18px -12px rgba(40, 25, 10, 0.5);
+  box-shadow: 0 0 0 1.5px rgba(43, 33, 28, 0.18), 0 8px 18px -12px rgba(52, 40, 110, 0.5);
   background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(44, 58, 120, 0.16) 25px 26px);
   transform: rotate(-1.5deg);
 }
@@ -4823,8 +4833,8 @@ a.tab {
   background: #fffefb;
   padding: 4.5% 4.5% 15%;
   box-shadow:
-    0 1px 1px rgba(40, 25, 10, 0.12),
-    0 14px 22px -14px rgba(40, 25, 10, 0.55);
+    0 1px 1px rgba(52, 40, 110, 0.12),
+    0 14px 22px -14px rgba(52, 40, 110, 0.55);
 }
 .jp-free {
   padding: 3.5%;
@@ -4861,7 +4871,7 @@ a.tab {
   gap: 5px;
   padding: 6px;
   background: #fffefb;
-  box-shadow: 0 16px 26px -16px rgba(40, 25, 10, 0.6);
+  box-shadow: 0 16px 26px -16px rgba(52, 40, 110, 0.6);
 }
 .jp-collage img {
   width: 100%;
@@ -4931,7 +4941,7 @@ a.tab {
   width: calc(var(--pw) * 0.065);
   height: calc(var(--pw) * 0.065);
   border-radius: 50%;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5), 0 2px 5px rgba(40, 25, 10, 0.3);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5), 0 2px 5px rgba(52, 40, 110, 0.3);
 }
 .jp-title {
   margin: 4% 0 2%;
@@ -4979,7 +4989,7 @@ a.tab {
   font-weight: 600;
   color: #5a4524;
   transform: rotate(-1.5deg);
-  box-shadow: 0 4px 8px -6px rgba(40, 25, 10, 0.6);
+  box-shadow: 0 4px 8px -6px rgba(52, 40, 110, 0.6);
   -webkit-mask: radial-gradient(circle 4px at 100% 50%, transparent 98%, #000) right / 100% 100% no-repeat;
 }
 .jp-ticket i {
@@ -5084,7 +5094,7 @@ a.tab {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: stretch;
-  filter: drop-shadow(0 26px 34px rgba(40, 25, 10, 0.22));
+  filter: drop-shadow(0 26px 34px rgba(52, 40, 110, 0.22));
 }
 .nd-page {
   position: relative;
@@ -5113,11 +5123,11 @@ a.tab {
 }
 .nd-left::after {
   right: 0;
-  background: linear-gradient(270deg, rgba(40, 25, 10, 0.13), transparent);
+  background: linear-gradient(270deg, rgba(52, 40, 110, 0.13), transparent);
 }
 .nd-right::before {
   left: 0;
-  background: linear-gradient(90deg, rgba(40, 25, 10, 0.13), transparent);
+  background: linear-gradient(90deg, rgba(52, 40, 110, 0.13), transparent);
 }
 .nd-row {
   display: flex;
@@ -5279,7 +5289,7 @@ a.tab {
 .fr-board .jp-free.sel {
   box-shadow:
     0 0 0 2px var(--stamp),
-    0 18px 26px -14px rgba(40, 25, 10, 0.6);
+    0 18px 26px -14px rgba(52, 40, 110, 0.6);
 }
 .fr-tools {
   position: absolute;
@@ -5292,7 +5302,7 @@ a.tab {
   transform: translateX(-50%);
   background: #fffaf2;
   border-radius: 999px;
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--stamp) 45%, transparent), 0 10px 20px -12px rgba(40, 25, 10, 0.5);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--stamp) 45%, transparent), 0 10px 20px -12px rgba(52, 40, 110, 0.5);
 }
 .fr-tools button {
   all: unset;
@@ -5331,7 +5341,7 @@ a.tab {
   .nd-page {
     border-radius: 10px;
     padding: 22px 18px 26px;
-    box-shadow: 0 16px 26px -18px rgba(40, 25, 10, 0.5);
+    box-shadow: 0 16px 26px -18px rgba(52, 40, 110, 0.5);
   }
   .nd-left::after,
   .nd-right::before {
@@ -5632,7 +5642,7 @@ a.tab {
   inset: 9% 13% 21% 13%;
   padding: 4% 4% 12%;
   background: #fffefb;
-  box-shadow: 0 18px 30px -16px rgba(40, 25, 10, 0.6);
+  box-shadow: 0 18px 30px -16px rgba(52, 40, 110, 0.6);
   transform: rotate(var(--rot));
   animation: ss-drop 0.8s cubic-bezier(0.2, 1.2, 0.4, 1) both;
 }
@@ -6102,7 +6112,7 @@ input {
   height: 26px;
   border-radius: 0 0 6px 0;
   background: linear-gradient(315deg, var(--paper) 0 49%, #e9e0cf 50%, #fffaf0 72%, #e2d7c3);
-  box-shadow: -3px -3px 6px -3px rgba(40, 25, 10, 0.35);
+  box-shadow: -3px -3px 6px -3px rgba(52, 40, 110, 0.35);
   transition:
     width 0.3s cubic-bezier(0.3, 1.4, 0.5, 1),
     height 0.3s cubic-bezier(0.3, 1.4, 0.5, 1);
@@ -6376,7 +6386,7 @@ img.jp-mood {
   box-shadow: none;
   object-fit: contain;
   transform: rotate(8deg);
-  filter: drop-shadow(0 2px 2px rgba(40, 25, 10, 0.2));
+  filter: drop-shadow(0 2px 2px rgba(52, 40, 110, 0.2));
 }
 .jp-heart {
   width: calc(var(--pw) * 0.18);
@@ -6443,7 +6453,7 @@ img.jp-mood {
     width: 58px;
     height: 58px;
     object-fit: contain;
-    filter: drop-shadow(0 6px 8px rgba(40, 25, 10, 0.3));
+    filter: drop-shadow(0 6px 8px rgba(52, 40, 110, 0.3));
     background: #fbf7ef;
     border-radius: 50%;
   }
@@ -6488,4 +6498,384 @@ body:has(.ce-catalog) .bun {
   opacity: 1;
   font-weight: 700;
   color: var(--ink);
+}
+
+/* ===================================================================
+   Светлая пастель (по макетам ChatGPT): палитра, кнопки, карточки.
+   Раскладка и положение элементов прежние — меняется только оформление.
+   =================================================================== */
+body {
+  background:
+    radial-gradient(1100px 700px at 105% -10%, rgba(185, 168, 244, 0.22), transparent 62%),
+    radial-gradient(900px 640px at -10% 110%, rgba(169, 215, 194, 0.2), transparent 60%),
+    var(--paper);
+  background-attachment: fixed;
+}
+body::before {
+  opacity: 0.14;
+}
+.atmos {
+  opacity: 0.5;
+}
+
+/* шапка */
+.top {
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+  border-bottom: 1px solid rgba(36, 35, 58, 0.06);
+  backdrop-filter: blur(16px);
+}
+.brand {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.nav a,
+.more > button {
+  font-weight: 500;
+}
+.nav a.on::after,
+.more > button.on::after {
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--coral);
+  -webkit-mask: none;
+  mask: none;
+}
+
+/* кнопки: тёмная «таблетка» с лавандовой подложкой */
+.btn {
+  --bg: var(--btn);
+  --bg-h: #343251;
+  --fg: #fff;
+  --frame: transparent;
+  border-radius: 14px;
+  padding: 12px 20px;
+  box-shadow:
+    0 5px 0 -1px #dcd3fb,
+    0 14px 24px -14px rgba(36, 35, 58, 0.6);
+}
+.btn::before,
+.btn:hover::before {
+  filter: none;
+  box-shadow: none;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 2px 0 -1px #dcd3fb,
+    0 8px 16px -12px rgba(36, 35, 58, 0.6);
+}
+.btn.small {
+  border-radius: 11px;
+  padding: 8px 14px;
+  box-shadow: 0 3px 0 -1px #dcd3fb;
+}
+.btn.ghost,
+.btn.ghost.small {
+  --fg: var(--lav-deep);
+  box-shadow: none;
+}
+.btn.ghost::before,
+.btn.ghost:hover::before {
+  background: var(--lav-soft);
+  box-shadow: none;
+}
+.btn.ghost:hover::before {
+  background: #e5defc;
+}
+.btn.light {
+  --bg: #fff;
+  --bg-h: #f4f1ff;
+  --fg: var(--btn);
+  box-shadow: 0 10px 22px -14px rgba(0, 0, 0, 0.55);
+}
+.btn.ghost.light {
+  --fg: #fff;
+}
+.btn.ghost.light::before {
+  background: rgba(255, 255, 255, 0.14);
+}
+.nav a.btn {
+  padding: 10px 18px;
+}
+
+/* поля ввода */
+.inp,
+input[type='text'],
+input[type='search'],
+input[type='date'],
+textarea.inp {
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(36, 35, 58, 0.1);
+}
+.inp:focus,
+input[type='text']:focus,
+input[type='search']:focus {
+  outline: 3px solid rgba(185, 168, 244, 0.45);
+  outline-offset: 0;
+  border-color: var(--lav);
+}
+
+/* вкладки и переключатели: светлая лаванда, выбранная — тёмная */
+.tab {
+  border: 0;
+  border-radius: 999px;
+  background: var(--lav-soft);
+  color: var(--lav-deep);
+  font-weight: 600;
+}
+.tab:hover {
+  background: #e5defc;
+}
+.tab.on,
+.tab[aria-selected='true'] {
+  background: var(--btn);
+  color: #fff;
+  box-shadow: 0 8px 16px -10px rgba(36, 35, 58, 0.6);
+}
+
+/* общий блок */
+.box {
+  background: #f7f4ff;
+  border: 0;
+  border-radius: 20px;
+}
+
+/* всплывающее сообщение */
+.toast {
+  background: var(--btn);
+  color: #fff;
+  border-radius: 14px;
+}
+
+/* главная: дата-пилюля вместо штампа */
+.dater {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 15px;
+  border-radius: 999px;
+  background: var(--lav-soft);
+  color: var(--lav-deep);
+  box-shadow: none;
+  filter: none;
+  transform: none;
+  mix-blend-mode: normal;
+  opacity: 1;
+  animation: pill-in 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.dater small,
+.dater b {
+  font: 700 11.5px/1 var(--sans);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.dater b::before {
+  content: '·';
+  margin-right: 8px;
+}
+@keyframes pill-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}
+
+/* вопрос дня — цветная карточка */
+.prompt-card {
+  background: linear-gradient(135deg, #ece5ff 0%, #f4eeff 50%, #fde9e1 100%);
+  border: 0;
+  border-radius: 26px;
+  padding: 26px 30px 28px;
+  overflow: hidden;
+  box-shadow: 0 22px 44px -28px rgba(90, 70, 170, 0.45);
+}
+.prompt-card::before {
+  display: none;
+}
+.prompt-card::after {
+  content: '';
+  position: absolute;
+  right: -70px;
+  top: -90px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+.prompt-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* недавние дни — белые карточки */
+.recent-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 10px 10px 14px;
+  box-shadow: var(--card-shadow);
+}
+.recent-card img,
+.recent-ph {
+  border-radius: 12px;
+}
+
+/* как это работает */
+.how li {
+  background: #f6f3ff;
+  border: 0;
+  border-radius: 20px;
+  padding: 18px 20px 20px;
+}
+.how li b {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #e8e2fd;
+  color: var(--lav-deep);
+  font: 700 13px/1 var(--sans);
+}
+.how li b::before {
+  display: none;
+}
+
+/* полка: мягкая лавандовая планка вместо дерева */
+.ledge {
+  background: linear-gradient(#f0ecfa, #e4def3);
+  border-radius: 8px;
+  box-shadow: 0 14px 22px -14px rgba(60, 48, 130, 0.45);
+}
+.book-new {
+  background: #f6f3ff;
+  border: 1.5px dashed #c9bdf5;
+  border-radius: 14px;
+  color: var(--lav-deep);
+}
+
+/* телефон: белая панель, тёмная кнопка «+» */
+@media (max-width: 720px) {
+  .tabbar {
+    background: rgba(255, 255, 255, 0.94);
+    border: 0;
+    border-radius: 26px;
+    box-shadow:
+      0 18px 40px -18px rgba(36, 35, 58, 0.45),
+      0 0 0 1px rgba(36, 35, 58, 0.05);
+  }
+  .tabbar > a,
+  .tabbar > button {
+    font-family: var(--sans);
+    font-weight: 500;
+  }
+  .tabbar > .on {
+    color: var(--ink);
+  }
+  .tab-blob::before {
+    background: var(--lav-soft);
+    border-radius: 14px;
+    filter: none;
+  }
+  .tabbar .tab-new {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    background: var(--btn);
+    box-shadow:
+      0 6px 0 -2px #dcd3fb,
+      0 14px 22px -12px rgba(36, 35, 58, 0.7);
+  }
+  .tabbar .tab-new img {
+    display: none;
+  }
+  .tabbar .tab-new.hint::after {
+    border-radius: 22px;
+  }
+  .tabbar .tab-new::before {
+    display: block;
+    content: '';
+    position: static;
+    width: 22px;
+    height: 22px;
+    border-radius: 2px;
+    filter: none;
+    animation: none;
+    box-shadow: none;
+    background:
+      linear-gradient(#fff, #fff) center / 100% 3px no-repeat,
+      linear-gradient(#fff, #fff) center / 3px 100% no-repeat;
+  }
+}
+
+/* светлая пастель: заметнее мягкие кнопки */
+.btn.ghost::before {
+  background: #ebe4fe;
+  box-shadow: inset 0 0 0 1px #d8cdfb;
+}
+.btn.ghost:hover::before {
+  background: #e2d9fd;
+  box-shadow: inset 0 0 0 1px #cbbef9;
+}
+
+/* запись дня: левая страница — лаванда, правая — тёплый белый */
+.nd-page {
+  background-image: radial-gradient(circle, rgba(36, 35, 58, 0.07) 1px, transparent 1.4px);
+}
+.nd-left {
+  background-color: #f5f1ff;
+  border-radius: 24px 0 0 24px;
+}
+.nd-right {
+  background-color: #fffdf9;
+  border-radius: 0 24px 24px 0;
+}
+.nd-book {
+  filter: drop-shadow(0 26px 34px rgba(60, 48, 130, 0.16));
+}
+.pb-empty {
+  border: 1.5px dashed #c4b6f7;
+  border-radius: 20px;
+  background: linear-gradient(150deg, #ebe4ff 0%, #f6e9f3 100%);
+  color: var(--lav-deep);
+}
+.pb-empty:hover,
+.pb-empty.over {
+  background: linear-gradient(150deg, #e3d9ff 0%, #f3e1ee 100%);
+  border-color: var(--lav);
+}
+
+/* год: светлые клетки в белой карточке */
+.yp-c {
+  border-radius: 4px;
+  background: #f0edf8;
+}
+.yp {
+  background: #fff;
+  border-radius: 22px;
+  padding: 16px 16px 12px;
+  box-shadow: var(--card-shadow);
+}
+
+/* дневник: стрелки — белые кружки */
+.jr-arrow {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: var(--card-shadow);
+}
+.jr-arrow:hover:not(:disabled) {
+  background: var(--lav-soft);
+}
+
+/* год: цифры в лавандовых карточках */
+.stat {
+  background: #f6f3ff;
+  border-radius: 18px;
+  padding: 14px 16px;
 }
