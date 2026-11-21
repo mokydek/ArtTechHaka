@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDiary } from '../App';
 import Book from '../components/Book';
 import { dayPrompt, onThisDay, plural, streak, todayISO } from '../lib/prompts';
@@ -116,23 +116,7 @@ export default function Shelf() {
         </section>
       ) : (
         !loading && (
-          <section className="how">
-            <h2 className="h2">Как это работает</h2>
-            <ol>
-              <li>
-                <b>1</b>
-                <span>Напиши пару строк о дне, как близкому другу.</span>
-              </li>
-              <li>
-                <b>2</b>
-                <span>Добавь фото и песню, которые были в этот день.</span>
-              </li>
-              <li>
-                <b>3</b>
-                <span>Echo проявит живую страницу: цвета, движение и звук дня.</span>
-              </li>
-            </ol>
-          </section>
+          <HowItWorks />
         )
       )}
 
@@ -210,5 +194,72 @@ function Dater({ date }: { date: string }) {
         {String(d).padStart(2, '0')} {MON[m - 1]} {y}
       </b>
     </span>
+  );
+}
+
+/** «Как это работает»: три предмета со страницы дневника — записка, полароид с песней и живая страница, связаны пунктиром */
+function HowItWorks() {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // записка «пишется», когда блок попадает на экран
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          el.classList.add('seen');
+          io.disconnect();
+        }
+      },
+      { threshold: 0.35 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <section className="how" ref={ref}>
+      <h2 className="h2">Как это работает</h2>
+      <ol className="how-steps">
+        <li className="hs hs-write">
+          <div className="hs-art" aria-hidden>
+            <div className="hs-note">
+              <i />
+              <i />
+              <i />
+            </div>
+          </div>
+          <p>
+            <b>1</b>
+            <span>Напиши пару строк о дне, как близкому другу.</span>
+          </p>
+        </li>
+        <li className="hs hs-add">
+          <div className="hs-art" aria-hidden>
+            <div className="hs-pol">
+              <div className="hs-photo" />
+            </div>
+            <span className="hs-badge">♪</span>
+          </div>
+          <p>
+            <b>2</b>
+            <span>Добавь фото и песню, которые были в этот день.</span>
+          </p>
+        </li>
+        <li className="hs hs-live">
+          <div className="hs-art" aria-hidden>
+            <div className="hs-page">
+              <i />
+              <i />
+              <i />
+              <s />
+            </div>
+          </div>
+          <p>
+            <b>3</b>
+            <span>Echo проявит живую страницу: цвета, движение и звук дня.</span>
+          </p>
+        </li>
+      </ol>
+    </section>
   );
 }
