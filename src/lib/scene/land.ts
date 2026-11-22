@@ -84,6 +84,7 @@ export interface ShotCover {
   hHalf: number; // половина горизонтального угла кадра
   depth: Float32Array; // по столбцам: дальняя точка снимка (не небо), м
   sky: Float32Array; // по столбцам: угол над горизонтом, где начинается небо (рад), или 9 — неба нет
+  top: number; // угол верхнего края кадра над горизонтом
 }
 
 export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number; keep?: number; cover?: ShotCover; osm?: OsmWorld | null }): Land {
@@ -111,6 +112,8 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     const c0 = Math.max(0, Math.min(n - 1, Math.floor(col(ang - 0.08 - pad)))),
       c1 = Math.max(0, Math.min(n - 1, Math.ceil(col(ang + 0.08 + pad))));
     const el = Math.atan2(top - 1.6, r);
+    // у краёв кадра снимок полупрозрачный (мягкий переход) — там позади ничего не ставим
+    if ((c0 < n * 0.12 || c1 > n * 0.88 || el > cv.top - 0.14) && r < keep) return true;
     for (let c = c0; c <= c1; c++) if (r < cv.depth[c] * 1.08 + 3 || el > cv.sky[c] - 0.03) return true;
     return false;
   };
@@ -384,7 +387,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     const add = (x: number, z: number, w: number, d: number, h: number) => {
       // ближе 10 м от точки съёмки домов нет (считаем до ближайшей стены, а не до центра)
       if (Math.hypot(Math.max(Math.abs(x) - w / 2, 0), Math.max(Math.abs(z) - d / 2, 0)) < 10) return;
-      if (inShot(x, z, 0.1, h) || inShot(x - w / 2, z + d / 2, 0, h) || inShot(x + w / 2, z + d / 2, 0, h)) return;
+      if (inShot(x, z, 0.1, h) || [[-1, -1], [-1, 1], [1, -1], [1, 1]].some(([sx, sz]) => inShot(x + (sx * w) / 2, z + (sz * d) / 2, 0.02, h))) return;
       for (const q of houses) if (Math.abs(q.x - x) < (q.w + w) / 2 + 2 && Math.abs(q.z - z) < (q.d + d) / 2 + 2) return;
       houses.push({ x, z, w, d });
       colliders.push({ x0: x - w / 2 - 0.4, x1: x + w / 2 + 0.4, z0: z - d / 2 - 0.4, z1: z + d / 2 + 0.4 });

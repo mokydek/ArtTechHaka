@@ -40,16 +40,22 @@ attribute float aVeg;
 attribute float aSky;
 attribute float aDist;
 attribute float aEdge;
+attribute float aFlat;
+attribute float aRel;
 uniform float uTime;
 uniform float uWind;
+uniform float uAway;
 varying vec2 vUv;
 varying float vVeg;
 varying float vSky;
 varying float vDist;
 varying float vEdge;
+varying float vRel;
 varying vec3 vWorld;
 void main(){
-  vec3 p = position;
+  vRel = aRel;
+  // из точки съёмки — точная глубина; отошёл — сглаженная, без волн (точка едет по своему лучу, кадр не меняется)
+  vec3 p = position * mix(1.0, aFlat, uAway);
   // листва и трава качаются: угол качания одинаков вблизи и вдали, порывы идут волной
   float ph = p.x * 0.55 + p.y * 1.3 + p.z * 0.35;
   float gust = 0.55 + 0.45 * sin(uTime * 0.5 + p.x * 0.18);
@@ -82,12 +88,15 @@ uniform vec2 uDrift;
 uniform float uFlash;
 uniform float uAway; // 0 — в точке съёмки, 1 — отошёл
 uniform vec3 uEye;   // откуда снимали (в мире)
+uniform vec2 uAspect; // ширина/высота снимка
+uniform float uPix;   // доля высоты снимка в пикселе экрана на единичном расстоянии
 varying vec3 vWorld;
 varying vec2 vUv;
 varying float vVeg;
 varying float vSky;
 varying float vDist;
 varying float vEdge;
+varying float vRel;
 ${NOISE}
 void main(){
   vec4 c = texture2D(uMap, vUv);
@@ -121,9 +130,23 @@ void main(){
   // снимок верен только под тем углом, под которым его сняли: чем сильнее смотришь сбоку,
   // тем прозрачнее он становится — растянутые «рёбра» глубины не лезут в глаза
   float ang = dot(normalize(vWorld - uEye), normalize(vWorld - cameraPosition));
-  a *= smoothstep(0.93, 0.988, ang);
+  a *= smoothstep(0.955, 0.992, ang);
+  // подошёл вплотную — снимок расступается, а не лезет в лицо кривым рельефом
+  a *= 1.0 - (1.0 - smoothstep(1.2, 2.6, distance(vWorld, cameraPosition))) * uAway;
   // далеко от точки съёмки снимок уже не нужен — вокруг мир
-  a *= 1.0 - smoothstep(7.0, 14.0, distance(cameraPosition.xz, uEye.xz));
+  a *= 1.0 - smoothstep(5.0, 10.0, distance(cameraPosition.xz, uEye.xz));
+  // растянутые полосы: пиксель снимка вытянут в одну сторону сильно сильнее, чем в другую
+  vec2 jx = dFdx(vUv) * uAspect, jy = dFdy(vUv) * uAspect;
+  float ja = dot(jx, jx), jb = dot(jx, jy), jc = dot(jy, jy);
+  float jr = sqrt(max((ja - jc) * (ja - jc) + 4.0 * jb * jb, 0.0));
+  float an = sqrt((ja + jc + jr) / max(ja + jc - jr, 1e-12));
+  a *= 1.0 - smoothstep(2.2, 4.0, an) * uAway;
+  // и растянутые целиком: пиксель снимка на экране сильно крупнее, чем был бы для этой точки
+  float smin = sqrt(max(ja + jc - jr, 0.0) * 0.5);
+  float sexp = uPix * distance(vWorld, cameraPosition) / max(distance(vWorld, uEye), 0.1);
+  a *= 1.0 - smoothstep(2.6, 5.0, sexp / max(smin, 1e-7)) * uAway;
+  // ненадёжная глубина (пила, шум) — со стороны не показываем
+  a *= mix(1.0, smoothstep(0.28, 0.5, vRel), uAway);
   if (a < 0.03) discard;
   gl_FragColor = vec4(col, a);
 }`;
@@ -415,6 +438,7 @@ export class Moment {
       uFlash: { value: 0 },
       uAway: { value: 0 },
       uEye: { value: new THREE.Vector3(0, EYE, 0) },
+      uPix: { value: 0.001 },
     };
     this.m = masks(L, o.photo);
     const mo = +o.ctx.local.slice(5, 7);
@@ -486,7 +510,7 @@ export class Moment {
           if (el < cs[x]) cs[x] = el;
         } else cd[x] = Math.max(cd[x], front[i] * scale * Math.hypot(1, b));
       }
-    this.cover = { hHalf: Math.atan(this.tanH), depth: cd, sky: cs };
+    this.cover = { hHalf: Math.atan(this.tanH), depth: cd, sky: cs, top: Math.atan2(this.tanV * cp + sp, cp - this.tanV * sp) };
     const mesh = this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: this.texture(toCanvas(o.photo, 2048)), order: 2 });
     (mesh.material as THREE.ShaderMaterial).polygonOffset = true;
     (mesh.material as THREE.ShaderMaterial).polygonOffsetFactor = -2;
@@ -598,7 +622,37 @@ export class Moment {
           if (r > 1.35) edge[i] = edge[j] = 1;
         }
       }
+    // сглаженная глубина для взгляда со стороны: усредняем обратное расстояние (у любой плоскости оно
+    // меняется по кадру линейно, поэтому стены, земля, табличка остаются ровными), но только среди
+    // соседей того же предмета — шум и «волны» оценки глубины уходят, края предметов остаются
+    const flat = new Float32Array(n).fill(1);
+    // доля соседей «того же предмета»: где глубина скачет пилой, оценка ненадёжна — со стороны такое прячем
+    const rel = new Float32Array(n).fill(1);
+    const R = Math.max(3, Math.round(gw * 0.05));
+    for (let y = 0; y < gh; y++)
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        if (sky[i]) continue;
+        const di = 1 / dist[i];
+        let s = 0,
+          w = 0,
+          all = 0;
+        for (let yy = Math.max(0, y - R); yy <= Math.min(gh - 1, y + R); yy += 2)
+          for (let xx = Math.max(0, x - R); xx <= Math.min(gw - 1, x + R); xx += 2) {
+            const j = yy * gw + xx;
+            if (sky[j]) continue;
+            all++;
+            const dj = 1 / dist[j];
+            if (Math.abs(dj - di) > di * 0.18) continue;
+            s += dj;
+            w++;
+          }
+        if (w > 4) flat[i] = di / (s / w);
+        rel[i] = all ? w / all : 1;
+      }
     const geo = new THREE.BufferGeometry();
+    geo.setAttribute('aFlat', new THREE.BufferAttribute(flat, 1));
+    geo.setAttribute('aRel', new THREE.BufferAttribute(rel, 1));
     geo.setAttribute('aEdge', new THREE.BufferAttribute(edge, 1));
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
@@ -607,7 +661,7 @@ export class Moment {
     geo.setAttribute('aDist', new THREE.BufferAttribute(dist, 1));
     geo.setIndex(idx);
     const mat = new THREE.ShaderMaterial({
-      uniforms: { ...this.uni, uMap: { value: o.map } },
+      uniforms: { ...this.uni, uMap: { value: o.map }, uAspect: { value: new THREE.Vector2(this.tanH / this.tanV, 1) } },
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
@@ -955,6 +1009,8 @@ export class Moment {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
     }
+    // сколько «тангенса» в одном пикселе экрана — чтобы шейдер узнал растянутые куски снимка
+    this.uni.uPix.value = (2 * Math.tan((fov * Math.PI) / 360)) / Math.max(1, this.renderer.domElement.height) / (2 * this.tanV);
     const bx = (Math.sin(t * 0.31) * 0.04 + Math.sin(t * 0.17) * 0.025) * o + this.leanCur.x * 0.11 * o,
       by = Math.sin(t * 0.23 + 1.3) * 0.02 * o + this.leanCur.y * 0.06 * o + (ml > 0.02 ? Math.sin(t * 9) * 0.025 : 0),
       bz = (Math.sin(t * 0.11) * 0.1 - 0.06) * o;

@@ -385,7 +385,7 @@ function swatch(photo: Pic, gw: number, gh: number, hit: (i: number) => boolean,
   A.width = A.height = S;
   const ga = A.getContext('2d')!;
   ga.imageSmoothingQuality = 'high';
-  ga.drawImage(photo, sx, sy, sw, sh, 0, 0, S, S);
+  ga.drawImage(soft(photo, sx, sy, sw, sh), 0, 0, S, S);
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d')!;
@@ -410,13 +410,54 @@ function swatch(photo: Pic, gw: number, gh: number, hit: (i: number) => boolean,
   return c;
 }
 
+/**
+ * Кусок снимка в родном разрешении, слегка размытый: мелкая сетка (снимок экрана, муар, шум)
+ * при повторе плиткой превращается в «клетку» — размытие её гасит, крупный рисунок остаётся.
+ */
+function soft(photo: Pic, sx: number, sy: number, sw: number, sh: number): HTMLCanvasElement {
+  const w = Math.max(4, Math.round(sw)),
+    h = Math.max(4, Math.round(sh));
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(photo, sx, sy, sw, sh, 0, 0, w, h);
+  const im = g.getImageData(0, 0, w, h);
+  const d = im.data;
+  const r = Math.max(1, Math.round(Math.max(photo.width, photo.height) / 600));
+  const t = new Float32Array(w * h * 3);
+  // два прохода прямоугольного размытия по x и по y ≈ гаусс
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < h; y++)
+      for (let ch = 0; ch < 3; ch++) {
+        let s = 0;
+        for (let k = -r; k <= r; k++) s += d[(y * w + Math.min(w - 1, Math.max(0, k))) * 4 + ch];
+        for (let x = 0; x < w; x++) {
+          t[(y * w + x) * 3 + ch] = s / (2 * r + 1);
+          s += d[(y * w + Math.min(w - 1, x + r + 1)) * 4 + ch] - d[(y * w + Math.max(0, x - r)) * 4 + ch];
+        }
+      }
+    for (let x = 0; x < w; x++)
+      for (let ch = 0; ch < 3; ch++) {
+        let s = 0;
+        for (let k = -r; k <= r; k++) s += t[(Math.min(h - 1, Math.max(0, k)) * w + x) * 3 + ch];
+        for (let y = 0; y < h; y++) {
+          d[(y * w + x) * 4 + ch] = s / (2 * r + 1);
+          s += t[(Math.min(h - 1, y + r + 1) * w + x) * 3 + ch] - t[(Math.max(0, y - r) * w + x) * 3 + ch];
+        }
+      }
+  }
+  g.putImageData(im, 0, 0);
+  return c;
+}
+
 /** куст из куска снимка: силуэт — несколько круглых «шапок» листвы, плотнее снизу; внутри — пиксели самого фото */
 function clump(photo: Pic, sx: number, sy: number, sw: number, sh: number, seed: number): HTMLCanvasElement {
   const S = 256;
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d', { willReadFrequently: true })!;
-  g.drawImage(photo, sx, sy, sw, sh, 0, 0, S, S);
+  g.drawImage(soft(photo, sx, sy, sw, sh), 0, 0, S, S);
   const im = g.getImageData(0, 0, S, S);
   const d = im.data;
   let st = seed * 9301 + 49297;
