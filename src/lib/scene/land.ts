@@ -13,6 +13,8 @@ export interface Land {
   group: THREE.Group;
   colliders: { x0: number; x1: number; z0: number; z1: number }[];
   solid?: (x: number, z: number) => boolean;
+  /** каждый кадр: кусты поворачиваются к зрителю, свет и туман */
+  tick?: (cam: THREE.Camera, time: number, light: THREE.Color, fog: THREE.FogExp2 | null) => void;
   height: (x: number, z: number) => number;
   setNight: (n: number) => void;
   radius: number;
@@ -77,7 +79,7 @@ function paint(geo: THREE.BufferGeometry, f: (n: THREE.Vector3, p: THREE.Vector3
   return g;
 }
 
-export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number; osm?: OsmWorld | null }): Land {
+export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number; keep?: number; osm?: OsmWorld | null }): Land {
   const R = rng(o.seed);
   const nz = noise2(o.seed % 997);
   const group = new THREE.Group();
@@ -85,6 +87,9 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
   const C = t.colors;
   const snow: RGB = [0.9, 0.92, 0.96];
   const osm = o.osm && t.kind !== 'indoor' ? o.osm : null;
+  // в кадре снимка до его дальнего плана ничего не ставим: там стоит сам снимок (дорога и земля — можно)
+  const keep = (o.keep ?? 40) * 1.15 + 15;
+  const inShot = (x: number, z: number, pad = 0) => z < 0 && Math.abs(Math.atan2(x, -z)) < o.hHalf + 0.08 + pad && Math.hypot(x, z) < keep;
   const road = osm ? null : t.road;
   const city = t.kind === 'city' || !!osm;
   const park = t.kind === 'park';
@@ -112,7 +117,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     x.anisotropy = 8;
     return x;
   };
-  const groundTex = osm || (o.snowy && t.ground !== 'snow') ? null : tex(t.tex.ground);
+  const groundTex = osm || (o.snowy && t.ground !== 'snow') || !['grass', 'snow', 'sand'].includes(t.ground) ? null : tex(t.tex.ground);
   const leafTex = tex(t.tex.leaf);
 
   // ---------- земля ----------
@@ -133,7 +138,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         const x = Math.sin(a) * r,
           z = -Math.cos(a) * r;
         pos.push(x, height(x, z), z);
-        uvs.push(x / 4.5, z / 4.5);
+        uvs.push(x / 7, z / 7);
         const v = nz(x * 0.04, z * 0.04),
           v2 = nz(x * 0.011 + 40, z * 0.011);
         let c = mul(base, 0.86 + v * 0.26);
@@ -301,6 +306,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         z1 = Math.max(z1, z);
       }
       if (x1 - x0 > 400 || z1 - z0 > 400) continue;
+      if (b.pts.some(([x, z]) => inShot(x, z))) continue;
       let g: THREE.BufferGeometry;
       try {
         g = new THREE.ExtrudeGeometry(new THREE.Shape(b.pts.map(([x, z]) => new THREE.Vector2(x, -z))), { depth: b.h, bevelEnabled: false });
@@ -354,6 +360,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     const add = (x: number, z: number, w: number, d: number, h: number) => {
       // ближе 10 м от точки съёмки домов нет (считаем до ближайшей стены, а не до центра)
       if (Math.hypot(Math.max(Math.abs(x) - w / 2, 0), Math.max(Math.abs(z) - d / 2, 0)) < 10) return;
+      if (inShot(x, z, 0.1) || inShot(x - w / 2, z + d / 2) || inShot(x + w / 2, z + d / 2)) return;
       for (const q of houses) if (Math.abs(q.x - x) < (q.w + w) / 2 + 2 && Math.abs(q.z - z) < (q.d + d) / 2 + 2) return;
       houses.push({ x, z, w, d });
       colliders.push({ x0: x - w / 2 - 0.4, x1: x + w / 2 + 0.4, z0: z - d / 2 - 0.4, z1: z + d / 2 + 0.4 });
@@ -439,12 +446,12 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
       if (r < 3.5) continue;
       if (road && Math.abs(x - road.x) < roadClear && !(city && Math.abs(Math.abs(x - road.x) - (road.width / 2 + 3.9)) < 0.8)) continue;
       // прямо в кадре вблизи — пусто: там стоит сам снимок
-      if (z < 0 && Math.abs(Math.atan2(x, -z)) < o.hHalf + 0.06 && r < 18) continue;
+      if (inShot(x, z)) continue;
       if (inHouse(x, z, 2)) continue;
       items.push({ x, z, s: 0.75 + R() * (t.kind === 'nature' ? 1.3 : 0.7), c: R(), kind: R() < coniferShare ? 1 : 0 });
     }
     for (const [x, z] of osmTrees.slice(0, 1600)) {
-      if (Math.hypot(x, z) < 3.5 || solid(x, z)) continue;
+      if (Math.hypot(x, z) < 3.5 || solid(x, z) || inShot(x, z)) continue;
       items.push({ x, z, s: 0.8 + R() * 0.9, c: R(), kind: R() < coniferShare ? 1 : 0 });
     }
     // листва — из куска самого снимка (если зелень на фото есть), ствол — цветом коры
@@ -479,42 +486,84 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
   }
 
   // ---------- заросли из самого снимка (поле, кусты, высокая трава) ----------
+  // кусты всегда повёрнуты к зрителю (как в играх) — с любой стороны выглядят кустом, а не коробкой
+  const plantMats: THREE.ShaderMaterial[] = [];
   if (t.tex.plants.length && !osm && !o.snowy) {
-    const card = new THREE.PlaneGeometry(1, 1);
-    card.translate(0, 0.5, 0);
-    const cross = mergeGeometries([card.clone(), card.clone().rotateY(Math.PI / 2)]);
-    const m4 = new THREE.Matrix4(),
-      q = new THREE.Quaternion(),
-      e = new THREE.Euler();
-    const col = new THREE.Color();
-    const per = Math.round(1800 / t.tex.plants.length);
+    const base = new THREE.PlaneGeometry(1, 1, 1, 2);
+    base.translate(0, 0.5, 0);
+    const per = Math.round(1500 / t.tex.plants.length);
     for (const cv of t.tex.plants) {
       const map = tex(cv)!;
       map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
-      const pm = new THREE.MeshLambertMaterial({ map, alphaTest: 0.45, side: THREE.DoubleSide });
-      const im = new THREE.InstancedMesh(cross, pm, per);
-      let n = 0;
-      for (let k = 0; k < per * 3 && n < per; k++) {
+      const ipos: number[] = [],
+        isz: number[] = [],
+        ish: number[] = [];
+      for (let k = 0; k < per * 3 && ish.length < per; k++) {
         const a = R() * Math.PI * 2,
           r = 2.5 + Math.pow(R(), 0.75) * 90;
         const x = Math.sin(a) * r,
           z = -Math.cos(a) * r;
         if (road && Math.abs(x - road.x) < road.width / 2 + 1) continue;
-        if (z < 0 && Math.abs(Math.atan2(x, -z)) < o.hHalf + 0.04 && r < 9) continue;
-        const sz = 1.1 + R() * 0.9;
-        e.set(0, R() * Math.PI, 0);
-        q.setFromEuler(e);
-        m4.compose(new THREE.Vector3(x, height(x, z) - 0.05, z), q, new THREE.Vector3(sz * 1.3, sz, sz * 1.3));
-        im.setMatrixAt(n, m4);
-        const kk = 0.85 + R() * 0.25;
-        im.setColorAt(n, col.setRGB(kk, kk, kk));
-        n++;
+        if (inShot(x, z)) continue;
+        const sz = 0.7 + R() * 0.8;
+        ipos.push(x, height(x, z) - 0.05, z);
+        isz.push(sz * (1.1 + R() * 0.4), sz);
+        ish.push(0.82 + R() * 0.3);
       }
-      im.count = n;
-      im.instanceMatrix.needsUpdate = true;
-      group.add(im);
+      const g = new THREE.InstancedBufferGeometry();
+      g.index = base.index;
+      g.setAttribute('position', base.getAttribute('position'));
+      g.setAttribute('uv', base.getAttribute('uv'));
+      g.setAttribute('iPos', new THREE.InstancedBufferAttribute(new Float32Array(ipos), 3));
+      g.setAttribute('iSize', new THREE.InstancedBufferAttribute(new Float32Array(isz), 2));
+      g.setAttribute('iShade', new THREE.InstancedBufferAttribute(new Float32Array(ish), 1));
+      g.instanceCount = ish.length;
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { uMap: { value: map }, uRight: { value: new THREE.Vector3(1, 0, 0) }, uLight: { value: new THREE.Color(1, 1, 1) }, uFog: { value: new THREE.Color(0.8, 0.8, 0.8) }, uFogD: { value: 0.004 }, uTime: { value: 0 } },
+        vertexShader: `
+attribute vec3 iPos; attribute vec2 iSize; attribute float iShade;
+uniform vec3 uRight; uniform float uTime;
+varying vec2 vUv; varying float vShade; varying float vDepth;
+void main(){
+  float sway = sin(uTime * 1.6 + iPos.x * 0.7 + iPos.z * 0.5) * 0.06 * position.y;
+  vec3 p = iPos + uRight * ((position.x + sway) * iSize.x) + vec3(0.0, position.y * iSize.y, 0.0);
+  vec4 mv = viewMatrix * vec4(p, 1.0);
+  vUv = uv; vShade = iShade * (0.78 + 0.22 * position.y); vDepth = -mv.z;
+  gl_Position = projectionMatrix * mv;
+}`,
+        fragmentShader: `
+uniform sampler2D uMap; uniform vec3 uLight; uniform vec3 uFog; uniform float uFogD;
+varying vec2 vUv; varying float vShade; varying float vDepth;
+void main(){
+  vec4 c = texture2D(uMap, vUv);
+  if (c.a < 0.5) discard;
+  vec3 col = c.rgb * vShade * uLight;
+  float f = 1.0 - exp(-uFogD * uFogD * vDepth * vDepth);
+  gl_FragColor = vec4(mix(col, uFog, f), 1.0);
+}`,
+        side: THREE.DoubleSide,
+      });
+      plantMats.push(mat);
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.frustumCulled = false;
+      group.add(mesh);
     }
   }
+  const tick = (cam: THREE.Camera, time: number, light: THREE.Color, fog: THREE.FogExp2 | null) => {
+    if (!plantMats.length) return;
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    right.y = 0;
+    right.normalize();
+    for (const m of plantMats) {
+      (m.uniforms.uRight.value as THREE.Vector3).copy(right);
+      m.uniforms.uTime.value = time;
+      (m.uniforms.uLight.value as THREE.Color).copy(light);
+      if (fog) {
+        (m.uniforms.uFog.value as THREE.Color).copy(fog.color);
+        m.uniforms.uFogD.value = fog.density;
+      }
+    }
+  };
 
   // ---------- фонари ----------
   const glowPts: number[] = [];
@@ -524,7 +573,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     for (const side of [-1, 1])
       for (let z = -280; z <= 280; z += 26) {
         const x = road.x + side * (road.width / 2 + 1.2);
-        if (Math.hypot(x, z) < 6 || inHouse(x, z, 1)) continue;
+        if (Math.hypot(x, z) < 6 || inHouse(x, z, 1) || inShot(x, z)) continue;
         const p = new THREE.CylinderGeometry(0.07, 0.1, 5.2, 6);
         p.translate(x, 2.6 + height(x, z), z);
         const arm = new THREE.BoxGeometry(1.4, 0.08, 0.08);
@@ -542,7 +591,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
       const x = osmLamps[i],
         z = osmLamps[i + 1],
         a = osmLamps[i + 2];
-      if (solid(x, z)) continue;
+      if (solid(x, z) || inShot(x, z)) continue;
       const p = new THREE.CylinderGeometry(0.07, 0.1, 5.2, 6);
       p.translate(x, 2.6, z);
       const hx = x + Math.sin(a) * 1.1,
@@ -559,7 +608,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         r = 10 + R() * 60;
       const x = Math.sin(a) * r,
         z = -Math.cos(a) * r;
-      if (inHouse(x, z, 1)) continue;
+      if (inHouse(x, z, 1) || inShot(x, z)) continue;
       glowPts.push(x, 3.6, z);
       const p = new THREE.CylinderGeometry(0.06, 0.09, 3.7, 6);
       p.translate(x, 1.85, z);
@@ -657,7 +706,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     group.traverse((o2) => o2.userData.night?.(n));
     if (glow) (glow.material as THREE.ShaderMaterial).uniforms.uOn.value = n;
   };
-  return { group, colliders, solid, height, setNight, radius: osm ? 250 : 300 };
+  return { group, colliders, solid, height, setNight, tick, radius: osm ? 250 : 300 };
 }
 
 /** ель (1) или лиственное дерево (0), высота ~5 м при масштабе 1: ствол и крона отдельно */

@@ -39,12 +39,14 @@ const VERT = /* glsl */ `
 attribute float aVeg;
 attribute float aSky;
 attribute float aDist;
+attribute float aEdge;
 uniform float uTime;
 uniform float uWind;
 varying vec2 vUv;
 varying float vVeg;
 varying float vSky;
 varying float vDist;
+varying float vEdge;
 void main(){
   vec3 p = position;
   // листва и трава качаются: угол качания одинаков вблизи и вдали, порывы идут волной
@@ -58,6 +60,7 @@ void main(){
   vVeg = aVeg;
   vSky = aSky;
   vDist = aDist;
+  vEdge = aEdge;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }`;
 
@@ -75,11 +78,12 @@ uniform float uDapple;  // солнечные блики в листве
 uniform float uNight;   // звёзды
 uniform vec2 uDrift;
 uniform float uFlash;
-uniform float uOpacity;
+uniform float uAway; // 0 — в точке съёмки, 1 — отошёл
 varying vec2 vUv;
 varying float vVeg;
 varying float vSky;
 varying float vDist;
+varying float vEdge;
 ${NOISE}
 void main(){
   vec4 c = texture2D(uMap, vUv);
@@ -104,9 +108,14 @@ void main(){
   col = mix(col, uHazeCol, hz);
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(l), col, uSat) * uTint * uExposure + uFlash;
-  // мягкие края: снимок растворяется в достроенном мире вокруг
+  // мягкие края: снимок переходит в достроенный мир вокруг
   float fe = smoothstep(0.0, 0.07, vUv.x) * smoothstep(0.0, 0.07, 1.0 - vUv.x) * smoothstep(0.0, 0.07, vUv.y) * smoothstep(0.0, 0.07, 1.0 - vUv.y);
-  gl_FragColor = vec4(col, c.a * fe * uOpacity);
+  float a = c.a * fe;
+  // отошёл — небо снимка уступает небу мира, а растянутые грани на разрывах глубины прячутся
+  if (vSky > 0.5) a *= 1.0 - uAway;
+  a *= 1.0 - vEdge * uAway;
+  if (a < 0.03) discard;
+  gl_FragColor = vec4(col, a);
 }`;
 
 const PVERT = /* glsl */ `
@@ -254,6 +263,8 @@ function haloSky(d: Float32Array, sky: Uint8Array, gw: number, gh: number) {
 }
 
 const EYE = 1.6;
+// земля снимка чуть выше земли мира (выше дороги и тротуара), чтобы они не перекрывали снимок
+const LIFT = 0.16;
 
 const SKY_VERT = /* glsl */ `
 varying vec3 vDir;
@@ -307,7 +318,6 @@ function skyPalette(alt: number): { top: RGB; low: RGB } {
 export class Moment {
   readonly renderer: THREE.WebGLRenderer;
   private world = new THREE.Scene();
-  private panel = new THREE.Scene();
   private fx = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(50, 1, 0.1, 3000);
   private uni: Uniforms;
@@ -325,6 +335,9 @@ export class Moment {
   private walkFov = 62;
   private pitch0: number;
   private photo = new THREE.Group();
+  private maxDepth = 40;
+  private norm = 1;
+  private plantLight = new THREE.Color(1, 1, 1);
   private land: Land;
   // взгляд: цель и сглаженное текущее; наклон телефона и мышь — добавки рядом со снимком
   private aim = { yaw: 0, pitch: 0 };
@@ -389,7 +402,7 @@ export class Moment {
       uNight: { value: 0 },
       uDrift: { value: new THREE.Vector2() },
       uFlash: { value: 0 },
-      uOpacity: { value: 1 },
+      uAway: { value: 0 },
     };
     this.m = masks(L, o.photo);
     const mo = +o.ctx.local.slice(5, 7);
@@ -398,8 +411,7 @@ export class Moment {
     // ---- снимок: окно в тот момент, стоит в точке съёмки ----
     const { gw, gh } = L;
     const dist = (depth: Float32Array, sky: Uint8Array, push: number) => Float32Array.from(depth, (d, i) => this.dist(d, !!sky[i]) * push);
-    const front = haloSky(dist(L.depthRaw, this.m.sky, 1), this.m.sky, gw, gh);
-    this.photo.add(this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: this.texture(toCanvas(o.photo, 2048)), order: 0 }));
+    const raw = dist(L.depthRaw, this.m.sky, 1);
     this.pitch0 = clamp(-Math.atan((1 - 2 * L.horizon) * this.tanV), -0.45, 0.45);
     // масштаб: земля у нижнего края снимка ложится на землю мира (глаза на высоте 1,6 м)
     const ys: number[] = [];
@@ -409,7 +421,7 @@ export class Moment {
       for (let x = Math.floor(gw * 0.25); x < gw * 0.75; x++) {
         const i = y * gw + x;
         if (this.m.sky[i]) continue;
-        const d = front[i],
+        const d = raw[i],
           ly = (1 - (y / (gh - 1)) * 2) * this.tanV * d,
           lz = -d;
         ys.push(ly * cp - lz * sp);
@@ -417,10 +429,47 @@ export class Moment {
     ys.sort((a, b) => a - b);
     const med = ys.length ? ys[Math.floor(ys.length / 2)] : -1;
     const scale = med < -0.05 ? clamp(EYE / -med, 0.25, 6) : 1;
+    // земля снимка ложится ровно на землю мира: снизу вверх по каждому столбцу, пока глубина похожа на пол
+    for (let x = 0; x < gw; x++) {
+      let miss = 0;
+      for (let y = gh - 1; y >= 0; y--) {
+        const i = y * gw + x;
+        if (this.m.sky[i]) break;
+        const b = (1 - (y / (gh - 1)) * 2) * this.tanV;
+        const ry = b * cp + sp; // y луча (a, b, −1) после наклона камеры
+        if (ry > -0.012) break;
+        const dPlane = (EYE - LIFT) / (scale * -ry);
+        const k = raw[i] / dPlane;
+        if (k > 0.55 && k < 1.6) {
+          raw[i] = dPlane;
+          miss = 0;
+        } else if (++miss > 2) break;
+      }
+    }
+    // и ничто на снимке не уходит под землю мира: дальше точки, где луч упирается в землю, не бывает
+    for (let y = 0; y < gh; y++) {
+      const b = (1 - (y / (gh - 1)) * 2) * this.tanV;
+      const ry = b * cp + sp;
+      if (ry > -0.004) continue;
+      const dPlane = (EYE - LIFT) / (scale * -ry);
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        if (!this.m.sky[i] && raw[i] > dPlane) raw[i] = dPlane;
+      }
+    }
+    const front = haloSky(raw, this.m.sky, gw, gh);
+    this.maxDepth = 0;
+    for (let i = 0; i < gw * gh; i++) this.maxDepth = Math.max(this.maxDepth, front[i] * scale);
+    const mesh = this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: this.texture(toCanvas(o.photo, 2048)), order: 2 });
+    (mesh.material as THREE.ShaderMaterial).polygonOffset = true;
+    (mesh.material as THREE.ShaderMaterial).polygonOffsetFactor = -2;
+    (mesh.material as THREE.ShaderMaterial).polygonOffsetUnits = -2;
+    this.photo.add(mesh);
     this.photo.position.set(0, EYE, 0);
     this.photo.rotation.set(this.pitch0, 0, 0);
     this.photo.scale.setScalar(scale);
-    this.panel.add(this.photo);
+    // снимок — часть мира: стоит в точке съёмки, к нему можно подойти и обойти
+    this.world.add(this.photo);
     this.info = { scale, pitch0: this.pitch0 };
     this.aim.pitch = this.cur.pitch = this.pitch0;
 
@@ -428,7 +477,7 @@ export class Moment {
     let seed = 7;
     for (const ch of o.ctx.local + o.ctx.place) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
     this.seed = seed;
-    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH) });
+    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth });
     this.world.add(this.land.group);
     if (o.osm) this.applyOsm(o.osm);
     this.domeU = {
@@ -451,6 +500,9 @@ export class Moment {
     this.world.fog = this.tags.kind === 'indoor' ? null : this.fog;
 
     this.setWeather(o.weather);
+    // свет мира в минуту снимка: земля освещена так, что выглядит ровно как на фото
+    const ap = (this.photoSky.sunAlt * Math.PI) / 180;
+    this.norm = 0.62 + (this.photoSky.sunAlt > 2 ? 0.5 * Math.max(0.12, Math.sin(ap)) * (this.cloudPct > 85 ? 0.35 : 1) : 0);
     this.setSky(o.sky);
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
@@ -508,7 +560,19 @@ export class Moment {
         const a = y * gw + x;
         idx.push(a, a + gw, a + 1, a + 1, a + gw, a + gw + 1);
       }
+    // разрыв глубины: соседи сильно по-разному далеко — эти грани растянуты, их видно только из точки съёмки
+    const edge = new Float32Array(n);
+    for (let y = 0; y < gh; y++)
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        for (const j of [x < gw - 1 ? i + 1 : -1, y < gh - 1 ? i + gw : -1]) {
+          if (j < 0) continue;
+          const r = Math.max(dist[i], dist[j]) / Math.min(dist[i], dist[j]);
+          if (r > 1.35) edge[i] = edge[j] = 1;
+        }
+      }
     const geo = new THREE.BufferGeometry();
+    geo.setAttribute('aEdge', new THREE.BufferAttribute(edge, 1));
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     geo.setAttribute('aVeg', new THREE.BufferAttribute(veg, 1));
@@ -534,7 +598,7 @@ export class Moment {
   applyOsm(osm: OsmWorld): boolean {
     const k = this.tags.kind;
     if (k === 'indoor' || !(this.o.ctx.source.place === 'gps' || k === 'city' || k === 'park')) return false;
-    const land = buildLand(this.tags, { seed: this.seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), osm });
+    const land = buildLand(this.tags, { seed: this.seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth, osm });
     this.world.remove(this.land.group);
     this.disposeTree(this.land.group);
     this.land = land;
@@ -644,10 +708,11 @@ export class Moment {
 
     // небо мира: цвета неба самого снимка в свете выбранной минуты (или по высоте солнца, если неба на фото нет)
     const C = this.tags.colors;
-    const pal = skyPalette(s.sunAlt);
+    // неба на снимке нет: днём по виду кадра — дневное небо, иначе — по высоте солнца в минуту снимка
+    const pal = skyPalette(this.tags.bright > 0.26 && this.photoSky.sunAlt > -4 ? 45 : this.photoSky.sunAlt);
     const gr = (c: RGB): RGB => [c[0] * tint[0] * E, c[1] * tint[1] * E, c[2] * tint[2] * E];
-    const top = C.skyTop ? gr(C.skyTop) : pal.top;
-    const low = C.skyLow ? gr(C.skyLow) : pal.low;
+    const top = gr(C.skyTop ?? pal.top);
+    const low = gr(C.skyLow ?? pal.low);
     (this.domeU.uTop.value as THREE.Color).setRGB(...top);
     (this.domeU.uLow.value as THREE.Color).setRGB(...low);
     const fogC = new THREE.Color(...low).lerp(new THREE.Color(...top), 0.15);
@@ -660,16 +725,16 @@ export class Moment {
     (this.domeU.uSunDir.value as THREE.Vector3).copy(dir);
     this.domeU.uSunUp.value = clamp((s.sunAlt + 1) / 4, 0, 1) * (1 - clamp((this.cloudPct - 60) / 35, 0, 1));
     (this.domeU.uCloudCol.value as THREE.Color).setRGB(...(gr(C.skyLow ? [Math.min(1, C.skyLow[0] * 1.15), Math.min(1, C.skyLow[1] * 1.15), Math.min(1, C.skyLow[2] * 1.12)] : [0.92, 0.92, 0.94]) as RGB));
-    // свет мира — настоящий свет этой минуты: днём светло, ночью темно, горят окна и фонари
-    const ga = grade(s.sunAlt);
-    // в комнате вечером горит свет — темнее, чем днём, но не темнота
-    const amb = this.tags.kind === 'indoor' ? Math.max(0.5, 0.62 * ga.exp) : 0.56 * ga.exp + (this.sunUp ? 0 : 0.03),
-      sunI = this.sunUp ? 0.56 * ga.exp * Math.max(0, Math.sin(alt)) * (this.cloudPct > 85 ? 0.35 : 1) : 0;
-    this.hemi.color.setRGB(ga.tint[0], ga.tint[1], ga.tint[2]);
-    this.hemi.groundColor.setRGB(ga.tint[0] * 0.62, ga.tint[1] * 0.6, ga.tint[2] * 0.58);
+    // свет мира — как у снимка: в минуту снимка земля, листва и стены мира того же цвета, что на фото;
+    // в другую минуту меняется так же, как сам снимок (ночью горят окна и фонари)
+    const cloudK = this.cloudPct > 85 ? 0.35 : 1;
+    const amb = (0.62 * E) / this.norm,
+      sunI = this.sunUp ? ((0.5 * E) / this.norm) * Math.max(0, Math.sin(alt)) * cloudK : 0;
+    this.hemi.color.setRGB(tint[0], tint[1], tint[2]);
+    this.hemi.groundColor.setRGB(tint[0] * 0.62, tint[1] * 0.6, tint[2] * 0.58);
     this.hemi.intensity = Math.PI * amb;
     this.hemi.userData.base = this.hemi.intensity;
-    this.sun.color.setRGB(Math.min(1.3, ga.tint[0] * 1.05), ga.tint[1], ga.tint[2] * 0.92);
+    this.sun.color.setRGB(Math.min(1.3, tint[0] * 1.05), tint[1], tint[2] * 0.92);
     this.sun.intensity = Math.PI * sunI;
     this.sun.position.copy(dir).multiplyScalar(200);
     this.land.setNight(clamp((-s.sunAlt + 1) / 7, 0, 1));
@@ -857,7 +922,7 @@ export class Moment {
     this.tiltCur.pitch += (this.tiltAim.pitch - this.tiltCur.pitch) * e2;
     // рядом с точкой съёмки — снимок; отходишь — он растворяется в мире, а взгляд становится шире
     const o = 1 - smooth(0.2, 1.5, this.away);
-    this.uni.uOpacity.value = o;
+    this.uni.uAway.value = 1 - o;
     const fov = this.walkFov + (this.coverFov - this.walkFov) * o;
     if (Math.abs(fov - this.camera.fov) > 0.01) {
       this.camera.fov = fov;
@@ -871,6 +936,11 @@ export class Moment {
     this.camera.position.set(this.pos.x + bx * cy + bz * sy, EYE + this.land.height(this.pos.x, this.pos.z) + by, this.pos.z - bx * sy + bz * cy);
     this.camera.rotation.set(this.cur.pitch + this.tiltCur.pitch, this.cur.yaw + this.tiltCur.yaw, 0, 'YXZ');
     this.dome.position.copy(this.camera.position);
+    this.camera.updateMatrixWorld();
+    // свет на кустах: как у остального мира (рассеянный + солнце сверху)
+    const lk = this.hemi.intensity / Math.PI + (this.sun.intensity / Math.PI) * 0.6;
+    this.plantLight.setRGB(this.hemi.color.r * lk, this.hemi.color.g * lk, this.hemi.color.b * lk);
+    this.land.tick?.(this.camera, t, this.plantLight, this.world.fog as THREE.FogExp2 | null);
 
     // частицы вокруг идущего
     const P = this.particles;
@@ -923,14 +993,10 @@ export class Moment {
     this.uni.uFlash.value = fl;
     this.hemi.intensity = (this.hemi.userData.base ?? this.hemi.intensity) + fl * Math.PI * 1.5;
 
-    // мир, поверх — снимок (у него свои глубины), поверх — снег и дождь
+    // мир со снимком внутри, поверх — снег и дождь
     const r = this.renderer;
     r.clear();
     r.render(this.world, this.camera);
-    if (o > 0.004) {
-      r.clearDepth();
-      r.render(this.panel, this.camera);
-    }
     r.render(this.fx, this.camera);
   };
 
@@ -941,7 +1007,7 @@ export class Moment {
     window.removeEventListener('keyup', this.onKey);
     window.removeEventListener('blur', this.onBlur);
     this.dropParticles();
-    for (const sc of [this.world, this.panel, this.fx])
+    for (const sc of [this.world, this.fx])
       sc.traverse((o) => {
         const m = o as THREE.Mesh;
         m.geometry?.dispose();

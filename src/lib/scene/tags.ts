@@ -10,6 +10,7 @@ type Pic = CanvasImageSource & { width: number; height: number };
 
 export interface SceneTags {
   kind: 'nature' | 'city' | 'park' | 'indoor';
+  bright: number; // средняя яркость кадра
   tex: { ground: HTMLCanvasElement | null; leaf: HTMLCanvasElement | null; plants: HTMLCanvasElement[] }; // куски самого снимка: земля, листва, кусты и цветы
   ground: 'grass' | 'asphalt' | 'snow' | 'sand' | 'soil';
   road: { x: number; width: number } | null; // смещение центра дороги вбок (м) и ширина
@@ -232,10 +233,27 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
   const winter = opts.south ? opts.month >= 6 && opts.month <= 8 : opts.month === 12 || opts.month <= 2;
   const autumn = opts.south ? opts.month >= 3 && opts.month <= 5 : opts.month >= 9 && opts.month <= 11;
 
+  // средний цвет земли зелёный — трава (даже если пиксели «шумят», как на снимке экрана)
+  const greenGround = () => {
+    let r = 0,
+      g = 0,
+      b = 0,
+      n = 0;
+    for (let y = g0; y < gh; y++)
+      for (let x = 0; x < gw; x++) {
+        const i = y * gw + x;
+        if (skyX[i] || isFg(i)) continue;
+        r += px[i * 4];
+        g += px[i * 4 + 1];
+        b += px[i * 4 + 2];
+        n++;
+      }
+    return n > 0 && g > r * 1.04 && g > b * 1.12;
+  };
   let ground: SceneTags['ground'] = 'soil';
   const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
   if (share('snow') > 0.3 || (winter && (opts.temp ?? 5) <= 0 && share('snow') > 0.12)) ground = 'snow';
-  else if (top === 'veg' || share('veg') > 0.35) ground = 'grass';
+  else if (top === 'veg' || share('veg') > 0.35 || greenGround()) ground = 'grass';
   else if (top === 'asphalt') ground = 'asphalt';
   else if (top === 'sand') ground = 'sand';
   else if (winter && (opts.temp ?? 5) <= -3) ground = 'snow';
@@ -278,7 +296,7 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
   const texGround = swatch(photo, gw, gh, (i) => !skyX[i] && !isFg(i) && cls(i) === want, Math.max(g0, Math.round(gh * 0.68)), gh, 0.2);
   // листва деревьев — зелёная и выше горизонта (не цветы и не трава под ногами)
   const green = (i: number) => px[i * 4 + 1] >= px[i * 4] && cls(i) === 'veg';
-  const texLeaf = leafN > gw * gh * 0.04 ? swatch(photo, gw, gh, (i) => !skyX[i] && !isFg(i) && green(i), 0, Math.min(gh, hy + Math.round(gh * 0.08)), 0.12) : null;
+  const texLeaf = leafN > gw * gh * 0.04 ? swatch(photo, gw, gh, (i) => !skyX[i] && !isFg(i) && green(i), 0, Math.round(gh * 0.75), 0.12) : null;
   // заросли под ногами (поле подсолнухов, высокая трава, кусты) — вырезаем куски и потом рассаживаем вокруг
   const plants: HTMLCanvasElement[] = [];
   if (kind !== 'indoor' && cnt.veg / Math.max(1, nG) > 0.35) {
@@ -302,6 +320,7 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
   }
   return {
     kind,
+    bright: lumAll,
     tex: { ground: kind === 'indoor' ? null : texGround, leaf: texLeaf, plants },
     ground,
     road: kind === 'indoor' ? null : road,
@@ -312,13 +331,14 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
     built: builtShare,
     water: share('water') > 0.25,
     colors: {
-      ground: tame(ground === 'snow' ? groundCol : kind === 'city' && ground !== 'grass' ? mix3(groundCol, [0.55, 0.54, 0.52], 0.5) : groundCol, ground === 'snow' ? 0.55 : 0.2, ground === 'snow' ? 0.95 : 0.5),
-      road: tame(avg(sums.asphalt, cnt.asphalt, [0.33, 0.33, 0.35]), 0.2, 0.42),
-      leaf: tame(leaf, 0.16, 0.45),
-      wall: tame(avg(wallS, wallN, [0.62, 0.56, 0.5]), 0.35, 0.75),
+      // яркость — в пределах того, что есть на самом снимке: ночной кадр остаётся ночным
+      ground: tame(ground === 'snow' ? groundCol : kind === 'city' && ground !== 'grass' ? mix3(groundCol, [0.55, 0.54, 0.52], 0.5) : groundCol, lumAll * 0.55, Math.min(0.95, lumAll * (ground === 'snow' ? 2.4 : 1.6))),
+      road: tame(avg(sums.asphalt, cnt.asphalt, [0.33, 0.33, 0.35]), lumAll * 0.5, lumAll * 1.2),
+      leaf: tame(leaf, lumAll * 0.45, lumAll * 1.3),
+      wall: tame(avg(wallS, wallN, [0.62, 0.56, 0.5]), lumAll * 0.8, Math.min(0.85, lumAll * 2)),
       skyTop: topN > 20 ? avg(topS, topN, [0, 0, 0]) : null,
       skyLow: lowN > 20 ? avg(lowS, lowN, [0, 0, 0]) : null,
-      indoorWall: tame(avg(allS, N, [0.6, 0.56, 0.5]), 0.4, 0.8),
+      indoorWall: tame(avg(allS, N, [0.6, 0.56, 0.5]), lumAll * 0.9, Math.min(0.85, lumAll * 1.8)),
     },
   };
 }
@@ -370,7 +390,7 @@ function swatch(photo: Pic, gw: number, gh: number, hit: (i: number) => boolean,
   return c;
 }
 
-/** куст из куска снимка: снизу плотный, сверху — рваный край по зелени, бока растворяются */
+/** куст из куска снимка: силуэт — несколько круглых «шапок» листвы, плотнее снизу; внутри — пиксели самого фото */
 function clump(photo: Pic, sx: number, sy: number, sw: number, sh: number, seed: number): HTMLCanvasElement {
   const S = 256;
   const c = document.createElement('canvas');
@@ -379,32 +399,21 @@ function clump(photo: Pic, sx: number, sy: number, sw: number, sh: number, seed:
   g.drawImage(photo, sx, sy, sw, sh, 0, 0, S, S);
   const im = g.getImageData(0, 0, S, S);
   const d = im.data;
-  const h = (x: number) => {
-    const v = Math.sin(x * 12.9898 + seed * 78.233) * 43758.5453;
-    return v - Math.floor(v);
-  };
-  // верхний край — ломаная «макушек»
-  const top: number[] = [];
-  for (let x = 0; x < S; x++) {
-    const k = Math.floor(x / 16);
-    const a = h(k),
-      b = h(k + 1),
-      t = (x % 16) / 16;
-    top.push(S * (0.08 + 0.3 * (a + (b - a) * t * t * (3 - 2 * t))));
-  }
+  let st = seed * 9301 + 49297;
+  const rnd = () => ((st = (st * 9301 + 49297) % 233280) / 233280);
+  // силуэт куста: круги разного размера, центры — в нижней половине
+  const blobs: [number, number, number][] = [];
+  for (let k = 0; k < 7; k++) blobs.push([S * (0.2 + rnd() * 0.6), S * (0.45 + rnd() * 0.35), S * (0.16 + rnd() * 0.16)]);
+  blobs.push([S * 0.5, S * 0.8, S * 0.3]);
   for (let y = 0; y < S; y++)
     for (let x = 0; x < S; x++) {
       const i = (y * S + x) * 4;
-      const r = d[i] / 255,
-        gg = d[i + 1] / 255,
-        b = d[i + 2] / 255;
-      const mx = Math.max(r, gg, b),
-        sat = mx ? (mx - Math.min(r, gg, b)) / mx : 0;
-      const plant = (gg >= r * 0.9 && gg > b && sat > 0.12) || (r > gg && gg > b * 1.2 && sat > 0.35);
-      const side = Math.min(1, Math.min(x, S - 1 - x) / (S * 0.18));
-      const above = y < top[x] ? 0 : Math.min(1, (y - top[x]) / 10);
-      const a = (plant ? 1 : y > S * 0.75 ? 0.85 : 0.25) * side * above;
-      d[i + 3] = Math.round(255 * a);
+      let m = 0;
+      for (const [bx, by, br] of blobs) {
+        const q = 1 - Math.hypot(x - bx, y - by) / br;
+        if (q > m) m = q;
+      }
+      d[i + 3] = m > 0 ? 255 : 0;
     }
   g.putImageData(im, 0, 0);
   return c;
