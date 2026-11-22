@@ -45,6 +45,7 @@ export interface DayInput {
   id?: string;
   demo?: boolean;
   place?: PlaceInfo;
+  feel?: 1 | 2 | 3 | 4 | 5; // атмосфера дня, отмеченная самим человеком: главнее, чем угаданная по тексту
 }
 
 export interface Step {
@@ -75,6 +76,12 @@ export async function buildDay(input: DayInput, onStep: (s: Step) => void): Prom
   // 1. Текст
   onStep({ key: 'text', label: 'Читаю запись' });
   const text = analyzeText(input.text, input.date);
+  if (input.feel) {
+    // человек сам сказал, каким был день: настроение страницы и песни идёт от этого
+    const fv = ((input.feel - 3) / 2) * 0.9;
+    text.valence = input.text.trim() ? text.valence * 0.35 + fv * 0.65 : fv;
+    text.arousal += input.feel === 5 ? 0.15 : input.feel === 1 ? -0.12 : 0;
+  }
   // погода из записи главнее: данные о погоде добавляются, только если в тексте её нет совсем
   const fromData = input.place && !text.weather.length ? weatherTags(input.place) : [];
   text.weather.push(...fromData);

@@ -189,7 +189,7 @@ export default function NewDay({ nb }: { nb?: string }) {
     setSteps([]);
     try {
       const pageNo = Math.max(0, ...days.map((d) => d.pageNo)) + 1;
-      const b = await buildDay({ text, date, photos, music: music ?? { kind: 'none' }, pageNo, place: place ?? undefined }, (s) =>
+      const b = await buildDay({ text, date, photos, music: music ?? { kind: 'none' }, pageNo, place: place ?? undefined, feel: feel ?? undefined }, (s) =>
         setSteps((old) => {
           if (s.done) play('tick');
           const i = old.findIndex((o) => o.key === s.key);
@@ -569,7 +569,7 @@ export default function NewDay({ nb }: { nb?: string }) {
                 }}
                 disabled={phase === 'build'}
                 motifs={heard}
-                mood={mood}
+                mood={feel ? { valence: ((feel - 3) / 2) * 0.9, arousal: mood.arousal + (feel === 5 ? 0.15 : 0) } : mood}
               />
               {music && (
                 <button className="btn ghost small" onClick={() => setMusic(null)}>
