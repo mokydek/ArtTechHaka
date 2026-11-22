@@ -206,7 +206,8 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
   if (city || park) {
     const parts: THREE.BufferGeometry[] = [];
     const add = (x: number, z: number, w: number, d: number, h: number) => {
-      if (Math.hypot(x, z) < 12) return;
+      // ближе 10 м от точки съёмки домов нет (считаем до ближайшей стены, а не до центра)
+      if (Math.hypot(Math.max(Math.abs(x) - w / 2, 0), Math.max(Math.abs(z) - d / 2, 0)) < 10) return;
       for (const q of houses) if (Math.abs(q.x - x) < (q.w + w) / 2 + 2 && Math.abs(q.z - z) < (q.d + d) / 2 + 2) return;
       houses.push({ x, z, w, d });
       colliders.push({ x0: x - w / 2 - 0.4, x1: x + w / 2 + 0.4, z0: z - d / 2 - 0.4, z1: z + d / 2 + 0.4 });
@@ -238,7 +239,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         while (z < RAD * 0.45) {
           const d = 10 + R() * 12;
           const w = 9 + R() * 8;
-          const floors = city ? 2 + Math.floor(R() * (R() < 0.12 ? 10 : 4)) : 2 + Math.floor(R() * 2);
+          const floors = city ? 2 + Math.floor(R() * (R() < 0.1 ? 7 : 4)) : 2 + Math.floor(R() * 2);
           const set = road.width / 2 + (city ? 5 : 14) + R() * (city ? 4 : 30);
           if (!park || R() < 0.55) add(road.x + side * (set + w / 2), z + d / 2, w, d, floors * 3 + 0.6);
           z += d + 3 + R() * (city ? 6 : 20);
@@ -251,7 +252,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
           r = 20 + Math.pow(R(), 0.7) * 260;
         const fa = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
         if (fa < o.hHalf + 0.1 && r < 45) continue;
-        const floors = city ? 2 + Math.floor(R() * (R() < 0.15 ? 9 : 4)) : 2 + Math.floor(R() * 2);
+        const floors = city ? 2 + Math.floor(R() * (R() < 0.1 ? 7 : 4)) : 2 + Math.floor(R() * 2);
         add(Math.sin(a) * r, -Math.cos(a) * r, 10 + R() * 10, 10 + R() * 10, floors * 3 + 0.6);
       }
     }
