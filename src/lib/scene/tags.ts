@@ -244,7 +244,7 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
   // комната: на снимке нет настоящего неба и зелени, а кадр — крупный план или светлый интерьер
   const realSky = L.sky.reduce((a, v) => a + v, 0) / N;
   const fgArea = L.fgBox ? L.fgBox.w * L.fgBox.h : 0;
-  const indoor = realSky < 0.02 && vegShare < 0.06 && ground !== 'snow' && (fgArea > 0.25 || lumAll > 0.38);
+  const indoor = ground !== 'snow' && ((realSky < 0.02 && vegShare < 0.06 && (fgArea > 0.25 || lumAll > 0.38)) || (fgArea > 0.35 && realSky < 0.08 && vegShare < 0.25));
   void skyShare;
   const kind: SceneTags['kind'] = indoor ? 'indoor' : builtShare > 0.45 && vegShare < 0.3 ? 'city' : builtShare > 0.25 ? 'park' : 'nature';
 
