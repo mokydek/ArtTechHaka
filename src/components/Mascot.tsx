@@ -31,6 +31,17 @@ const LAST = 'ottisk:last-visit';
 const SEEN = 'ottisk:bunny-remember';
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** открыть окно, когда экран свободен: не поверх заставки при первом входе */
+function whenFree(fn: () => void, ms: number) {
+  let t = 0;
+  const go = () => {
+    if (document.querySelector('.intro')) t = window.setTimeout(go, 900);
+    else fn();
+  };
+  t = window.setTimeout(go, ms);
+  return () => clearTimeout(t);
+}
+
 export interface BunnyHint {
   key: string;
   text: string;
@@ -97,23 +108,22 @@ export default function Mascot({ route }: { route: string }) {
     }
     if (missed.length < 2) return;
     localStorage.setItem(ASKED, today); // вместо обычного вопроса о настроении
-    const t = setTimeout(() => {
+    return whenFree(() => {
       setPose('wave');
       setTalk({ kind: 'back', days: missed });
     }, 1200);
-    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, home]);
 
   /* раз в день сам спрашивает, как ты — на главной, когда дневник загрузился */
   useEffect(() => {
     if (loading || !home || mood || localStorage.getItem(ASKED) === today) return;
-    const t = setTimeout(() => {
+    return whenFree(() => {
+      if (localStorage.getItem(ASKED) === today) return;
       localStorage.setItem(ASKED, today);
       setPose('wave');
       setTalk({ kind: 'ask' });
     }, 1400);
-    return () => clearTimeout(t);
   }, [loading, home, mood, today]);
 
   /* «А помнишь?..» — раз за визит: зайчик машет и ставит точку, окно — по нажатию */
