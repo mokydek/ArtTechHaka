@@ -10540,3 +10540,112 @@ button.nd-tool:hover,
     gap: 0 16px;
   }
 }
+
+/* ——— «Что было светлым»: серый день проявляет тёплое ——— */
+.lightbox .lb-lead {
+  margin: 4px 0 12px;
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.25;
+}
+.lb-photo {
+  all: unset;
+  display: block;
+  width: 100%;
+  line-height: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #2b2a33;
+  box-shadow: 0 12px 26px -18px rgba(40, 30, 20, 0.7);
+}
+.lb-photo:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+.lb-photo canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: cover;
+}
+.lb-bits {
+  list-style: none;
+  margin: 14px 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.lb-bits li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.lightbox:not([data-go]) .lb-bits li {
+  opacity: 0;
+}
+.lightbox[data-go] .lb-bits li {
+  animation: lb-in 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+.lightbox[data-go] .lb-bits li:nth-child(1) {
+  animation-delay: 1.4s;
+}
+.lightbox[data-go] .lb-bits li:nth-child(2) {
+  animation-delay: 1.9s;
+}
+.lightbox[data-go] .lb-bits li:nth-child(3) {
+  animation-delay: 2.4s;
+}
+.lightbox[data-go] .lb-bits li:nth-child(4) {
+  animation-delay: 2.9s;
+}
+.lb-bits li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.42em;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #ffe2ad, #f2a14b);
+  box-shadow: 0 0 10px 2px rgba(255, 186, 104, 0.55);
+}
+.lb-bits li b {
+  margin-right: 4px;
+  font-weight: 600;
+}
+@keyframes lb-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.lb-moment.on {
+  box-shadow: 0 0 0 2px rgba(255, 186, 104, 0.6);
+}
+/* в тексте тёплые места подсвечиваются, как маркером солнца */
+mark.lit {
+  color: inherit;
+  padding: 0 2px;
+  margin: 0 -2px;
+  border-radius: 3px;
+  background: linear-gradient(transparent 52%, rgba(255, 198, 120, 0.6) 52%) no-repeat 0 0 / 0% 100%;
+  animation: lit-in 1.1s var(--d, 0.6s) cubic-bezier(0.3, 0.7, 0.3, 1) forwards;
+}
+@keyframes lit-in {
+  to {
+    background-size: 100% 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox .lb-bits li {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  mark.lit {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}

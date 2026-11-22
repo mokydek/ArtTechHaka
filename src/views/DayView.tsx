@@ -15,6 +15,8 @@ import { placeLine } from '../lib/place';
 import SkyBox from '../components/Sky';
 import CutoutPicker from '../components/CutoutPicker';
 import type { CutoutRt } from '../lib/render/engine';
+import LightBox from '../components/LightBox';
+import { findLight, isGray } from '../lib/light';
 
 const demoLocal = new LocalStore();
 
@@ -280,6 +282,8 @@ function DayPage({ id }: { id: string }) {
   if (!rec) return <p className="muted mono">{days.length ? 'День не найден.' : 'Загружаю…'}</p>;
   // чужой день из общей тетради: смотреть можно, менять — нет
   const ro = !!rec.demo || foreign(rec, store);
+  // тяжёлый день: показываем, что в нём было светлого
+  const light = isGray(rec) ? findLight(rec) : null;
 
   const idx = days.findIndex((d) => d.id === id);
   const newer = days[idx - 1];
@@ -405,7 +409,7 @@ function DayPage({ id }: { id: string }) {
           </button>
         </div>
 
-        {rec.text.trim() && <p className={'day-text f-' + (rec.font ?? 'print')}>{rec.text}</p>}
+        {rec.text.trim() && <p className={'day-text f-' + (rec.font ?? 'print')}>{light ? <Lit text={rec.text} marks={light.marks} /> : rec.text}</p>}
         {(rec.music.title || rec.music.artist) && (
           <p className="day-song">
             ♪ {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}
@@ -419,6 +423,8 @@ function DayPage({ id }: { id: string }) {
             )}
           </p>
         )}
+
+        {light && <LightBox key={rec.id} rec={rec} light={light} bitmaps={assets?.bitmaps ?? null} audio={assets?.audio ?? null} />}
 
         <SkyBox rec={rec} />
 
@@ -486,4 +492,22 @@ function ThereBox({ rec, photos }: { rec: DayRecord; photos: string[] }) {
       </div>
     </div>
   );
+}
+
+/** текст дня, где тёплые места светятся */
+function Lit({ text, marks }: { text: string; marks: [number, number][] }) {
+  const out: React.ReactNode[] = [];
+  let at = 0;
+  marks.forEach(([a, b], i) => {
+    if (a < at) return;
+    if (a > at) out.push(text.slice(at, a));
+    out.push(
+      <mark key={i} className="lit" style={{ ['--d' as string]: `${0.6 + i * 0.35}s` }}>
+        {text.slice(a, b)}
+      </mark>,
+    );
+    at = b;
+  });
+  out.push(text.slice(at));
+  return <>{out}</>;
 }

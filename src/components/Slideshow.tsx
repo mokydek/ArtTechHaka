@@ -137,6 +137,13 @@ export default function Slideshow({ rec, photos, audio, voiceUrl, style, onStyle
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
 
+  // другой звук дня просит тишины (например, «самый яркий момент песни»)
+  useEffect(() => {
+    const on = () => playing && pause();
+    addEventListener('ottisk:hush', on);
+    return () => removeEventListener('ottisk:hush', on);
+  }, [playing, pause]);
+
   // автостарт; если браузер не даёт звук без касания — покажем кнопку
   useEffect(() => {
     const t = setTimeout(() => void play(), 300);

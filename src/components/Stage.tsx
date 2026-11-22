@@ -133,6 +133,19 @@ export default function Stage({ rec, title, bitmaps, audio, autoplay, onVideo, e
 
   useEffect(() => () => mic.current?.stop(), []);
 
+  // другой звук дня просит тишины (например, «самый яркий момент песни»)
+  useEffect(() => {
+    const on = () => {
+      const p = player.current;
+      if (p?.playing) {
+        p.pause();
+        setPlaying(false);
+      }
+    };
+    addEventListener('ottisk:hush', on);
+    return () => removeEventListener('ottisk:hush', on);
+  }, []);
+
   // вклейки добавили или убрали — обновить страницу
   useEffect(() => {
     const p = player.current;
