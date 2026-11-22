@@ -249,18 +249,34 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     return () => window.removeEventListener('deviceorientation', on);
   }, [ready]);
 
-  // управление: тянуть — оглядеться; мышь над кадром — заглянуть сбоку
-  const drag = useRef<{ id: number; x: number; y: number } | null>(null);
+  // управление: тянуть — оглядеться; на телефоне слева — джойстик, чтобы идти; мышь над кадром — заглянуть сбоку
+  const touches = useRef(new Map<number, { x: number; y: number; stick: boolean; ox: number; oy: number }>());
+  const stick = useRef<HTMLDivElement>(null);
   const onDown = (e: React.PointerEvent) => {
     wake();
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const isStick = e.pointerType === 'touch' && e.clientX - r.left < r.width * 0.42 && ![...touches.current.values()].some((t) => t.stick);
+    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY, stick: isStick, ox: e.clientX, oy: e.clientY });
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    if (isStick && stick.current) {
+      stick.current.classList.add('on');
+      stick.current.style.left = e.clientX - r.left + 'px';
+      stick.current.style.top = e.clientY - r.top + 'px';
+    }
   };
   const onMove = (e: React.PointerEvent) => {
     const w = world.current;
     if (!w) return;
-    const d = drag.current;
-    if (d && d.id === e.pointerId) {
+    const d = touches.current.get(e.pointerId);
+    if (d?.stick) {
+      const dx = Math.max(-1, Math.min(1, (e.clientX - d.ox) / 46)),
+        dy = Math.max(-1, Math.min(1, (e.clientY - d.oy) / 46));
+      w.move = { x: dx, z: dy };
+      const knob = stick.current?.firstElementChild as HTMLElement | null;
+      if (knob) knob.style.transform = `translate(${dx * 30}px, ${dy * 30}px)`;
+      return;
+    }
+    if (d) {
       w.look(e.clientX - d.x, e.clientY - d.y);
       d.x = e.clientX;
       d.y = e.clientY;
@@ -271,8 +287,19 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       w.lean(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
     }
   };
-  const onUp = () => {
-    drag.current = null;
+  const onUp = (e: React.PointerEvent) => {
+    const d = touches.current.get(e.pointerId);
+    touches.current.delete(e.pointerId);
+    if (d?.stick) {
+      if (world.current) world.current.move = { x: 0, z: 0 };
+      stick.current?.classList.remove('on');
+      const knob = stick.current?.firstElementChild as HTMLElement | null;
+      if (knob) knob.style.transform = '';
+      if (stick.current) {
+        stick.current.style.left = '';
+        stick.current.style.top = '';
+      }
+    }
     askMotion();
   };
 
@@ -323,6 +350,11 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     <div className="there">
       <div ref={holder} className="there-gl" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={(e) => e.pointerType === 'mouse' && world.current?.lean(0, 0)} />
       {ready && !hinted && <div className="gesture" aria-hidden />}
+      {ready && (
+        <div ref={stick} className="there-stick" aria-hidden>
+          <i />
+        </div>
+      )}
       {!ready && (
         <div className="there-load">
           {src && <BlurPhoto bmp={src.bmp} />}
@@ -389,6 +421,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
               звук {sound ? 'вкл' : 'выкл'}
             </button>
           </div>
+          <div className="there-hint mono">WASD, идти · Shift, быстрее · тянуть, смотреть</div>
         </>
       )}
     </div>
