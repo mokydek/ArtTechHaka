@@ -5,10 +5,10 @@ import { nameAt, searchPlaces, wmo, type PlaceHit } from '../lib/place';
 import { dayHours, fromSun, readShot, shotContext, skyAt, toUtc, type HourWeather, type ShotContext, type SkyState } from '../lib/scene/context';
 import type { SceneLayers } from '../lib/scene/depth';
 import type { PlaceSound } from '../lib/scene/sound';
-import type { World } from '../lib/scene/world';
+import type { Moment } from '../lib/scene/moment';
 import type { DayRecord, ShotMeta } from '../lib/types';
 
-// «Побывать там»: фото → место, минута, солнце и погода того момента → сцена, по которой можно пройтись
+// «Побывать там»: фото → место, минута, солнце и погода того момента → живое объёмное окно в тот момент
 
 interface Source {
   bmp: ImageBitmap;
@@ -55,6 +55,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(true);
   const [where, setWhere] = useState(false);
+  const [open, setOpen] = useState(false);
   // жест-подсказка «тяни, чтобы оглядеться» — только в первые разы
   const [hinted] = useState(() => {
     try {
@@ -66,12 +67,9 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     }
   });
   const holder = useRef<HTMLDivElement>(null);
-  const world = useRef<World | null>(null);
+  const world = useRef<Moment | null>(null);
   const audio = useRef<PlaceSound | null>(null);
-  const compass = useRef<HTMLDivElement>(null);
-  const facing = useRef<HTMLSpanElement>(null);
   const lastHour = useRef(-1);
-  const photoLocal = useRef('');
   const back = dayId ? `#/day/${dayId}` : '#/';
 
   // 1. источник: фото дня или своё
@@ -125,7 +123,6 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
           const utcOf = (local: string) => toUtc(local, ho ?? (src.meta?.offset ? undefined : lonOff), src.meta?.offset);
           c = fromSun(c, L.sun, L.horizon, src.bmp.width / src.bmp.height, utcOf, src.rec?.analysis.text.timeOfDay ?? undefined);
         }
-        photoLocal.current = c.local;
         setHours(h);
         setLayers(L);
         setCtx(c);
@@ -168,18 +165,14 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     let dead = false;
     (async () => {
       setStep('ставлю небо того часа');
-      const { World } = await import('../lib/scene/world');
+      const { Moment } = await import('../lib/scene/moment');
       if (dead || !holder.current) return;
       const photoMin = +ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16);
       const sky = skyFor(photoMin)!;
-      const w = new World(holder.current, { layers, ctx, weather: weatherFor(ctx.hour, sky), sky, photoAspect: src.bmp.width / src.bmp.height });
+      const w = new Moment(holder.current, { layers, ctx, weather: weatherFor(ctx.hour, sky), sky, photo: src.bmp });
       lastHour.current = ctx.hour;
-      w.onFrame = (h) => {
-        if (compass.current) compass.current.style.transform = `translateX(${-h * 4}px)`;
-        if (facing.current) facing.current.textContent = `${rumb(h)} ${Math.round(h)}°`;
-      };
       world.current = w;
-      (window as unknown as { __ottiskWorld: World }).__ottiskWorld = w;
+      (window as unknown as { __ottiskWorld: Moment }).__ottiskWorld = w;
       setReady(true);
     })();
     return () => {
@@ -209,11 +202,6 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       w.setWeather(weather);
     }
     w.setSky(sky);
-    // небо снимка — в минуту съёмки; чем дальше по времени, тем больше небо того часа
-    const p = photoLocal.current;
-    const pm = +p.slice(11, 13) * 60 + +p.slice(14, 16);
-    const same = ctx?.local.slice(0, 10) === p.slice(0, 10);
-    w.setPhotoSky(same ? 1 - Math.min(1, Math.max(0, (Math.abs(minute - pm) - 10) / 80)) : 0);
     audio.current?.set(weather, sky.sunAlt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sky, hour, ready, hours]);
@@ -234,41 +222,58 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     if (audio.current) audio.current.muted = !sound;
   }, [sound]);
 
-  // управление: тянуть — смотреть; на телефоне слева — джойстик
-  const drag = useRef<{ id: number; x: number; y: number; stick: boolean } | null>(null);
-  const stick = useRef<HTMLDivElement>(null);
+  // наклон телефона — смотреть по сторонам и заглядывать за предметы (на iPhone — после разрешения)
+  const motion = useRef(false);
+  const askMotion = () => {
+    if (motion.current) return;
+    const D = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: () => Promise<string> } }).DeviceOrientationEvent;
+    if (!D?.requestPermission) {
+      motion.current = true;
+      return;
+    }
+    // iOS спрашивает только в ответ на касание (touchend/click)
+    D.requestPermission()
+      .then((r) => (motion.current = r === 'granted'))
+      .catch(() => {});
+  };
+  useEffect(() => {
+    if (!ready) return;
+    const on = (e: DeviceOrientationEvent) => {
+      if (e.beta == null || e.gamma == null) return;
+      const a = screen.orientation?.angle ?? 0;
+      // в горизонтальном положении оси меняются местами
+      const [b, g] = a === 90 ? [-e.gamma, e.beta] : a === 270 || a === -90 ? [e.gamma, -e.beta] : [e.beta, e.gamma];
+      world.current?.tilt(b, g);
+    };
+    window.addEventListener('deviceorientation', on);
+    return () => window.removeEventListener('deviceorientation', on);
+  }, [ready]);
+
+  // управление: тянуть — оглядеться; мышь над кадром — заглянуть сбоку
+  const drag = useRef<{ id: number; x: number; y: number } | null>(null);
   const onDown = (e: React.PointerEvent) => {
     wake();
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const isStick = e.pointerType === 'touch' && e.clientX - r.left < r.width * 0.42;
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, stick: isStick };
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    if (isStick && stick.current) {
-      stick.current.style.display = 'block';
-      stick.current.style.left = e.clientX - r.left + 'px';
-      stick.current.style.top = e.clientY - r.top + 'px';
-    }
   };
   const onMove = (e: React.PointerEvent) => {
-    const d = drag.current;
     const w = world.current;
-    if (!d || d.id !== e.pointerId || !w) return;
-    if (d.stick) {
-      const dx = Math.max(-1, Math.min(1, (e.clientX - d.x) / 50)),
-        dy = Math.max(-1, Math.min(1, (e.clientY - d.y) / 50));
-      w.move = { x: dx, z: dy };
-      const knob = stick.current?.firstElementChild as HTMLElement | null;
-      if (knob) knob.style.transform = `translate(${dx * 30}px, ${dy * 30}px)`;
-    } else {
+    if (!w) return;
+    const d = drag.current;
+    if (d && d.id === e.pointerId) {
       w.look(e.clientX - d.x, e.clientY - d.y);
       d.x = e.clientX;
       d.y = e.clientY;
+      return;
+    }
+    if (e.pointerType === 'mouse') {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      w.lean(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
     }
   };
   const onUp = () => {
-    if (drag.current?.stick && world.current) world.current.move = { x: 0, z: 0 };
     drag.current = null;
-    if (stick.current) stick.current.style.display = 'none';
+    askMotion();
   };
 
   const asPhoto = () => {
@@ -316,11 +321,8 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const photoMin = ctx ? +ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16) : 0;
   return (
     <div className="there">
-      <div ref={holder} className="there-gl" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
+      <div ref={holder} className="there-gl" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={(e) => e.pointerType === 'mouse' && world.current?.lean(0, 0)} />
       {ready && !hinted && <div className="gesture" aria-hidden />}
-      <div ref={stick} className="there-stick">
-        <i />
-      </div>
       {!ready && (
         <div className="there-load">
           {src && <BlurPhoto bmp={src.bmp} />}
@@ -332,58 +334,45 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       </a>
       {ready && ctx && sky && (
         <>
-          <div className="there-compass">
-            <div ref={compass} className="there-tape">
-              {Array.from({ length: 49 }, (_, i) => i * 15 - 360).map((d) => (
-                <span key={d} style={{ left: d * 4 }} className={d % 45 ? 'tick' : 'tick big'}>
-                  {d % 45 ? '' : rumb(d)}
-                </span>
-              ))}
-              {[-360, 0, 360].map((o) => (
-                <span key={'s' + o} className={'sun' + (sky.sunAlt < 0 ? ' down' : '')} style={{ left: (sky.sunAz + o) * 4 }}>
-                  ☀
-                </span>
-              ))}
-              {sky.moonAlt > 0 &&
-                [-360, 0, 360].map((o) => (
-                  <span key={'m' + o} className="moon" style={{ left: (sky.moonAz + o) * 4 }}>
-                    ☾
-                  </span>
-                ))}
-            </div>
-            <div className="there-needle" />
-          </div>
-          <div className="there-card">
-            <div className="there-place">
-              <button className="there-link" onClick={() => setWhere((v) => !v)} title="изменить место">
-                ⌖ {ctx.place}
-              </button>
-              <small>{src0?.place === 'gps' ? 'GPS из фото' : src0?.place === 'day' ? 'место из записи' : 'место не указано'}</small>
-            </div>
-            {where && <WherePicker onPick={setPlace} />}
-            <div>
-              <input className="there-date mono" type="date" value={ctx.local.slice(0, 10)} onChange={(e) => setDate(e.target.value)} /> <b>{hm(minute)}</b>{' '}
-              <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок, ${hm(photoMin)}`}</small>
-            </div>
-            <div>
-              {weather ? (
-                <>
-                  {tags?.label}
-                  {weather.temp != null && ` · ${weather.temp > 0 ? '+' : ''}${Math.round(weather.temp)}°`} · ветер {Math.round(weather.wind / 3.6)} м/с {rumb(weather.windDir)} · облака {Math.round(weather.cloud)}%
-                </>
-              ) : hours === undefined ? (
-                '…'
-              ) : (
-                'погода того часа неизвестна'
-              )}
-              <small>{hours ? 'архив погоды' : weather ? 'погода из записи' : ''}</small>
-            </div>
-            <div>
-              {sky.sunAlt > 0 ? `солнце ${Math.round(sky.sunAlt)}° над горизонтом, ${rumb(sky.sunAz)} ${Math.round(sky.sunAz)}°` : `солнце за горизонтом (${Math.round(sky.sunAlt)}°)`} · луна {Math.round(sky.moonFrac * 100)}%
-            </div>
-            <div>
-              взгляд: <span ref={facing}>—</span> <small>{src0?.heading === 'exif' ? 'компас снимка' : src0?.heading === 'sun' ? 'по солнцу на фото' : 'направление угадано'}</small>
-            </div>
+          <div className={'there-card' + (open ? ' open' : '')}>
+            <button className="there-sum" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+              <b>{ctx.place}</b>
+              <span>
+                {hm(minute)}
+                {tags && ` · ${tags.label}`}
+                {weather?.temp != null && ` ${weather.temp > 0 ? '+' : ''}${Math.round(weather.temp)}°`}
+              </span>
+            </button>
+            {open && (
+              <div className="there-more">
+                <div>
+                  <button className="there-link" onClick={() => setWhere((v) => !v)}>
+                    изменить место
+                  </button>
+                  <small>{src0?.place === 'gps' ? 'GPS из фото' : src0?.place === 'day' ? 'место из записи' : 'место не указано'}</small>
+                </div>
+                {where && <WherePicker onPick={setPlace} />}
+                <div>
+                  <input className="there-date mono" type="date" value={ctx.local.slice(0, 10)} onChange={(e) => setDate(e.target.value)} />
+                  <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок, ${hm(photoMin)}`}</small>
+                </div>
+                <div>
+                  {weather ? (
+                    <>
+                      ветер {Math.round(weather.wind / 3.6)} м/с, {rumb(weather.windDir)} · облака {Math.round(weather.cloud)}%
+                    </>
+                  ) : hours === undefined ? (
+                    '…'
+                  ) : (
+                    'погода того часа неизвестна'
+                  )}
+                  <small>{hours ? 'архив погоды' : weather ? 'погода из записи' : ''}</small>
+                </div>
+                <div>
+                  {sky.sunAlt > 0 ? `солнце ${Math.round(sky.sunAlt)}° над горизонтом, ${rumb(sky.sunAz)}` : `солнце за горизонтом`} · луна {Math.round(sky.moonFrac * 100)}%
+                </div>
+              </div>
+            )}
           </div>
           <div className="there-bar">
             <input type="range" min={0} max={1439} step={5} value={minute} onChange={(e) => setMinute(+e.target.value)} aria-label="время суток" />
@@ -400,7 +389,6 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
               звук {sound ? 'вкл' : 'выкл'}
             </button>
           </div>
-          <div className="there-hint mono">WASD, идти · Shift, быстрее · тянуть, смотреть</div>
         </>
       )}
     </div>

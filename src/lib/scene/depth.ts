@@ -1,13 +1,95 @@
 // Глубина одного кадра и слои сцены: фон с дорисовкой, объект, небо, линия горизонта.
 // FastDepth (MIT) + U²-Netp (Apache-2.0) — обе работают в браузере.
 
-import { applyMask, cutout, fill, inpaint, model } from '../live/segment';
+import { applyMask, cutout, drop, fill, inpaint, model } from '../live/segment';
 
 type Src = CanvasImageSource & { width: number; height: number };
 const D = 224; // вход FastDepth
 
+// Depth Anything V2 Small (Apache-2.0): точная глубина и на улице, и в комнате.
+// Модель (~27 МБ) браузер берёт с Hugging Face один раз и держит в кэше; не вышло — FastDepth с нашего сайта
+const DA_URL = 'https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx';
+async function cachedBytes(url: string): Promise<Uint8Array> {
+  const grab = async () => {
+    const r = await fetch(url, { mode: 'cors' });
+    if (!r.ok) throw new Error('model ' + r.status);
+    return r;
+  };
+  try {
+    const c = await caches.open('imprint-ml-v1');
+    const hit = await c.match(url);
+    if (hit) return new Uint8Array(await hit.arrayBuffer());
+    const r = await grab();
+    await c.put(url, r.clone()).catch(() => {});
+    return new Uint8Array(await r.arrayBuffer());
+  } catch {
+    return new Uint8Array(await (await grab()).arrayBuffer());
+  }
+}
+const timeout = <T,>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<T>((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+
+/** Глубина Depth Anything: на выходе 0 (близко) … 1 (далеко) по сетке gw×gh. Сеть даёт обратную глубину (диспаратность) */
+async function depthAnything(src: Src, gw: number, gh: number): Promise<Float32Array> {
+  const { ort, session } = await timeout(model(DA_URL, () => cachedBytes(DA_URL)), 90000);
+  const aspect = src.width / src.height;
+  const LONG = 392;
+  const W = aspect >= 1 ? LONG : Math.max(14, Math.round((LONG * aspect) / 14) * 14);
+  const H = aspect >= 1 ? Math.max(14, Math.round(LONG / aspect / 14) * 14) : LONG;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(src, 0, 0, W, H);
+  const px = g.getImageData(0, 0, W, H).data;
+  const mean = [0.485, 0.456, 0.406],
+    std = [0.229, 0.224, 0.225];
+  const data = new Float32Array(3 * W * H);
+  for (let i = 0, p = 0; i < W * H; i++, p += 4) for (let k = 0; k < 3; k++) data[k * W * H + i] = (px[p + k] / 255 - mean[k]) / std[k];
+  const out = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', data, [1, 3, H, W]) }).finally(() => drop(DA_URL));
+  const t = out[session.outputNames[0]];
+  const raw = t.data as Float32Array;
+  const dims = t.dims;
+  const OH = dims[dims.length - 2],
+    OW = dims[dims.length - 1];
+  const sorted = Float32Array.from(raw).sort();
+  const lo = sorted[Math.floor(sorted.length * 0.01)],
+    hi = sorted[Math.floor(sorted.length * 0.995)];
+  const k = hi - lo || 1;
+  const res = new Float32Array(gw * gh);
+  for (let y = 0; y < gh; y++)
+    for (let x = 0; x < gw; x++) {
+      const fx = (x / (gw - 1)) * (OW - 1),
+        fy = (y / (gh - 1)) * (OH - 1);
+      const x0 = Math.floor(fx),
+        y0 = Math.floor(fy),
+        x1 = Math.min(OW - 1, x0 + 1),
+        y1 = Math.min(OH - 1, y0 + 1);
+      const tx = fx - x0,
+        ty = fy - y0;
+      const v = (raw[y0 * OW + x0] * (1 - tx) + raw[y0 * OW + x1] * tx) * (1 - ty) + (raw[y1 * OW + x0] * (1 - tx) + raw[y1 * OW + x1] * tx) * ty;
+      res[y * gw + x] = 1 - Math.min(1, Math.max(0, (v - lo) / k)); // близко — большая диспаратность
+    }
+  return blur(res, gw, gh, 1);
+}
+
+/** Какая модель дала глубину последнего кадра: у Depth Anything шкала обратная (диспаратность) */
+export let lastDepthKind: 'anything' | 'fast' = 'fast';
+
 /** Относительная глубина 0 (близко) … 1 (далеко), сетка gw×gh */
 export async function depthMap(src: Src, gw: number, gh: number): Promise<Float32Array> {
+  try {
+    const d = await depthAnything(src, gw, gh);
+    lastDepthKind = 'anything';
+    return d;
+  } catch (e) {
+    console.warn('[Imprint] Depth Anything недоступна, беру FastDepth', e);
+  }
+  lastDepthKind = 'fast';
+  return fastDepth(src, gw, gh);
+}
+
+async function fastDepth(src: Src, gw: number, gh: number): Promise<Float32Array> {
   const { ort, session } = await model('/ml/fastdepth.onnx');
   const c = document.createElement('canvas');
   c.width = D;
@@ -256,6 +338,7 @@ export function skyMask(src: Src, gw: number, gh: number, depth: Float32Array): 
 }
 
 export interface SceneLayers {
+  kind: 'anything' | 'fast'; // чья глубина: у Depth Anything — диспаратность
   gw: number;
   gh: number;
   depth: Float32Array; // 0..1 по сетке (без объекта — дорисовано)
@@ -273,8 +356,8 @@ export interface SceneLayers {
 /** Разложить фото на слои для 3D-сцены */
 export async function buildLayers(src: Src, onStep?: (s: string) => void): Promise<SceneLayers> {
   const aspect = src.width / src.height;
-  const gw = 128,
-    gh = Math.max(64, Math.round(128 / aspect));
+  const gw = 192,
+    gh = Math.max(96, Math.round(192 / aspect));
   onStep?.('оцениваю глубину');
   const depth = await depthMap(src, gw, gh);
   const depthRaw = Float32Array.from(depth);
@@ -396,6 +479,7 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
   const n = gd.length / 4;
   const ground = `rgb(${Math.round(r / n)},${Math.round(gg / n)},${Math.round(b / n)})`;
   return {
+    kind: lastDepthKind,
     gw,
     gh,
     depth,

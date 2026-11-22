@@ -7,8 +7,8 @@ type Session = import('onnxruntime-web/wasm').InferenceSession;
 const S = 320; // вход U²-Netp
 const sessions = new Map<string, Promise<{ ort: Ort; session: Session }>>();
 
-/** Сессия onnxruntime для модели с нашего сайта (кэшируется) */
-export function model(url: string) {
+/** Сессия onnxruntime для модели с нашего сайта (кэшируется). bytes — уже скачанная модель */
+export function model(url: string, bytes?: () => Promise<Uint8Array>) {
   let p = sessions.get(url);
   if (!p) {
     p = (async () => {
@@ -16,13 +16,21 @@ export function model(url: string) {
       ort.env.wasm.wasmPaths = '/ml/';
       ort.env.wasm.numThreads = 1; // без изоляции страницы потоки недоступны
       ort.env.logLevel = 'error';
-      const session = await ort.InferenceSession.create(url, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+      const opts = { executionProviders: ['wasm'], graphOptimizationLevel: 'all' } as const;
+      const session = bytes ? await ort.InferenceSession.create(await bytes(), opts) : await ort.InferenceSession.create(url, opts);
       return { ort, session };
     })();
     p.catch(() => sessions.delete(url));
     sessions.set(url, p);
   }
   return p;
+}
+
+/** Освободить память модели (на телефоне её мало: большая сеть нужна один раз на сцену) */
+export function drop(url: string) {
+  const p = sessions.get(url);
+  sessions.delete(url);
+  p?.then(({ session }) => session.release()).catch(() => {});
 }
 
 const load = () => model('/ml/u2netp.onnx');
