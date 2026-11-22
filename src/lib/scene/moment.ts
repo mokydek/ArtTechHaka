@@ -47,6 +47,7 @@ varying float vVeg;
 varying float vSky;
 varying float vDist;
 varying float vEdge;
+varying vec3 vWorld;
 void main(){
   vec3 p = position;
   // листва и трава качаются: угол качания одинаков вблизи и вдали, порывы идут волной
@@ -61,6 +62,7 @@ void main(){
   vSky = aSky;
   vDist = aDist;
   vEdge = aEdge;
+  vWorld = (modelMatrix * vec4(p, 1.0)).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }`;
 
@@ -79,6 +81,8 @@ uniform float uNight;   // звёзды
 uniform vec2 uDrift;
 uniform float uFlash;
 uniform float uAway; // 0 — в точке съёмки, 1 — отошёл
+uniform vec3 uEye;   // откуда снимали (в мире)
+varying vec3 vWorld;
 varying vec2 vUv;
 varying float vVeg;
 varying float vSky;
@@ -114,6 +118,10 @@ void main(){
   // отошёл — небо снимка уступает небу мира, а растянутые грани на разрывах глубины прячутся
   if (vSky > 0.5) a *= 1.0 - uAway;
   a *= 1.0 - vEdge * uAway;
+  // снимок верен только под тем углом, под которым его сняли: чем сильнее смотришь сбоку,
+  // тем прозрачнее он становится — растянутые «рёбра» глубины не лезут в глаза
+  float ang = dot(normalize(vWorld - uEye), normalize(vWorld - cameraPosition));
+  a *= smoothstep(0.82, 0.965, ang);
   if (a < 0.03) discard;
   gl_FragColor = vec4(col, a);
 }`;
@@ -403,6 +411,7 @@ export class Moment {
       uDrift: { value: new THREE.Vector2() },
       uFlash: { value: 0 },
       uAway: { value: 0 },
+      uEye: { value: new THREE.Vector3(0, EYE, 0) },
     };
     this.m = masks(L, o.photo);
     const mo = +o.ctx.local.slice(5, 7);
