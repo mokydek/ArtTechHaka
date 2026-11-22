@@ -74,3 +74,27 @@ export function setWord(date: string, w: string) {
     /* без хранилища */
   }
 }
+
+/** записки себе на серый день: пишутся в хороший день, открываются в плохой */
+export interface GrayNote {
+  at: string; // дата, когда написана
+  text: string;
+}
+const NKEY = 'ottisk:gray-notes';
+export function grayNotes(): GrayNote[] {
+  try {
+    const a = JSON.parse(localStorage.getItem(NKEY) || '[]');
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+}
+export function addGrayNote(text: string) {
+  const t = text.trim().slice(0, 400);
+  if (!t) return;
+  try {
+    localStorage.setItem(NKEY, JSON.stringify([...grayNotes(), { at: todayIso(), text: t }].slice(-30)));
+  } catch {
+    /* без хранилища */
+  }
+}

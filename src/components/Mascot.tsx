@@ -4,7 +4,7 @@ import Bunny, { moodImg, type Pose } from './Bunny';
 import { useDiary } from '../App';
 import type { DayRecord } from '../lib/types';
 import { humanDate } from '../lib/render/engine';
-import { MOOD_WORDS, isoAdd, moods, setMood, todayIso, type Mood } from '../lib/moods';
+import { MOOD_WORDS, addGrayNote, grayNotes, isoAdd, moods, setMood, todayIso, type Mood } from '../lib/moods';
 import BackDays from './BackDays';
 import { burst, buzz, play } from '../lib/feel';
 
@@ -22,6 +22,8 @@ type Talk =
   | { kind: 'remember'; day: DayRecord }
   | { kind: 'hint'; key: string; text: string }
   | { kind: 'back'; days: string[] }
+  | { kind: 'note' }
+  | { kind: 'noted' }
   | { kind: 'empty' };
 
 const ASKED = 'ottisk:bunny-asked';
@@ -265,9 +267,30 @@ export default function Mascot({ route }: { route: string }) {
     );
   else if (talk?.kind === 'answer') {
     const m = talk.mood;
-    const show = bright[talk.i % Math.max(1, bright.length)];
+    // в плохой день первой открывается записка, которую человек оставил себе в хороший
+    const notes = m <= 2 ? grayNotes() : [];
+    const note = notes.length && talk.i === 0 ? notes[notes.length - 1] : null;
+    const show = bright[Math.max(0, talk.i - (notes.length ? 1 : 0)) % Math.max(1, bright.length)];
     body =
-      m <= 2 ? (
+      m <= 2 && note ? (
+        <>
+          <p>Обнимаю. У тебя есть записка от себя:</p>
+          <blockquote className="bun-note">
+            {note.text}
+            <small>{humanDate(note.at)}</small>
+          </blockquote>
+          <div className="bun-acts">
+            {!!bright.length && (
+              <button className="btn small" onClick={() => setTalk({ ...talk, i: talk.i + 1 })}>
+                Ещё хороший момент
+              </button>
+            )}
+            <a className="btn ghost small" href="#/new" onClick={close}>
+              Записать день
+            </a>
+          </div>
+        </>
+      ) : m <= 2 ? (
         <>
           <p>{bright.length ? 'Обнимаю. Смотри, какой светлый день у тебя был:' : 'Обнимаю. Я рядом. Запиши даже маленькую хорошую вещь, я потом тебе её напомню.'}</p>
           {show && card(show)}
@@ -303,11 +326,9 @@ export default function Mascot({ route }: { route: string }) {
             <a className="btn small" href="#/new" onClick={close}>
               Записать день
             </a>
-            {!!own.length && (
-              <button className="btn ghost small" onClick={remember}>
-                А помнишь…
-              </button>
-            )}
+            <button className="btn ghost small" onClick={() => setTalk({ kind: 'note' })}>
+              Записка себе в серый день
+            </button>
           </div>
         </>
       );
@@ -319,6 +340,19 @@ export default function Mascot({ route }: { route: string }) {
         <div className="bun-acts">
           <button className="btn ghost small" onClick={remember}>
             Другой
+          </button>
+        </div>
+      </>
+    );
+  else if (talk?.kind === 'note')
+    body = <NoteWrite onSave={(t) => (addGrayNote(t), setPose('happy'), setTalk({ kind: 'noted' }))} onCancel={close} />;
+  else if (talk?.kind === 'noted')
+    body = (
+      <>
+        <p>Готово! Записка подождёт своего дня, и в тяжёлый день я покажу её первой.</p>
+        <div className="bun-acts">
+          <button className="btn small" onClick={close}>
+            Хорошо
           </button>
         </div>
       </>
@@ -396,4 +430,23 @@ export default function Mascot({ route }: { route: string }) {
 /** личико настроения: 1 грустное, 5 сияет (рисунки из ChatGPT) */
 function Face({ m }: { m: Mood }) {
   return <img className="mood-face" src={moodImg(m)} alt="" width={40} height={40} draggable={false} />;
+}
+
+/** записка себе на серый день */
+function NoteWrite({ onSave, onCancel }: { onSave: (t: string) => void; onCancel: () => void }) {
+  const [t, setT] = useState('');
+  return (
+    <>
+      <p>Напиши себе пару слов на тяжёлый день. Я покажу их, когда будет грустно.</p>
+      <textarea className="inp bun-ta" maxLength={400} value={t} onChange={(e) => setT(e.target.value)} placeholder="Например: помнишь, как сегодня было хорошо? Это вернётся." autoFocus />
+      <div className="bun-acts">
+        <button className="btn small" onClick={() => onSave(t)} disabled={!t.trim()}>
+          Сохранить записку
+        </button>
+        <button className="btn ghost small" onClick={onCancel}>
+          Не сейчас
+        </button>
+      </div>
+    </>
+  );
 }
