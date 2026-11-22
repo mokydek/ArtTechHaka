@@ -4,6 +4,7 @@ import { useDiary } from '../App';
 import { useCoverUrl } from './Book';
 import { moods, valenceMood } from '../lib/moods';
 import { moodImg } from './Bunny';
+import FlowText from './FlowText';
 import { play } from '../lib/feel';
 
 /**
@@ -33,19 +34,20 @@ function seeded(id: string) {
 /* ——— страницы ——— */
 
 export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
+  const bg = d.page?.color ? { backgroundColor: d.page.color } : undefined;
   const r = seeded(d.id);
   const list = photos.slice(0, 4);
   const lay = d.layout?.kind ?? (list.length <= 2 ? 'polaroid' : 'collage');
   const tapes = d.design.palette.colors;
   if (!list.length)
     return (
-      <div className="jp jp-photos">
+      <div className="jp jp-photos" style={bg}>
         <div className="jp-nophoto" style={{ background: `linear-gradient(160deg, ${tapes[1]}, ${tapes[3]})` }} />
       </div>
     );
   if (lay === 'free' && d.layout?.items?.length)
     return (
-      <div className="jp jp-photos">
+      <div className="jp jp-photos" style={bg}>
         {d.layout.items.slice(0, photos.length).map((it, i) => (
           <figure key={i} className="jp-free" style={{ left: `${it.x * 100}%`, top: `${it.y * 100}%`, width: `${it.w * 100}%`, transform: `translate(-50%, -50%) rotate(${it.rot}deg)`, zIndex: i + 1 }}>
             <img src={photos[i]} alt="" draggable={false} />
@@ -56,7 +58,7 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
     );
   if (lay === 'collage')
     return (
-      <div className="jp jp-photos">
+      <div className="jp jp-photos" style={bg}>
         <div className={'jp-collage n' + list.length + (d.layout?.grid ? ' g-' + d.layout.grid : '')} style={{ transform: `rotate(${(r() - 0.5) * 2.4}deg)` }}>
           {list.map((u, i) => (
             <img key={i} src={u} alt="" draggable={false} />
@@ -69,7 +71,7 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
     );
   // полароиды: один — крупно, два — внахлёст
   return (
-    <div className="jp jp-photos">
+    <div className="jp jp-photos" style={bg}>
       {list.map((u, i) => {
         const one = list.length === 1;
         const rot = (r() - 0.5) * (one ? 5 : 9);
@@ -95,7 +97,7 @@ function TextPage({ d }: { d: DayRecord }) {
   const m = d.feel ?? moods()[d.date] ?? valenceMood(d.design.mood.valence);
   const song = [d.music.artist, d.music.title].filter(Boolean).join(' · ');
   return (
-    <div className="jp jp-text">
+    <div className="jp jp-text" style={d.page?.color ? { backgroundColor: d.page.color } : undefined}>
       <div className="jp-head">
         <span className="jp-date">
           <b>{w.day}</b> {w.month}
@@ -104,7 +106,9 @@ function TextPage({ d }: { d: DayRecord }) {
         <img className="jp-mood" src={moodImg(m)} alt="" title="настроение дня" draggable={false} />
       </div>
       <h3 className="jp-title">{d.title}</h3>
-      {d.text ? <p className={'jp-hand f-' + (d.font ?? 'hand')}>{d.text}</p> : d.hasVoice ? <p className="jp-hand jp-voice">♪ голосовое воспоминание</p> : null}
+      {d.text && (d.page?.strokes?.length || d.page?.notes?.length) ? (
+        <FlowText className="jp-hand jp-flowbox" text={d.text} font={d.font ?? 'hand'} deco={d.page} />
+      ) : d.text ? <p className={'jp-hand f-' + (d.font ?? 'hand')}>{d.text}</p> : d.hasVoice ? <p className="jp-hand jp-voice">♪ голосовое воспоминание</p> : null}
       <div className="jp-foot">
         {song && (
           <span className="jp-ticket">

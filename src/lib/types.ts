@@ -209,6 +209,28 @@ export interface DayRecord {
   layout?: PhotoLayout; // как фото вклеены на страницу дневника
   font?: DiaryFont; // каким почерком записан текст
   feel?: 1 | 2 | 3 | 4 | 5; // «атмосфера дня», которую человек отметил сам
+  page?: PageDeco; // как человек украсил страницу: цвет, рисунок, надписи
+}
+
+/** Украшение страницы. Координаты — в долях ширины текстового блока ×1000 */
+export interface PageStroke {
+  c: string; // цвет
+  w: number; // толщина
+  p: number[]; // x,y,x,y…
+}
+export interface PageNote {
+  x: number;
+  y: number;
+  t: string;
+  f: DiaryFont;
+  c: string;
+  s: number; // кегль
+  r: number; // наклон, градусы
+}
+export interface PageDeco {
+  color?: string;
+  strokes?: PageStroke[];
+  notes?: PageNote[];
 }
 
 /** Почерк записи: рукописный, каллиграфия, печатный, машинка */

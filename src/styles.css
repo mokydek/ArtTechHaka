@@ -10021,3 +10021,176 @@ button.nd-tool:hover,
     gap: 0;
   }
 }
+
+/* ---- обтекающий текст и украшение страницы ---- */
+.flow {
+  position: relative;
+  overflow: hidden;
+}
+.flow-ink {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.flow-l {
+  position: absolute;
+  white-space: nowrap;
+  line-height: inherit;
+}
+.flow-note {
+  position: absolute;
+  white-space: pre;
+  line-height: 1.25;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.jp-hand.jp-flowbox {
+  display: block;
+}
+.nd2 .nd-flowbox {
+  flex: 1;
+  min-height: 470px;
+  color: #34314d;
+  background: repeating-linear-gradient(180deg, transparent 0 33px, rgba(91, 75, 196, 0.18) 33px 34px) 0 0 / 100% 34px;
+  padding: 0;
+}
+.nd2 .flow.f-hand {
+  font: 500 27px/34px var(--hand);
+}
+.nd2 .flow.f-script {
+  font: 400 24px/34px 'Marck Script', cursive;
+}
+.nd2 .flow.f-print {
+  font: 400 18px/34px var(--sans);
+}
+.nd2 .flow.f-type {
+  font: 400 16px/34px 'PT Mono', monospace;
+}
+.nd2 .flow-l {
+  padding-left: 6px;
+}
+.deco {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  touch-action: none;
+  cursor: text;
+}
+.deco-draw {
+  cursor: crosshair;
+}
+.deco-note {
+  cursor: copy;
+}
+.deco-edit {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+  translate: 0 -8px;
+}
+.deco-edit input {
+  width: 190px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 24px;
+  color: var(--ink);
+}
+.deco-edit button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--lav-soft);
+  color: var(--lav-deep);
+  cursor: pointer;
+}
+.nd-sub2 {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  margin: 10px auto 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+  animation: rv-pop 0.3s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.nd-sub2-t {
+  margin-right: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.nd-sw {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(36, 35, 58, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.nd-sw.on {
+  transform: scale(1.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(36, 35, 58, 0.15),
+    0 0 0 3px #fff,
+    0 0 0 5px var(--ink);
+}
+.nd-sw.ink {
+  width: 24px;
+  height: 24px;
+}
+.nd-pw {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.nd-pw i {
+  display: block;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.nd-pw.on {
+  background: var(--lav-soft);
+}
+@media (max-width: 860px) {
+  .nd2 .nd-flowbox {
+    min-height: 300px;
+  }
+  .nd-sub2 {
+    border-radius: 18px;
+  }
+}
+/* панель рисования не уезжает: видно и страницу, и карандаши */
+.nd-pens {
+  position: sticky;
+  bottom: 18px;
+  z-index: 40;
+  box-shadow: 0 18px 40px -16px rgba(36, 35, 58, 0.45);
+}
+@media (max-width: 860px) {
+  .nd-pens {
+    bottom: 92px;
+  }
+}
+.jp-hand.jp-flowbox {
+  -webkit-mask-image: none;
+  mask-image: none;
+}

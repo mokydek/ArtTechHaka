@@ -12,7 +12,8 @@ import Why from '../components/Why';
 import { PROMPTS, dayPrompt } from '../lib/prompts';
 import { dayWeather, hereNow, nameAt, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
 import { readShot } from '../lib/scene/context';
-import type { DayRecord, DiaryFont, PhotoLayout, ShotMeta } from '../lib/types';
+import type { DayRecord, DiaryFont, PageDeco, PageNote, PhotoLayout, ShotMeta } from '../lib/types';
+import FlowText, { noteRect } from '../components/FlowText';
 import { MOOD_COLORS, MOOD_WORDS, setMood as saveMood, type Mood } from '../lib/moods';
 import { moodImg } from '../components/Bunny';
 import { PhotoPage } from '../components/Journal';
@@ -55,7 +56,19 @@ export default function NewDay({ nb }: { nb?: string }) {
   const [songOpen, setSongOpen] = useState(false);
   const [writing, setWriting] = useState(false);
   const opener = useRef<PhotoOpen>({});
-  const [pageBg] = useState<string | null>(null);
+  // украшение страницы: цвет листа, рисунок и надписи (текст их обтекает)
+  const [deco, setDeco] = useState<PageDeco>({});
+  const [mode, setMode] = useState<'write' | 'draw' | 'note'>('write');
+  const [pen, setPen] = useState({ c: INKS[0], w: 9 });
+  const [palette, setPalette] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const decorated = !!(deco.strokes?.length || deco.notes?.length);
+  // включили рисование или надписи — показываем правую страницу целиком
+  useEffect(() => {
+    if (mode === 'write') return;
+    document.querySelector('.nd2 .nd-right')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [mode]);
+  const pageBg = deco.color ?? null;
   // пока человек пишет — сайт подстраивается под то, что он вспоминает
   const [heard, setHeard] = useState<Motif[]>([]);
   const [mood, setMood] = useState({ valence: 0, arousal: 0 });
@@ -211,6 +224,7 @@ export default function NewDay({ nb }: { nb?: string }) {
       rec.live3d = live;
       rec.layout = layout;
       rec.font = font;
+      if (deco.color || deco.strokes?.length || deco.notes?.length) rec.page = deco;
       if (feel) {
         rec.feel = feel;
         saveMood(rec.date, feel);
@@ -372,7 +386,13 @@ export default function NewDay({ nb }: { nb?: string }) {
               </button>
             </div>
             <div className="field nd-field" ref={(e) => void (secs.current.text = e)}>
-              <textarea ref={ta} className={'f-' + font} value={text} onChange={(e) => setText(e.target.value)} placeholder="Пиши как другу…" disabled={phase === 'build'} />
+              {mode === 'write' && (typing || !decorated) ? (
+                <textarea ref={ta} autoFocus={typing} onBlur={() => setTyping(false)} className={'f-' + font} value={text} onChange={(e) => setText(e.target.value)} placeholder="Пиши как другу…" disabled={phase === 'build'} />
+              ) : (
+                <FlowText text={text} font={font} deco={deco} className="nd-flowbox">
+                  <DecoLayer mode={mode} deco={deco} onDeco={setDeco} pen={pen} font={font} onWrite={() => setTyping(true)} />
+                </FlowText>
+              )}
               <div className="heard" aria-live="polite">
                 {heard.map((k) => (
                   <span key={k}>✦ {MOTIF_NAMES[k]}</span>
@@ -435,7 +455,66 @@ export default function NewDay({ nb }: { nb?: string }) {
           </button>
         )}
         <CutoutPicker tool disabled={phase === 'build'} count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
+        <button className={'nd-tool' + (palette ? ' on' : '')} onClick={() => setPalette((x) => !x)} disabled={phase === 'build'}>
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path d="M12 3.5c-4.7 0-8.5 3.6-8.5 8.2 0 4.2 3.3 8.8 8 8.8 1.4 0 2-.8 2-1.8 0-1.3-1.1-1.6-1.1-2.9 0-1 .8-1.7 1.9-1.7h2.5c2.2 0 3.7-1.6 3.7-3.8 0-3.7-3.8-6.8-8.5-6.8z" />
+            <circle cx="8" cy="11" r="1.2" />
+            <circle cx="11.5" cy="7.6" r="1.2" />
+            <circle cx="15.6" cy="9" r="1.2" />
+          </svg>
+          <span>Цвет листа</span>
+        </button>
+        <button className={'nd-tool' + (mode === 'draw' ? ' on' : '')} onClick={() => setMode(mode === 'draw' ? 'write' : 'draw')} disabled={phase === 'build'}>
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path d="M4 20l1.2-4.6L16.4 4.2a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8z" />
+            <path d="M14.5 6l3.5 3.5" />
+          </svg>
+          <span>Рисовать</span>
+        </button>
+        <button className={'nd-tool' + (mode === 'note' ? ' on' : '')} onClick={() => setMode(mode === 'note' ? 'write' : 'note')} disabled={phase === 'build'}>
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6" />
+          </svg>
+          <span>Текст</span>
+        </button>
       </div>
+      {palette && (
+        <div className="nd-sub2" role="radiogroup" aria-label="Цвет листа">
+          {PAPERS.map((c) => (
+            <button key={c} role="radio" aria-checked={(deco.color ?? PAPERS[0]) === c} className={'nd-sw' + ((deco.color ?? PAPERS[0]) === c ? ' on' : '')} style={{ background: c }} onClick={() => (play('tick'), setDeco((d) => ({ ...d, color: c === PAPERS[0] ? undefined : c })))} aria-label={c} />
+          ))}
+        </div>
+      )}
+      {mode !== 'write' && (
+        <div className="nd-sub2 nd-pens">
+          <span className="nd-sub2-t">{mode === 'draw' ? 'Рисуй на правой странице, текст обтечёт рисунок' : 'Нажми на страницу, чтобы добавить надпись'}</span>
+          {INKS.map((c) => (
+            <button key={c} className={'nd-sw ink' + (pen.c === c ? ' on' : '')} style={{ background: c }} onClick={() => setPen((p) => ({ ...p, c }))} aria-label={c} />
+          ))}
+          {mode === 'draw' &&
+            [5, 9, 20].map((w) => (
+              <button key={w} className={'nd-pw' + (pen.w === w ? ' on' : '')} onClick={() => setPen((p) => ({ ...p, w }))} aria-label={'толщина ' + w}>
+                <i style={{ width: 4 + w * 0.7, height: 4 + w * 0.7 }} />
+              </button>
+            ))}
+          <button
+            className="btn ghost small"
+            onClick={() =>
+              setDeco((d) => {
+                const k = mode === 'draw' ? 'strokes' : 'notes';
+                const list = [...(d[k] ?? [])];
+                list.pop();
+                return { ...d, [k]: list };
+              })
+            }
+          >
+            ↶ Отменить
+          </button>
+          <button className="btn small" onClick={() => setMode('write')}>
+            Готово
+          </button>
+        </div>
+      )}
 
       <div className="nd-go">
         {phase === 'build' ? (
@@ -551,6 +630,113 @@ function coverTint(style?: string) {
   const C: Record<string, string> = { black: '#1d1c23', kraft: '#b98d5f', marble: '#d9d4cc', guava: '#e98f86', birds: '#9fb7c9', linen: '#cfc4ae', night: '#232647', olive: '#7d8456', ransom: '#e9e1d0', collage: '#2c2b3a', custom: '#2c2b3a' };
   return C[style ?? 'black'] ?? '#1d1c23';
 }
+const PAPERS = ['#fbf8f1', '#ffffff', '#f3effd', '#fdeef1', '#eef7f1', '#eef4fb', '#fdf6dc', '#efe3cc'];
+const INKS = ['#34314d', '#7a66d9', '#ef8466', '#4fa98a', '#f2b84b', '#5b9bd5'];
+
+/** Слой поверх страницы: рисование пальцем/мышью и надписи, которые можно двигать */
+function DecoLayer({ mode, deco, onDeco, pen, font, onWrite }: { mode: 'write' | 'draw' | 'note'; deco: PageDeco; onDeco: (f: (d: PageDeco) => PageDeco) => void; pen: { c: string; w: number }; font: DiaryFont; onWrite: () => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  const drawing = useRef(false);
+  const drag = useRef<{ i: number; dx: number; dy: number } | null>(null);
+  const [edit, setEdit] = useState<{ i: number; t: string } | null>(null);
+  const pt = (e: React.PointerEvent) => {
+    const r = el.current!.getBoundingClientRect();
+    return [Math.round(((e.clientX - r.left) / r.width) * 1000), Math.round(((e.clientY - r.top) / r.width) * 1000)] as const;
+  };
+  const w = el.current?.clientWidth ?? 500;
+  const notes = deco.notes ?? [];
+  const hitNote = (x: number, y: number) =>
+    notes.findIndex((n) => {
+      const [nx, ny, nw, nh] = noteRect(n, 1000);
+      return x >= nx && x <= nx + nw && y >= ny && y <= ny + nh;
+    });
+  const setNote = (i: number, p: Partial<PageNote>) => onDeco((d) => ({ ...d, notes: (d.notes ?? []).map((n, j) => (j === i ? { ...n, ...p } : n)) }));
+  return (
+    <div
+      ref={el}
+      className={'deco deco-' + mode}
+      onPointerDown={(e) => {
+        if (mode === 'write') return onWrite();
+        // не даём браузеру увести фокус и выделять текст: иначе новая надпись сразу теряет фокус
+        e.preventDefault();
+        if (edit) return;
+        const [x, y] = pt(e);
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        if (mode === 'draw') {
+          drawing.current = true;
+          onDeco((d) => ({ ...d, strokes: [...(d.strokes ?? []), { c: pen.c, w: pen.w, p: [x, y] }] }));
+        } else {
+          const i = hitNote(x, y);
+          if (i >= 0) drag.current = { i, dx: x - notes[i].x, dy: y - notes[i].y };
+          else {
+            const n: PageNote = { x: Math.max(0, x - 20), y: Math.max(0, y - 30), t: '', f: font === 'print' || font === 'type' ? 'hand' : font, c: pen.c, s: 64, r: Math.round((Math.random() - 0.5) * 8) };
+            onDeco((d) => ({ ...d, notes: [...(d.notes ?? []), n] }));
+            setEdit({ i: notes.length, t: '' });
+          }
+        }
+      }}
+      onPointerMove={(e) => {
+        if (drawing.current) {
+          const [x, y] = pt(e);
+          onDeco((d) => {
+            const list = [...(d.strokes ?? [])];
+            const s = list[list.length - 1];
+            const p = s.p;
+            if (Math.hypot(x - p[p.length - 2], y - p[p.length - 1]) < 3) return d;
+            list[list.length - 1] = { ...s, p: [...p, x, y] };
+            return { ...d, strokes: list };
+          });
+        } else if (drag.current) {
+          const [x, y] = pt(e);
+          setNote(drag.current.i, { x: Math.max(0, x - drag.current.dx), y: Math.max(0, y - drag.current.dy) });
+        }
+      }}
+      onPointerUp={(e) => {
+        if (drag.current) {
+          const [x, y] = pt(e);
+          const g = drag.current;
+          const moved = Math.hypot(x - g.dx - notes[g.i].x, y - g.dy - notes[g.i].y) > 2;
+          drag.current = null;
+          // короткое нажатие по надписи — исправить её
+          if (!moved && Math.abs(notes[g.i].x + g.dx - x) < 4) setEdit({ i: g.i, t: notes[g.i].t });
+        }
+        drawing.current = false;
+      }}
+    >
+      {edit && notes[edit.i] && (
+        <div className="deco-edit" style={{ left: Math.min((notes[edit.i].x * w) / 1000, w - 230), top: (notes[edit.i].y * w) / 1000 }} onPointerDown={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            className={'f-' + notes[edit.i].f}
+            value={edit.t}
+            placeholder="надпись"
+            maxLength={60}
+            onChange={(e) => {
+              setEdit({ ...edit, t: e.target.value });
+              setNote(edit.i, { t: e.target.value });
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+            onBlur={() => {
+              if (!edit.t.trim()) onDeco((d) => ({ ...d, notes: (d.notes ?? []).filter((_, j) => j !== edit.i) }));
+              setEdit(null);
+            }}
+          />
+          <button
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onDeco((d) => ({ ...d, notes: (d.notes ?? []).filter((_, j) => j !== edit.i) }));
+              setEdit(null);
+            }}
+            aria-label="Удалить надпись"
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FONTS: [DiaryFont, string][] = [
   ['hand', 'От руки'],
   ['script', 'Каллиграфия'],
