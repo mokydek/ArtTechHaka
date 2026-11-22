@@ -207,11 +207,17 @@ export interface DayRecord {
   titlePattern?: string;
   hasExcerpt?: boolean;
   layout?: PhotoLayout; // как фото вклеены на страницу дневника
+  font?: DiaryFont; // каким почерком записан текст
+  feel?: 1 | 2 | 3 | 4 | 5; // «атмосфера дня», которую человек отметил сам
 }
+
+/** Почерк записи: рукописный, каллиграфия, печатный, машинка */
+export type DiaryFont = 'hand' | 'script' | 'print' | 'type';
 
 /** Раскладка фото на странице: полароиды, коллаж или как человек разложил сам */
 export interface PhotoLayout {
   kind: 'polaroid' | 'collage' | 'free';
+  grid?: 'rows' | 'cols' | 'grid'; // коллаж «как в инсте»: полосы, колонки, сетка 2×2
   items?: { x: number; y: number; w: number; rot: number }[]; // для «free»: центр 0..1, ширина 0..1, поворот в градусах
 }
 

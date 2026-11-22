@@ -405,7 +405,7 @@ function DayPage({ id }: { id: string }) {
           </button>
         </div>
 
-        {rec.text.trim() && <p className="day-text">{rec.text}</p>}
+        {rec.text.trim() && <p className={'day-text f-' + (rec.font ?? 'print')}>{rec.text}</p>}
         {(rec.music.title || rec.music.artist) && (
           <p className="day-song">
             ♪ {[rec.music.artist, rec.music.title].filter(Boolean).join(' · ')}

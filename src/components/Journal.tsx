@@ -57,7 +57,7 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
   if (lay === 'collage')
     return (
       <div className="jp jp-photos">
-        <div className={'jp-collage n' + list.length} style={{ transform: `rotate(${(r() - 0.5) * 2.4}deg)` }}>
+        <div className={'jp-collage n' + list.length + (d.layout?.grid ? ' g-' + d.layout.grid : '')} style={{ transform: `rotate(${(r() - 0.5) * 2.4}deg)` }}>
           {list.map((u, i) => (
             <img key={i} src={u} alt="" draggable={false} />
           ))}
@@ -92,7 +92,7 @@ export function PhotoPage({ d, photos }: { d: DayRecord; photos: string[] }) {
 
 function TextPage({ d }: { d: DayRecord }) {
   const w = dateWords(d.date);
-  const m = moods()[d.date] ?? valenceMood(d.design.mood.valence);
+  const m = d.feel ?? moods()[d.date] ?? valenceMood(d.design.mood.valence);
   const song = [d.music.artist, d.music.title].filter(Boolean).join(' · ');
   return (
     <div className="jp jp-text">
@@ -104,7 +104,7 @@ function TextPage({ d }: { d: DayRecord }) {
         <img className="jp-mood" src={moodImg(m)} alt="" title="настроение дня" draggable={false} />
       </div>
       <h3 className="jp-title">{d.title}</h3>
-      {d.text ? <p className="jp-hand">{d.text}</p> : d.hasVoice ? <p className="jp-hand jp-voice">♪ голосовое воспоминание</p> : null}
+      {d.text ? <p className={'jp-hand f-' + (d.font ?? 'hand')}>{d.text}</p> : d.hasVoice ? <p className="jp-hand jp-voice">♪ голосовое воспоминание</p> : null}
       <div className="jp-foot">
         {song && (
           <span className="jp-ticket">

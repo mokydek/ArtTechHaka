@@ -9181,3 +9181,843 @@ html.in-lock body {
     translate: -50% 0;
   }
 }
+
+/* =====================================================================
+   Разворот дневника (NewDay, .nd2) по эскизам Raspberry:
+   раскрытая тетрадь в обложке, слева фото, справа линованный лист с вопросом,
+   под разворотом — атмосфера дня и песня, ниже — панель страницы.
+   ===================================================================== */
+.f-hand {
+  font-family: var(--hand);
+}
+.f-script {
+  font-family: 'Marck Script', cursive;
+}
+.f-print {
+  font-family: var(--sans);
+}
+.f-type {
+  font-family: 'PT Mono', ui-monospace, monospace;
+}
+.jp-hand.f-script {
+  font-size: calc(var(--pw) * 0.046);
+}
+.jp-hand.f-print {
+  font-size: calc(var(--pw) * 0.034);
+}
+.jp-hand.f-type {
+  font-size: calc(var(--pw) * 0.031);
+}
+.day-text.f-hand {
+  font-size: 1.45em;
+  line-height: 1.3;
+}
+.day-text.f-script {
+  font-size: 1.3em;
+  line-height: 1.4;
+}
+/* коллаж «как в инсте» */
+.jp-collage.g-rows {
+  grid-template: none;
+  grid-auto-rows: 1fr;
+  grid-template-columns: 1fr;
+}
+.jp-collage.g-rows img:first-child {
+  grid-column: auto;
+}
+.jp-collage.g-cols {
+  grid-template: 1fr / repeat(2, 1fr);
+  grid-auto-flow: column;
+}
+.jp-collage.g-cols img:first-child {
+  grid-column: auto;
+}
+.jp-collage.g-cols.n3 {
+  grid-template: 1fr 1fr / 1fr 1fr;
+  grid-auto-flow: row;
+}
+.jp-collage.g-cols.n3 img:first-child {
+  grid-row: span 2;
+}
+.jp-collage.g-grid {
+  grid-template: 1fr 1fr / 1fr 1fr;
+}
+.jp-collage.g-grid img:first-child {
+  grid-column: auto;
+}
+
+.nd2 {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+.nd-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 0 6px 14px;
+}
+.nd-nb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.nd-nb select {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 30px 7px 14px;
+  background: var(--lav-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235a4bb3' stroke-width='1.6'/%3E%3C/svg%3E") right 12px center no-repeat;
+  appearance: none;
+  font: 600 14px var(--sans);
+  color: var(--lav-deep);
+}
+.nd-date2 {
+  border: 0;
+  background: transparent;
+  font: 500 24px var(--hand);
+  color: var(--ink);
+  text-align: right;
+}
+.nd-diary {
+  position: relative;
+  padding: 16px 20px 16px 16px;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%),
+    radial-gradient(130% 90% at 30% 10%, color-mix(in srgb, var(--cover) 88%, #fff), var(--cover) 70%);
+  box-shadow:
+    0 50px 70px -40px rgba(36, 35, 58, 0.55),
+    0 2px 0 rgba(255, 255, 255, 0.06) inset;
+}
+.nd-band {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  right: 6px;
+  width: 8px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #8f7fd6, #b9a8f4 45%, #8f7fd6);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+.nd2 .nd-book {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: 6px;
+  filter: none;
+  box-shadow:
+    -3px 0 0 #f1eadc,
+    3px 0 0 #f1eadc,
+    -5px 0 0 #ddd3bf,
+    5px 0 0 #ddd3bf,
+    -7px 0 0 #f1eadc,
+    7px 0 0 #f1eadc;
+}
+.nd2 .nd-page {
+  position: relative;
+  min-height: 700px;
+  padding: 26px 34px 26px;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: #fbf8f1;
+  background-image: url('/paper-noise.png');
+  background-size: auto;
+}
+.nd2 .nd-left {
+  border-radius: 5px 0 0 5px;
+  background-image:
+    radial-gradient(circle, rgba(36, 35, 58, 0.09) 1px, transparent 1.4px),
+    url('/paper-noise.png');
+  background-size: 22px 22px, auto;
+}
+.nd2 .nd-right {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 5px 5px 0;
+}
+/* корешок: тень сгиба посередине */
+.nd2 .nd-left::after,
+.nd2 .nd-right::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 46px;
+  pointer-events: none;
+  display: block;
+  border: 0;
+  opacity: 1;
+}
+.nd2 .nd-left::after {
+  right: 0;
+  left: auto;
+  background: linear-gradient(90deg, transparent, rgba(36, 30, 20, 0.1) 80%, rgba(36, 30, 20, 0.18));
+}
+.nd2 .nd-right::before {
+  left: 0;
+  background: linear-gradient(270deg, transparent, rgba(36, 30, 20, 0.08) 70%, rgba(36, 30, 20, 0.16));
+}
+/* раскладки фото: иконки в углу страницы */
+.nd-lays {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.nd-lay {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px rgba(36, 35, 58, 0.08);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.nd-lay svg {
+  width: 20px;
+  height: 20px;
+}
+.nd-lay:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.nd-lay.on {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+/* пустые места под фото: полароиды на скотче с плюсом */
+.pb-slots {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 0.72;
+  margin: 0 auto;
+}
+.pb-slot {
+  position: absolute;
+  width: 46%;
+  aspect-ratio: 0.84;
+  padding: 7% 7% 20%;
+  border: 0;
+  background: #fff;
+  box-shadow: 0 14px 22px -14px rgba(36, 35, 58, 0.45);
+  color: var(--lav-deep);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.3, 1.5, 0.5, 1), box-shadow 0.25s;
+}
+.pb-slot::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  width: 42%;
+  height: 20px;
+  translate: -50% 0;
+  rotate: -4deg;
+  background: rgba(185, 168, 244, 0.55);
+}
+.pb-slot::after {
+  content: '';
+  position: absolute;
+  inset: 7% 7% 20%;
+  border: 1.5px dashed rgba(90, 75, 179, 0.4);
+  border-radius: 2px;
+  background: #f6f3ff;
+}
+.pb-slot span,
+.pb-slot small {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+.pb-slot span {
+  margin-top: 26%;
+  font: 300 38px/1 var(--sans);
+}
+.pb-slot small {
+  font: 500 19px var(--hand);
+}
+.pb-slot:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 20px 28px -14px rgba(36, 35, 58, 0.5);
+}
+.pb-slots.over .pb-slot::after {
+  background: #ece6ff;
+  border-color: var(--lav-deep);
+}
+.k-polaroid .pb-slot:nth-child(1) {
+  left: 4%;
+  top: 2%;
+  rotate: -6deg;
+}
+.k-polaroid .pb-slot:nth-child(2) {
+  left: 50%;
+  top: 16%;
+  rotate: 5deg;
+}
+.k-polaroid .pb-slot:nth-child(3) {
+  left: 18%;
+  top: 50%;
+  rotate: 2deg;
+}
+.k-free .pb-slot:nth-child(1) {
+  left: 6%;
+  top: 8%;
+  rotate: -9deg;
+  width: 50%;
+}
+.k-free .pb-slot:nth-child(2) {
+  left: 44%;
+  top: 44%;
+  rotate: 7deg;
+  width: 50%;
+}
+.pb-slots.k-collage {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  rotate: -1deg;
+  box-shadow: 0 18px 26px -16px rgba(36, 35, 58, 0.45);
+  aspect-ratio: 0.78;
+  width: 86%;
+}
+.k-collage.g-rows {
+  grid-template-rows: repeat(3, 1fr);
+}
+.k-collage.g-cols {
+  grid-template-columns: 1fr 1fr;
+}
+.k-collage.g-grid {
+  grid-template: 1fr 1fr / 1fr 1fr;
+}
+.k-collage .pb-slot {
+  position: relative;
+  width: auto;
+  aspect-ratio: auto;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.k-collage .pb-slot::before {
+  display: none;
+}
+.k-collage .pb-slot::after {
+  inset: 0;
+}
+.k-collage .pb-slot span {
+  margin-top: 0;
+}
+.k-collage .pb-slot:hover {
+  transform: none;
+}
+.nd2 .pb-sheet {
+  box-shadow: none;
+  overflow: visible;
+}
+.nd2 .pb .thumbs {
+  margin-top: 14px;
+  justify-content: center;
+}
+.nd-stickers {
+  justify-content: center;
+  margin-top: 12px;
+}
+/* правая страница: вопрос дня и линованный лист */
+.nd-q {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-bottom: 8px;
+}
+.nd-q span {
+  flex: 1;
+  font: 500 32px/1.1 var(--hand);
+  color: var(--ink);
+}
+.nd-q.done span {
+  visibility: hidden;
+}
+.nd-ic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.nd-ic:hover {
+  background: var(--lav-soft);
+  color: var(--lav-deep);
+}
+.nd2 .nd-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.nd2 .nd-field textarea {
+  flex: 1;
+  min-height: 470px;
+  margin: 0;
+  padding: 2px 4px 0 6px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  resize: none;
+  box-shadow: none;
+  color: #34314d;
+  background: repeating-linear-gradient(180deg, transparent 0 33px, rgba(91, 75, 196, 0.18) 33px 34px) 0 0 / 100% 34px local;
+  background-color: transparent;
+}
+.nd2 .nd-field textarea:focus {
+  box-shadow: none;
+  background-color: transparent;
+}
+.nd2 textarea.f-hand {
+  font: 500 27px/34px var(--hand);
+}
+.nd2 textarea.f-script {
+  font: 400 24px/34px 'Marck Script', cursive;
+}
+.nd2 textarea.f-print {
+  font: 400 18px/34px var(--sans);
+}
+.nd2 textarea.f-type {
+  font: 400 16px/34px 'PT Mono', monospace;
+}
+.nd2 .nd-field textarea::placeholder {
+  color: rgba(52, 49, 77, 0.35);
+}
+.nd-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+}
+.nd-foot .voice-note {
+  margin: 0;
+}
+/* под разворотом: атмосфера дня, песня, место */
+.nd-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 14px;
+  margin: 26px auto 0;
+}
+.nd-mood {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px 7px 8px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+.nd-mood small {
+  margin-left: 6px;
+  font: 500 18px var(--hand);
+  color: var(--ink-2);
+}
+.nd-face {
+  width: 42px;
+  height: 42px;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.2s;
+}
+.nd-face img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: saturate(0.6) opacity(0.75);
+  transition: filter 0.2s;
+}
+.nd-face:hover img,
+.nd-face.on img {
+  filter: none;
+}
+.nd-face.on {
+  transform: scale(1.16);
+  box-shadow: 0 0 0 3px var(--mc);
+}
+.nd-song {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 340px;
+  padding: 7px 18px 7px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+  font: 600 14px var(--sans);
+  color: var(--ink);
+  cursor: pointer;
+}
+.nd-song i {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--lav-soft);
+  color: var(--lav-deep);
+  font-style: normal;
+  font-size: 18px;
+}
+.nd-song span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.nd-song.on i {
+  background: var(--ink);
+  color: #fff;
+}
+.nd-strip .place {
+  flex: 0 1 330px;
+  margin: 0;
+}
+.nd-strip .place .inp {
+  border-radius: 999px;
+}
+.nd-note {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+/* панель страницы («окно» на эскизе) */
+.nd-tools {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+  margin: 18px auto 0;
+  padding: 6px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+.nd-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 74px;
+  padding: 8px 10px 6px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 12px var(--sans);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.nd-tool svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+button.nd-tool:hover,
+.nd-tool.on {
+  background: var(--lav-soft);
+}
+.nd-cut {
+  justify-content: center;
+  padding: 6px;
+}
+.nd-cut .cut-picker {
+  margin: 0;
+}
+.nd-cut .btn {
+  box-shadow: none;
+}
+.nd2 .nd-go {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+}
+.nd2 .nd-go > .btn {
+  padding: 16px 40px;
+  font-size: 16px;
+}
+.nd2 .nd-go .hint {
+  margin: 0;
+}
+/* выбор песни во всплывающем окне */
+.sp-back {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(36, 35, 58, 0.32);
+  backdrop-filter: blur(6px);
+  animation: in-pop-fade 0.2s ease-out;
+}
+.sp-modal {
+  width: min(560px, 100%);
+  max-height: 84vh;
+  overflow: auto;
+  padding: 20px 22px 22px;
+  border-radius: 24px;
+  background: var(--paper);
+  box-shadow: 0 40px 80px -30px rgba(36, 35, 58, 0.6);
+  animation: rv-pop 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.sp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sp-head h3 {
+  margin: 0;
+  font: 600 22px var(--serif);
+}
+@keyframes in-pop-fade {
+  from {
+    opacity: 0;
+  }
+}
+/* письмо на весь экран */
+.fw {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 50% at 50% 40%, rgba(185, 168, 244, 0.16), transparent 70%),
+    #f3eee4;
+  animation: in-pop-fade 0.25s ease-out;
+}
+.fw-page {
+  display: flex;
+  flex-direction: column;
+  width: min(820px, 92vw);
+  height: min(86vh, 980px);
+  padding: 40px 56px 30px;
+  border-radius: 8px 16px 16px 8px;
+  background: #fbf8f1 url('/paper-noise.png');
+  box-shadow:
+    4px 4px 0 #f1eadc,
+    7px 7px 0 #ddd3bf,
+    0 40px 70px -30px rgba(36, 35, 58, 0.45);
+  animation: rv-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --rv-d: 1;
+}
+.fw-q {
+  margin-bottom: 14px;
+  font: 500 38px/1.1 var(--hand);
+  color: var(--ink);
+}
+.fw-ta {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: repeating-linear-gradient(180deg, transparent 0 39px, rgba(91, 75, 196, 0.18) 39px 40px) 0 0 / 100% 40px local;
+  color: #34314d;
+}
+.fw-ta.f-hand {
+  font: 500 31px/40px var(--hand);
+}
+.fw-ta.f-script {
+  font: 400 28px/40px 'Marck Script', cursive;
+}
+.fw-ta.f-print {
+  font: 400 21px/40px var(--sans);
+}
+.fw-ta.f-type {
+  font: 400 19px/40px 'PT Mono', monospace;
+}
+.fw-fonts {
+  position: fixed;
+  right: max(2.5vw, 14px);
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+.fw-font {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 78px;
+  padding: 8px 4px 6px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.fw-font b {
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+}
+.fw-font small {
+  margin-top: 4px;
+  font: 600 10.5px var(--sans);
+  color: var(--ink-2);
+}
+.fw-font.on {
+  background: var(--ink);
+  color: #fff;
+}
+.fw-font.on small {
+  color: rgba(255, 255, 255, 0.75);
+}
+.fw-done {
+  position: fixed;
+  right: max(2.5vw, 14px);
+  top: 22px;
+}
+
+@media (max-width: 860px) {
+  .nd-diary {
+    padding: 10px 12px 10px 10px;
+    border-radius: 18px;
+  }
+  .nd2 .nd-book {
+    grid-template-columns: 1fr;
+  }
+  .nd2 .nd-page {
+    min-height: 0;
+    padding: 20px 18px;
+  }
+  .nd2 .nd-left {
+    border-radius: 5px 5px 0 0;
+  }
+  .nd2 .nd-right {
+    border-radius: 0 0 5px 5px;
+  }
+  .nd2 .nd-left::after {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 30px;
+    background: linear-gradient(180deg, transparent, rgba(36, 30, 20, 0.1));
+  }
+  .nd2 .nd-right::before {
+    display: none;
+  }
+  .nd2 .nd-field textarea {
+    min-height: 300px;
+  }
+  .nd-q span {
+    font-size: 27px;
+  }
+  .nd-tools {
+    width: auto;
+    flex-wrap: wrap;
+  }
+  .fw-page {
+    width: 100vw;
+    height: 100%;
+    padding: 70px 22px 110px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .fw-fonts {
+    top: auto;
+    bottom: 14px;
+    left: 50%;
+    right: auto;
+    translate: -50% 0;
+    flex-direction: row;
+  }
+  .fw-font {
+    width: 70px;
+  }
+}
+.nd-when {
+  position: relative;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font: 500 26px var(--hand);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.nd-when:hover {
+  background: var(--lav-soft);
+}
+.nd-when input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.nd-when input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+/* коллаж подстраивается под число фото, чтобы не оставалось пустых клеток */
+.jp-collage.n1 {
+  grid-template: 1fr / 1fr;
+}
+.jp-collage.g-grid.n2 {
+  grid-template: 1fr 1fr / 1fr;
+}
+.jp-collage.g-grid.n3 {
+  grid-template: 1.3fr 1fr / 1fr 1fr;
+}
+.jp-collage.g-grid.n3 img:first-child {
+  grid-column: span 2;
+}
+.jp-collage.g-cols.n4 {
+  grid-template: 1fr 1fr / 1fr 1fr;
+  grid-auto-flow: row;
+}
+@media (max-width: 860px) {
+  .nd2 .nd-book {
+    gap: 0;
+  }
+}

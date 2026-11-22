@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource/caveat/500.css';
+import '@fontsource/marck-script/400.css';
+import '@fontsource/pt-mono/400.css';
 import './styles.css';
 import App from './App';
 import { initI18n } from './lib/i18n';

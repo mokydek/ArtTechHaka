@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { bunnySay } from '../components/Mascot';
 import { bunnyReact, burst, buzz, play, stampMark } from '../lib/feel';
 import type { Pose } from '../components/Bunny';
@@ -11,7 +12,9 @@ import Why from '../components/Why';
 import { PROMPTS, dayPrompt } from '../lib/prompts';
 import { dayWeather, hereNow, nameAt, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
 import { readShot } from '../lib/scene/context';
-import type { DayRecord, PhotoLayout, ShotMeta } from '../lib/types';
+import type { DayRecord, DiaryFont, PhotoLayout, ShotMeta } from '../lib/types';
+import { MOOD_COLORS, MOOD_WORDS, setMood as saveMood, type Mood } from '../lib/moods';
+import { moodImg } from '../components/Bunny';
 import { PhotoPage } from '../components/Journal';
 import type { PlaceInfo } from '../lib/types';
 import VoiceNote from '../components/VoiceNote';
@@ -47,6 +50,12 @@ export default function NewDay({ nb }: { nb?: string }) {
       return (base ? base + (/[.!?…]$/.test(base) ? ' ' : '. ') : '') + piece;
     });
   const [text, setText] = useState('');
+  const [font, setFont] = useState<DiaryFont>('hand');
+  const [feel, setFeel] = useState<Mood | null>(null);
+  const [songOpen, setSongOpen] = useState(false);
+  const [writing, setWriting] = useState(false);
+  const opener = useRef<PhotoOpen>({});
+  const [pageBg] = useState<string | null>(null);
   // пока человек пишет — сайт подстраивается под то, что он вспоминает
   const [heard, setHeard] = useState<Motif[]>([]);
   const [mood, setMood] = useState({ valence: 0, arousal: 0 });
@@ -121,7 +130,6 @@ export default function NewDay({ nb }: { nb?: string }) {
   const missing: ['text' | 'photo' | 'song', string][] = [];
   if (!photos.length) missing.push(['photo', 'Добавь хотя бы одно фото.']);
   const ready = !missing.length;
-  const extra = !text.trim() && !voice ? 'Можно без текста и песни, хватит фото.' : !music ? 'Песню можно не выбирать.' : '';
   const secs = useRef<Record<string, HTMLElement | null>>({});
   /* зайчик подсказывает следующий шаг (не перебивая, пока человек печатает) */
   const stepKey = phase === 'build' ? 'build' : phase === 'preview' ? 'preview' : missing.length ? 'photo' : !text.trim() && !voice ? 'text' : !music ? 'song' : 'ready';
@@ -202,6 +210,11 @@ export default function NewDay({ nb }: { nb?: string }) {
       rec.notebookId = nbId || defaultNotebook;
       rec.live3d = live;
       rec.layout = layout;
+      rec.font = font;
+      if (feel) {
+        rec.feel = feel;
+        saveMood(rec.date, feel);
+      }
       if (metas.some(Boolean)) rec.photoMeta = metas;
       if (cuts.length) rec.cutouts = cuts.map((c) => ({ id: c.rt.id, kind: c.kind, x: c.rt.x, y: c.rt.y, s: c.rt.s, rot: c.rt.rot }));
       if (voice) {
@@ -264,163 +277,321 @@ export default function NewDay({ nb }: { nb?: string }) {
     );
   }
 
+  const cover = notebooks.find((n) => n.id === nbId)?.cover;
   return (
-    <div className="nd">
-      {own.length > 1 && (
-        <div className="nb-pick">
-          <span className="muted">в тетрадь</span>
-          <select className="inp" value={nbId} onChange={(e) => setNbId(e.target.value)} disabled={phase === 'build'}>
-            {own.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.title}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <div className="nd-book">
-        <section className="nd-page nd-left" ref={(e) => void (secs.current.photo = e)}>
-          <div className="nd-row">
-            <h2 className="nd-sub">Фото</h2>
-            <div className="nd-seg" role="radiogroup" aria-label="Как вклеить фото">
-              {LAYOUTS.map(([k, label]) => (
-                <button
-                  key={k}
-                  role="radio"
-                  data-sfx="none"
-                  aria-checked={layout.kind === k}
-                  className={'tab' + (layout.kind === k ? ' on' : '')}
-                  disabled={phase === 'build'}
-                  onClick={() => {
-                    play('shuffle');
-                    setLay(k === 'free' ? { kind: 'free', items: scatter(photos.length, lay.kind === 'free' ? lay.items : undefined) } : { kind: k });
-                    setChosen(true);
-                  }}
-                >
-                  {label}
-                </button>
+    <div className="nd nd2">
+      <div className="nd-top">
+        {own.length > 1 ? (
+          <label className="nd-nb">
+            <span>в тетрадь</span>
+            <select value={nbId} onChange={(e) => setNbId(e.target.value)} disabled={phase === 'build'}>
+              {own.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.title}
+                </option>
               ))}
-            </div>
-          </div>
-          <PhotoBoard
-            files={photos}
-            onChange={(f) => {
-              setPhotos(f);
-              if (lay.kind === 'free') setLay({ kind: 'free', items: scatter(f.length, lay.items) });
+            </select>
+          </label>
+        ) : (
+          <span />
+        )}
+        <label className="nd-when" title="Поменять дату">
+          <span>{dateWords(date)}</span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              dateTouched.current = true;
+              setDate(e.target.value);
             }}
-            layout={layout}
-            onLayout={setLay}
-            disabled={phase === 'build'}
+            aria-label="Дата"
           />
-          <h2 className="nd-sub" style={{ marginTop: 26 }}>
-            Вклейки
-          </h2>
-          <CutoutPicker count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
-          {!!cuts.length && (
-            <div className="cut-list">
-              {cuts.map((c) => (
-                <div key={c.rt.id} className="cut-item">
-                  <img src={(c.rt.img as HTMLCanvasElement).toDataURL()} alt="" />
-                  {phase !== 'build' && <button onClick={() => setCuts((cs) => cs.filter((x) => x !== c))}>×</button>}
-                </div>
-              ))}
+        </label>
+      </div>
+      <div className="nd-diary" style={{ ['--cover' as string]: coverTint(cover?.style) }}>
+        <span className="nd-band" aria-hidden />
+        <div className="nd-book">
+          <section className="nd-page nd-left" ref={(e) => void (secs.current.photo = e)} style={pageBg ? { background: pageBg } : undefined}>
+            <div className="nd-lays" role="radiogroup" aria-label="Как вклеить фото">
+              {LAYOUTS.map(([k, g, label]) => {
+                const on = layout.kind === k && (k !== 'collage' || (layout.grid ?? 'grid') === g);
+                return (
+                  <button
+                    key={k + (g ?? '')}
+                    role="radio"
+                    data-sfx="none"
+                    aria-checked={on}
+                    aria-label={label}
+                    title={label}
+                    className={'nd-lay' + (on ? ' on' : '')}
+                    disabled={phase === 'build'}
+                    onClick={() => {
+                      play('shuffle');
+                      setLay(k === 'free' ? { kind: 'free', items: scatter(photos.length, lay.kind === 'free' ? lay.items : undefined) } : k === 'collage' ? { kind: 'collage', grid: g } : { kind: k });
+                      setChosen(true);
+                    }}
+                  >
+                    <LayIcon k={k} g={g} />
+                  </button>
+                );
+              })}
             </div>
-          )}
-          <div className="hint">Билет, рисунок, записка: главное вырежется в наклейку.</div>
-        </section>
-        <section className="nd-page nd-right">
-          <div className="nd-row">
-            <h1 className="nd-h">Как прошёл день?</h1>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => {
-                dateTouched.current = true;
-                setDate(e.target.value);
+            <PhotoBoard
+              files={photos}
+              onChange={(f) => {
+                setPhotos(f);
+                if (lay.kind === 'free') setLay({ kind: 'free', items: scatter(f.length, lay.items) });
               }}
-              className="inp nd-date"
-              aria-label="Дата"
-            />
-          </div>
-          <div className="ask">
-            <span className="prompt-q">{prompt}</span>
-            <button className="ask-more" onClick={() => setPi((x) => (x < 0 ? Math.floor(Math.random() * PROMPTS.length) : x + 1))} title="другой вопрос" disabled={phase === 'build'}>
-              ↻
-            </button>
-          </div>
-          <div className="field" ref={(e) => void (secs.current.text = e)}>
-            <textarea ref={ta} value={text} onChange={(e) => setText(e.target.value)} placeholder="Пиши как другу…" disabled={phase === 'build'} />
-            <div className="heard" aria-live="polite">
-              {heard.map((k) => (
-                <span key={k}>✦ {MOTIF_NAMES[k]}</span>
-              ))}
-            </div>
-          </div>
-          <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
-          {fromPhoto && <div className="muted" style={{ margin: '-6px 0 10px', fontSize: 13 }}>⌖ {fromPhoto}</div>}
-          <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
-          <h2 className="nd-sub" style={{ marginTop: 22 }}>
-            Песня дня
-          </h2>
-          <div ref={(e) => void (secs.current.song = e)}>
-            <SongPicker
-              value={music}
-              onChange={(m) => {
-                if (m) {
-                  play('needle');
-                  bunnyReact('happy', 1200);
-                }
-                setMusic(m);
-              }}
+              layout={layout}
+              onLayout={setLay}
               disabled={phase === 'build'}
-              motifs={heard}
-              mood={mood}
+              open={opener}
             />
-          </div>
-          <div className="nd-go">
-            {phase === 'build' ? (
-              <div className="steps">
-                {steps.map((s, i) => (
-                  <div className="st" key={i}>
-                    <i>
-                      {s.done ? (
-                        <svg viewBox="0 0 16 16" width="15" height="15" aria-label="готово">
-                          <path d="M2.5 8.5l3.4 3.3L13.5 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      ) : (
-                        <span className="blink">▌</span>
-                      )}
-                    </i>
-                    <div>
-                      {s.label}
-                      {s.detail && <div className="det">{s.detail}</div>}
-                    </div>
+            {!!cuts.length && (
+              <div className="cut-list nd-stickers">
+                {cuts.map((c) => (
+                  <div key={c.rt.id} className="cut-item">
+                    <img src={(c.rt.img as HTMLCanvasElement).toDataURL()} alt="" />
+                    {phase !== 'build' && <button onClick={() => setCuts((cs) => cs.filter((x) => x !== c))}>×</button>}
                   </div>
                 ))}
               </div>
-            ) : (
-              <>
-                <div className={'hint' + (nudge ? ' nudge' : '')} style={{ marginBottom: 12 }}>
-                  {ready ? extra || 'Всё готово.' : missing.map(([, m]) => m).join(' ')}
-                </div>
-                <button className={'btn' + (ready ? '' : ' soft')} onClick={go} style={{ fontSize: 14, padding: '14px 26px' }}>
-                  Проявить день
-                </button>
-                {err && <p style={{ color: '#a33' }}>{err}</p>}
-              </>
             )}
-          </div>
-        </section>
+          </section>
+          <section className="nd-page nd-right" style={pageBg ? { background: pageBg } : undefined}>
+            <div className={'nd-q' + (text.trim() ? ' done' : '')}>
+              <span>{prompt}</span>
+              <button className="nd-ic" onClick={() => setPi((x) => (x < 0 ? Math.floor(Math.random() * PROMPTS.length) : x + 1))} title="другой вопрос" aria-label="Другой вопрос" disabled={phase === 'build'}>
+                ↻
+              </button>
+              <button className="nd-ic nd-expand" onClick={() => setWriting(true)} title="Писать на весь экран" aria-label="Писать на весь экран" disabled={phase === 'build'}>
+                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+                  <path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="field nd-field" ref={(e) => void (secs.current.text = e)}>
+              <textarea ref={ta} className={'f-' + font} value={text} onChange={(e) => setText(e.target.value)} placeholder="Пиши как другу…" disabled={phase === 'build'} />
+              <div className="heard" aria-live="polite">
+                {heard.map((k) => (
+                  <span key={k}>✦ {MOTIF_NAMES[k]}</span>
+                ))}
+              </div>
+            </div>
+            <div className="nd-foot">
+              <VoiceNote onText={dictate} voice={voice} onVoice={setVoice} disabled={phase === 'build'} />
+            </div>
+          </section>
+        </div>
       </div>
+
+      <div className="nd-strip">
+        <div className="nd-mood" role="radiogroup" aria-label="Атмосфера дня">
+          {([1, 2, 3, 4, 5] as const).map((m) => (
+            <button
+              key={m}
+              role="radio"
+              aria-checked={feel === m}
+              aria-label={MOOD_WORDS[m]}
+              title={MOOD_WORDS[m]}
+              className={'nd-face' + (feel === m ? ' on' : '')}
+              style={{ ['--mc' as string]: MOOD_COLORS[m] }}
+              onClick={() => {
+                play('mood', m);
+                setFeel(feel === m ? null : m);
+              }}
+              disabled={phase === 'build'}
+            >
+              <img src={moodImg(m)} alt="" draggable={false} />
+            </button>
+          ))}
+          <small>атмосфера дня</small>
+        </div>
+        <button className={'nd-song' + (music ? ' on' : '')} onClick={() => setSongOpen(true)} disabled={phase === 'build'}>
+          <i>♫</i>
+          <span>{music ? songLabel(music) : 'Добавить песню'}</span>
+        </button>
+        <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
+      </div>
+      {fromPhoto && <div className="nd-note">⌖ {fromPhoto}</div>}
+
+      <div className="nd-tools" role="toolbar" aria-label="Страница">
+        <button className="nd-tool" onClick={() => opener.current.add?.()} disabled={phase === 'build'}>
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <rect x="3.5" y="5" width="17" height="14" rx="2" />
+            <circle cx="9" cy="10" r="1.6" />
+            <path d="M4 17l5-5 4 4 3-3 4 4" />
+          </svg>
+          <span>Фото</span>
+        </button>
+        {!!navigator.mediaDevices?.getUserMedia && (
+          <button className="nd-tool" onClick={() => opener.current.cam?.()} disabled={phase === 'build'}>
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M4 8h3l2-2.5h6L17 8h3v11H4z" />
+              <circle cx="12" cy="13" r="3.6" />
+            </svg>
+            <span>Снять</span>
+          </button>
+        )}
+        <CutoutPicker tool disabled={phase === 'build'} count={cuts.length} onAdded={(c) => setCuts((cs) => [...cs, c])} />
+      </div>
+
+      <div className="nd-go">
+        {phase === 'build' ? (
+          <div className="steps">
+            {steps.map((s, i) => (
+              <div className="st" key={i}>
+                <i>
+                  {s.done ? (
+                    <svg viewBox="0 0 16 16" width="15" height="15" aria-label="готово">
+                      <path d="M2.5 8.5l3.4 3.3L13.5 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <span className="blink">▌</span>
+                  )}
+                </i>
+                <div>
+                  {s.label}
+                  {s.detail && <div className="det">{s.detail}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <button className={'btn' + (ready ? '' : ' soft')} onClick={go}>
+              Проявить день
+            </button>
+            {!ready && <div className={'hint' + (nudge ? ' nudge' : '')}>{missing.map(([, m]) => m).join(' ')}</div>}
+            {err && <p style={{ color: '#a33' }}>{err}</p>}
+          </>
+        )}
+      </div>
+
+      {songOpen &&
+        createPortal(
+          <div className="sp-back" onClick={() => setSongOpen(false)}>
+            <div className="sp-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Песня дня">
+              <div className="sp-head">
+                <h3>Песня дня</h3>
+                <button className="nd-ic" onClick={() => setSongOpen(false)} aria-label="Закрыть">
+                  ×
+                </button>
+              </div>
+              <SongPicker
+                value={music}
+                onChange={(m) => {
+                  if (m) {
+                    play('needle');
+                    setSongOpen(false);
+                  }
+                  setMusic(m);
+                }}
+                disabled={phase === 'build'}
+                motifs={heard}
+                mood={mood}
+              />
+              {music && (
+                <button className="btn ghost small" onClick={() => setMusic(null)}>
+                  Убрать песню
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+      {writing && <FocusWriter question={prompt} text={text} onText={setText} font={font} onFont={setFont} onClose={() => setWriting(false)} />}
     </div>
   );
 }
 
-const LAYOUTS: [PhotoLayout['kind'], string][] = [
-  ['polaroid', 'Полароиды'],
-  ['collage', 'Коллаж'],
-  ['free', 'Как хочу'],
+const LAYOUTS: [PhotoLayout['kind'], PhotoLayout['grid'], string][] = [
+  ['polaroid', undefined, 'Полароиды'],
+  ['collage', 'rows', 'Коллаж: полосы'],
+  ['collage', 'cols', 'Коллаж: колонки'],
+  ['collage', 'grid', 'Коллаж: сетка'],
+  ['free', undefined, 'Как хочу'],
 ];
+/** иконки раскладок, как в инсте */
+function LayIcon({ k, g }: { k: PhotoLayout['kind']; g?: PhotoLayout['grid'] }) {
+  const P = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinejoin: 'round' as const };
+  if (k === 'polaroid')
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden>
+        <rect x="5" y="3.5" width="14" height="17" rx="1.5" {...P} />
+        <rect x="7.5" y="6" width="9" height="9" {...P} />
+      </svg>
+    );
+  if (k === 'free')
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden>
+        <rect x="3" y="4" width="10" height="10" rx="1" transform="rotate(-10 8 9)" {...P} />
+        <rect x="11" y="10" width="10" height="10" rx="1" transform="rotate(8 16 15)" {...P} />
+      </svg>
+    );
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" {...P} />
+      {g === 'rows' && <path d="M3.5 9.2h17M3.5 14.8h17" {...P} />}
+      {g === 'cols' && <path d="M12 3.5v17" {...P} />}
+      {(g === 'grid' || !g) && <path d="M12 3.5v17M3.5 12h17" {...P} />}
+    </svg>
+  );
+}
+const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const WEEK = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+const dateWords = (iso: string) => {
+  const d = new Date(iso + 'T12:00:00');
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${WEEK[d.getDay()]}`;
+};
+const songLabel = (m: MusicInput) => (m.kind === 'track' ? `${m.track.artist} · ${m.track.title}` : m.kind === 'file' ? m.file.name.replace(/\.[^.]+$/, '') : m.kind === 'manual' ? [m.artist, m.title].filter(Boolean).join(' · ') : '');
+/** цвет обложки тетради вокруг разворота */
+function coverTint(style?: string) {
+  const C: Record<string, string> = { black: '#1d1c23', kraft: '#b98d5f', marble: '#d9d4cc', guava: '#e98f86', birds: '#9fb7c9', linen: '#cfc4ae', night: '#232647', olive: '#7d8456', ransom: '#e9e1d0', collage: '#2c2b3a', custom: '#2c2b3a' };
+  return C[style ?? 'black'] ?? '#1d1c23';
+}
+const FONTS: [DiaryFont, string][] = [
+  ['hand', 'От руки'],
+  ['script', 'Каллиграфия'],
+  ['print', 'Печатный'],
+  ['type', 'Машинка'],
+];
+/** Письмо на весь экран: вопрос сверху, линованный лист и выбор почерка сбоку */
+function FocusWriter({ question, text, onText, font, onFont, onClose }: { question: string; text: string; onText: (t: string) => void; font: DiaryFont; onFont: (f: DiaryFont) => void; onClose: () => void }) {
+  const ta = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    ta.current?.focus();
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    addEventListener('keydown', k);
+    document.documentElement.classList.add('in-lock');
+    return () => {
+      removeEventListener('keydown', k);
+      document.documentElement.classList.remove('in-lock');
+    };
+  }, [onClose]);
+  return createPortal(
+    <div className="fw" role="dialog" aria-label="Запись">
+      <div className="fw-page">
+        <div className="fw-q">{question}</div>
+        <textarea ref={ta} className={'fw-ta f-' + font} value={text} onChange={(e) => onText(e.target.value)} placeholder="Пиши как другу…" />
+      </div>
+      <div className="fw-fonts" role="radiogroup" aria-label="Почерк">
+        {FONTS.map(([f, name]) => (
+          <button key={f} role="radio" aria-checked={font === f} className={'fw-font f-' + f + (font === f ? ' on' : '')} onClick={() => (play('tick'), onFont(f))} title={name}>
+            <b>Аа</b>
+            <small>{name}</small>
+          </button>
+        ))}
+      </div>
+      <button className="btn fw-done" onClick={onClose}>
+        Готово
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
 /** стартовая «россыпь» для свободной раскладки; уже разложенные фото не двигаем */
 function scatter(n: number, prev?: NonNullable<PhotoLayout['items']>) {
   const out = (prev ?? []).slice(0, n);
@@ -434,11 +605,13 @@ function scatter(n: number, prev?: NonNullable<PhotoLayout['items']>) {
 const DRAFT_COLORS = ['#3b3a4a', '#7d8fb0', '#e8c37a', '#e6b5ac', '#b8d0c4'];
 
 /** Фото дня прямо на странице: вклеиваются полароидами, коллажем или как человек разложит сам */
-function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: File[]; onChange: (f: File[]) => void; layout: PhotoLayout; onLayout: (l: PhotoLayout) => void; disabled?: boolean }) {
+type PhotoOpen = { add?: () => void; cam?: () => void };
+function PhotoBoard({ files, onChange, layout, onLayout, disabled, open }: { files: File[]; onChange: (f: File[]) => void; layout: PhotoLayout; onLayout: (l: PhotoLayout) => void; disabled?: boolean; open?: { current: PhotoOpen } }) {
   const inp = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [urls, setUrls] = useState<string[]>([]);
   const [cam, setCam] = useState(false);
+  if (open) open.current = { add: () => !disabled && inp.current?.click(), cam: () => !disabled && setCam(true) };
   useEffect(() => {
     const u = files.map((f) => URL.createObjectURL(f));
     setUrls(u);
@@ -487,11 +660,14 @@ function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: Fi
     <div className="pb">
       <input ref={inp} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
       {!files.length ? (
-        <button className={'pb-empty' + (over ? ' over' : '')} onClick={() => !disabled && inp.current?.click()} {...drop} disabled={disabled}>
-          <span className="pb-plus">+</span>
-          <span>Вклеить фото</span>
-          <small>или перетащи сюда</small>
-        </button>
+        <div className={'pb-slots k-' + layout.kind + (layout.kind === 'collage' ? ' g-' + (layout.grid ?? 'grid') : '') + (over ? ' over' : '')} {...drop}>
+          {Array.from({ length: layout.kind === 'collage' ? (layout.grid === 'cols' ? 2 : layout.grid === 'rows' ? 3 : 4) : layout.kind === 'free' ? 2 : 3 }, (_, i) => (
+            <button key={i} className="pb-slot" onClick={() => !disabled && inp.current?.click()} disabled={disabled} aria-label="Вклеить фото">
+              <span>+</span>
+              <small>фото</small>
+            </button>
+          ))}
+        </div>
       ) : (
         <div className={'pb-sheet' + (over ? ' over' : '')} {...drop} ref={sheet} key={layout.kind}>
           {layout.kind === 'free' && layout.items ? (
@@ -519,11 +695,6 @@ function PhotoBoard({ files, onChange, layout, onLayout, disabled }: { files: Fi
             </button>
           )}
         </div>
-      )}
-      {!disabled && !!navigator.mediaDevices?.getUserMedia && (
-        <button className="btn ghost small" style={{ marginTop: 10 }} onClick={() => setCam(true)}>
-          📷 Снять сейчас
-        </button>
       )}
       {cam && <Camera onShot={(f) => onChange([...filesRef.current, f].slice(0, 8))} onClose={() => setCam(false)} />}
     </div>
