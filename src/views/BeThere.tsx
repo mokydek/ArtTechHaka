@@ -529,7 +529,7 @@ function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack, onFail
           const cands: Ymaps[] = [hit.pano];
           try {
             const arrows = (hit.pano.getConnectionArrows?.() ?? []) as Ymaps[];
-            for (const a of arrows.slice(0, 6)) {
+            for (const a of arrows.slice(0, 4)) {
               const p = await a.getConnectedPanorama();
               const pos = p.getPosition() as number[];
               if (y.meters(at, [pos[0], pos[1]]) < 45) cands.push(p);
