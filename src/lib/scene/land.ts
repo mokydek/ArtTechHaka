@@ -314,7 +314,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
       const nor = g.getAttribute('normal');
       for (let i = 0; i < uv.count; i++) {
         if (Math.abs(nor.getY(i)) > 0.5) uv.setXY(i, 0.02, 0.02);
-        else uv.setXY(i, uv.getX(i) / 3.4, uv.getY(i) / 3.1);
+        else uv.setXY(i, uv.getX(i) / 13.6, uv.getY(i) / 12.4);
       }
       const tone = 0.88 + R() * 0.24;
       const pick = R();
@@ -370,7 +370,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
           continue;
         }
         const span = Math.abs(nx) > 0.5 ? d : w;
-        uv.setXY(i, (uv.getX(i) * span) / 3.4, (uv.getY(i) * h) / 3);
+        uv.setXY(i, (uv.getX(i) * span) / 13.6, (uv.getY(i) * h) / 12);
       }
       const tone = 0.88 + R() * 0.24;
       const pick = R();
