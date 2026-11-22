@@ -110,13 +110,14 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     let dead = false;
     (async () => {
       try {
+        // место известно — дома и улицы вокруг грузим параллельно с глубиной
+        const c0 = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
+        const osmP = c0.source.place !== 'default' ? import('../lib/scene/osm').then((m) => m.fetchOsm(c0.lat, c0.lon)).catch(() => null) : Promise.resolve(null);
         const { buildLayers } = await import('../lib/scene/depth');
         const L = await buildLayers(src.bmp, (s) => !dead && setStep(s), { fill: false });
         if (dead) return;
         let c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
         setStep('поднимаю архив погоды того дня');
-        // если место известно — заодно дома и улицы вокруг из OpenStreetMap
-        const osmP = c.source.place !== 'default' ? import('../lib/scene/osm').then((m) => m.fetchOsm(c.lat, c.lon)).catch(() => null) : Promise.resolve(null);
         const h = await Promise.race([dayHours(c.lat, c.lon, c.local.slice(0, 10)), new Promise<null>((r) => setTimeout(() => r(null), 9000))]).catch(() => null);
         if (dead) return;
         // солнце в кадре: по нему — направление камеры и, если время неизвестно, минута
@@ -128,7 +129,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
           c = fromSun(c, L.sun, L.horizon, src.bmp.width / src.bmp.height, utcOf, src.rec?.analysis.text.timeOfDay ?? undefined);
         }
         setStep('ищу улицы вокруг');
-        const els = await osmP;
+        const els = await Promise.race([osmP, new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
         if (dead) return;
         if (els) {
           const { localize } = await import('../lib/scene/osm');

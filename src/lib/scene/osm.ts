@@ -38,30 +38,16 @@ const ROAD_W: Record<string, number> = {
   track: 3,
 };
 
-export async function fetchOsm(lat: number, lon: number, radius = 260, ms = 9000): Promise<El[] | null> {
-  const r = Math.round(radius);
-  const q = `[out:json][timeout:10];(
-way["building"](around:${r},${lat},${lon});
-way["highway"](around:${r},${lat},${lon});
-way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|cemetery)$"](around:${r},${lat},${lon});
-way["leisure"~"^(park|garden|pitch|playground)$"](around:${r},${lat},${lon});
-way["natural"~"^(wood|water|scrub|grassland|beach|sand)$"](around:${r},${lat},${lon});
-way["waterway"="riverbank"](around:${r},${lat},${lon});
-node["natural"="tree"](around:${r},${lat},${lon});
-);out geom 4000;`;
+export async function fetchOsm(lat: number, lon: number, radius = 260, ms = 14000): Promise<El[] | null> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {
-    for (const host of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
-      try {
-        const res = await fetch(host, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
-        if (!res.ok) continue;
-        const j = await res.json();
-        if (Array.isArray(j.elements)) return j.elements as El[];
-      } catch (e) {
-        if (ctl.signal.aborted) return null;
-      }
-    }
+    // через свой прокси на Vercel: из некоторых сетей Overpass напрямую недоступен
+    const res = await fetch(`/api/osm?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&r=${Math.round(radius)}`, { signal: ctl.signal });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return Array.isArray(j.elements) ? (j.elements as El[]) : null;
+  } catch {
     return null;
   } finally {
     clearTimeout(t);
