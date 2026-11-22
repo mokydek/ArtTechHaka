@@ -1,46 +1,45 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDiary } from '../App';
+import Atmos from '../components/Atmos';
 import { loadImage } from '../lib/analysis/photo';
-import { nameAt, searchPlaces, wmo, type PlaceHit } from '../lib/place';
-import { dayHours, fromSun, readShot, shotContext, skyAt, toUtc, type HourWeather, type ShotContext, type SkyState } from '../lib/scene/context';
-import type { SceneLayers } from '../lib/scene/depth';
+import { nameAt, wmo, type PlaceHit } from '../lib/place';
+import { dayHours, readShot, shotContext, skyAt, toUtc, vfov, type HourWeather, type ShotContext, type SkyState } from '../lib/scene/context';
 import type { PlaceSound } from '../lib/scene/sound';
-import type { Moment } from '../lib/scene/moment';
-import type { DayRecord, ShotMeta } from '../lib/types';
+import type { PanoHit, Ymaps } from '../lib/scene/yandex';
+import Imagined, { type Source } from './Imagined';
 
-// «Побывать там»: фото → место, минута, солнце и погода того момента → живое объёмное окно в тот момент
+// «Побывать там»: фото → настоящее место. Где снято — по GPS снимка, геолокации свежего кадра,
+// адресу или названию на табличке; иначе человек отмечает точку на карте.
+// Вокруг — настоящие панорамы улиц (Яндекс Карты), а не дорисовка. Нет панорам или это помещение — так и говорим.
 
-interface Source {
-  bmp: ImageBitmap;
-  meta: ShotMeta | null;
-  rec: DayRecord | null;
+type Via = 'gps' | 'here' | 'address' | 'map' | 'sign' | 'day' | 'none';
+interface Loc {
+  lat: number;
+  lon: number;
   name: string;
+  via: Via;
+  /** точка известна до дома — ищем панораму сразу */
+  precise: boolean;
+  word?: string;
+  others?: PlaceHit[];
 }
+type PanoState = { st: 'idle' } | { st: 'search' } | { st: 'found'; hit: PanoHit } | { st: 'none' } | { st: 'error'; msg: string };
+type Mode = 'moment' | 'pano' | 'map' | 'room';
 
 const RUMB = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
 const rumb = (deg: number) => RUMB[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const NEAR_OK = 40; // м: дальше — честно говорим, насколько далеко панорама
 
-/** Погода, если архив недоступен: из записи дня */
-function fallbackWeather(rec: DayRecord | null, hour: number, sky: SkyState): HourWeather | null {
-  if (!rec) return null;
-  const w = rec.place?.weather;
-  const tags = new Set<string>([...(rec.analysis.text.weather ?? []), ...(w ? wmo(w.code).tags : [])]);
-  if (!tags.size && !w) return null;
-  const code = w?.code ?? (tags.has('storm') ? 95 : tags.has('snow') ? 73 : tags.has('rain') ? 63 : tags.has('fog') ? 45 : tags.has('clouds') ? 3 : 1);
-  return {
-    code,
-    temp: w?.tmax != null && w.tmin != null ? (hour > 10 && hour < 19 ? w.tmax : w.tmin) : undefined,
-    precip: tags.has('rain') ? 1 : 0,
-    rain: tags.has('rain') ? 1 : 0,
-    snow: tags.has('snow') ? 0.4 : 0,
-    cloud: tags.has('rain') || tags.has('snow') || tags.has('storm') ? 95 : tags.has('clouds') ? 80 : tags.has('fog') ? 100 : 15,
-    wind: w?.wind ?? 10,
-    windDir: 220,
-    isDay: sky.sunAlt > 0,
-    utcOffset: NaN,
-  };
-}
+const VIA: Record<Via, (l: Loc) => string> = {
+  gps: () => 'по GPS снимка',
+  here: () => 'где вы сейчас: снимок свежий',
+  address: (l) => `по адресу на табличке «${l.word ?? ''}»`,
+  map: () => 'отмечено на карте',
+  sign: (l) => `по табличке «${l.word ?? ''}» — только населённый пункт`,
+  day: () => 'город из записи',
+  none: () => 'место неизвестно',
+};
 
 export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }) {
   const { days, sealed, store } = useDiary();
@@ -48,35 +47,20 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const [src, setSrc] = useState<Source | null>(null);
   const [step, setStep] = useState('');
   const [err, setErr] = useState('');
-  const [layers, setLayers] = useState<SceneLayers | null>(null);
+  const [loc, setLoc] = useState<Loc | null>(null);
+  const [inside, setInside] = useState(false);
   const [ctx, setCtx] = useState<ShotContext | null>(null);
   const [hours, setHours] = useState<HourWeather[] | null | undefined>(undefined);
   const [minute, setMinute] = useState(0);
-  const [ready, setReady] = useState(false);
-  const [sound, setSound] = useState(true);
-  const [where, setWhere] = useState(false);
-  // одноимённые места, если нашли по надписи
-  const [alt, setAlt] = useState<PlaceHit[]>([]);
+  const [pano, setPano] = useState<PanoState>({ st: 'idle' });
+  const [mode, setMode] = useState<Mode>('moment');
+  const [heading, setHeading] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
-  // жест-подсказка «тяни, чтобы оглядеться» — только в первые разы
-  const [hinted] = useState(() => {
-    try {
-      const n = +(localStorage.getItem('ottisk:hint-there') ?? 0);
-      localStorage.setItem('ottisk:hint-there', String(n + 1));
-      return n >= 2;
-    } catch {
-      return false;
-    }
-  });
-  const holder = useRef<HTMLDivElement>(null);
-  const world = useRef<Moment | null>(null);
-  const osmRef = useRef<import('../lib/scene/osm').OsmWorld | null>(null);
-  const [osmUsed, setOsmUsed] = useState(false);
+  const [sound, setSound] = useState(true);
   const audio = useRef<PlaceSound | null>(null);
-  const lastHour = useRef(-1);
   const back = dayId ? `#/day/${dayId}` : '#/';
 
-  // 1. источник: фото дня или своё
+  // 1. снимок: из дня или свой
   useEffect(() => {
     if (!dayId || !rec || !store || src) return;
     (async () => {
@@ -106,257 +90,127 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     }
   };
 
-  // 2. слои, место, время, погода
+  // 2. где это снято
   useEffect(() => {
     if (!src) return;
     let dead = false;
     (async () => {
-      try {
-        const aspect = src.bmp.width / src.bmp.height;
-        // в фото нет GPS и в записи нет места — ищем, где это: свежий снимок → геолокация, табличка в кадре → её надпись
-        const findP: Promise<import('../lib/scene/where').FoundPlace | null> =
-          src.meta?.lat == null && !src.rec?.place
-            ? Promise.race([
-                import('../lib/scene/where').then((m) => m.findPlace(src.bmp, src.meta)),
-                new Promise<null>((r) => setTimeout(() => r(null), 30000)),
-              ]).catch(() => null)
-            : Promise.resolve(null);
-        // место известно точно — дома и улицы вокруг грузим параллельно с глубиной
-        const osmP = findP.then((f) => {
-          const c0 = shotContext(src.rec, src.meta, aspect, f ?? src.rec?.place);
-          return c0.source.place === 'default' || c0.source.place === 'sign' ? null : import('../lib/scene/osm').then((m) => m.fetchOsm(c0.lat, c0.lon)).catch(() => null);
-        });
-        const { buildLayers } = await import('../lib/scene/depth');
-        const L = await buildLayers(src.bmp, (s) => !dead && setStep(s), { fill: false });
+      const where = await import('../lib/scene/where');
+      const cues = where.outdoorCues(src.bmp);
+      if (dead) return;
+      setInside(cues.verdict === 'unclear');
+      const dayPlace = src.rec?.place ?? null;
+      let L: Loc;
+      if (src.meta?.lat != null && src.meta.lon != null) {
+        L = { lat: src.meta.lat, lon: src.meta.lon, name: `${src.meta.lat.toFixed(4)}, ${src.meta.lon.toFixed(4)}`, via: 'gps', precise: true };
+        nameAt(L.lat, L.lon).then((p) => !dead && setLoc((o) => (o && o.via === 'gps' && /^\d/.test(o.name) ? { ...o, name: [p.name, p.country].filter(Boolean).join(', ') } : o)));
+      } else {
+        setStep('ищу, где это снято');
+        const f = await Promise.race([
+          where.findPlace(src.bmp, src.meta, { near: dayPlace ?? undefined, onStep: (s) => !dead && setStep(s) }),
+          new Promise<null>((r) => setTimeout(() => r(null), 35000)),
+        ]).catch(() => null);
         if (dead) return;
-        setStep('ищу, где это');
-        const found = await findP;
-        if (dead) return;
-        let c = shotContext(src.rec, src.meta, aspect, found ? { ...found, name: [found.name, found.via === 'sign' ? found.admin : found.country].filter(Boolean).join(', ') } : src.rec?.place);
-        if (found?.others.length) setAlt(found.others);
-        setStep('поднимаю архив погоды того дня');
-        const h = await Promise.race([dayHours(c.lat, c.lon, c.local.slice(0, 10)), new Promise<null>((r) => setTimeout(() => r(null), 9000))]).catch(() => null);
-        if (dead) return;
-        // солнце в кадре: по нему — направление камеры и, если время неизвестно, минута
-        if (L.sun && (c.source.heading !== 'exif' || c.source.time !== 'exif')) {
-          setStep('ищу, где стояло солнце');
-          const ho = h?.[0]?.utcOffset;
-          const lonOff = Math.round(c.lon / 15) * 3600;
-          const utcOf = (local: string) => toUtc(local, ho ?? (src.meta?.offset ? undefined : lonOff), src.meta?.offset);
-          c = fromSun(c, L.sun, L.horizon, src.bmp.width / src.bmp.height, utcOf, src.rec?.analysis.text.timeOfDay ?? undefined);
-        }
-        // дома и улицы не ждём: придут — мир вокруг пересоберётся по настоящей карте
-        const cc = c;
-        osmP.then(async (els) => {
-          if (dead || !els) return;
-          const { localize } = await import('../lib/scene/osm');
-          const lw = localize(els, cc.lat, cc.lon, cc.heading, cc.source.heading !== 'guess');
-          if (!lw) return;
-          osmRef.current = lw;
-          if (world.current?.applyOsm(lw)) setOsmUsed(true);
-        });
-        setHours(h);
-        setLayers(L);
-        setCtx(c);
-        setMinute(+c.local.slice(11, 13) * 60 + +c.local.slice(14, 16));
-        if (c.source.place === 'gps') nameAt(c.lat, c.lon).then((p) => !dead && setCtx((o) => (o ? { ...o, place: [p.name, p.country].filter(Boolean).join(', ') } : o)));
-      } catch (e) {
-        console.error(e);
-        if (!dead) setErr('Не получилось построить сцену');
+        if (f)
+          L = {
+            lat: f.lat,
+            lon: f.lon,
+            name: f.via === 'sign' ? [f.name, f.admin].filter(Boolean).join(', ') : f.via === 'here' ? [f.name, f.country].filter(Boolean).join(', ') : f.name,
+            via: f.via,
+            precise: f.precise,
+            word: f.word,
+            others: f.others,
+          };
+        else if (dayPlace) L = { lat: dayPlace.lat, lon: dayPlace.lon, name: dayPlace.name, via: 'day', precise: false };
+        else L = { lat: NaN, lon: NaN, name: 'Место неизвестно', via: 'none', precise: false };
       }
+      setLoc(L);
+      setStep('');
     })();
     return () => {
       dead = true;
     };
   }, [src]);
 
-  const offset = useCallback(
-    () => {
-      const o = hours?.[0]?.utcOffset;
-      if (o != null && !Number.isNaN(o)) return o;
-      if (src?.meta?.offset) return undefined; // возьмёт из EXIF
-      return Math.round((ctx?.lon ?? 75) / 15) * 3600;
-    },
-    [hours, src, ctx?.lon],
-  );
-
-  const skyFor = useCallback(
-    (min: number) => {
-      if (!ctx) return null;
-      const local = `${ctx.local.slice(0, 10)}T${hm(min)}`;
-      return skyAt(toUtc(local, offset(), src?.meta?.offset), ctx.lat, ctx.lon);
-    },
-    [ctx, offset, src],
-  );
-
-  const weatherFor = useCallback((hour: number, sky: SkyState) => hours?.[hour] ?? fallbackWeather(src?.rec ?? null, hour, sky), [hours, src]);
-
-  // 3. сцена
+  // 3. время и погода — когда известно хотя бы примерно где
   useEffect(() => {
-    if (!layers || !ctx || !holder.current || world.current || !src) return;
+    if (!src || !loc) return;
     let dead = false;
-    (async () => {
-      setStep('ставлю небо того часа');
-      const { Moment } = await import('../lib/scene/moment');
-      if (dead || !holder.current) return;
-      const photoMin = +ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16);
-      const sky = skyFor(photoMin)!;
-      const w = new Moment(holder.current, { layers, ctx, weather: weatherFor(ctx.hour, sky), sky, photo: src.bmp, osm: osmRef.current });
-      setOsmUsed(w.osm);
-      lastHour.current = ctx.hour;
-      world.current = w;
-      (window as unknown as { __ottiskWorld: Moment }).__ottiskWorld = w;
-      setReady(true);
-    })();
+    const known = loc.via !== 'none';
+    const c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, known ? { name: loc.name, lat: loc.lat, lon: loc.lon } : undefined);
+    setCtx(c);
+    setMinute(+c.local.slice(11, 13) * 60 + +c.local.slice(14, 16));
+    setHeading(src.meta?.heading ?? null);
+    if (!known) {
+      setHours(null);
+      return;
+    }
+    setHours(undefined);
+    Promise.race([dayHours(loc.lat, loc.lon, c.local.slice(0, 10)), new Promise<null>((r) => setTimeout(() => r(null), 9000))])
+      .catch(() => null)
+      .then((h) => !dead && setHours(h));
     return () => {
       dead = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, ctx?.heading, src]);
+  }, [src, loc?.lat, loc?.lon, loc?.via]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(
-    () => () => {
-      world.current?.destroy();
-      world.current = null;
-      audio.current?.close();
-    },
-    [],
-  );
-
-  // время суток и погода часа
-  const sky = useMemo(() => skyFor(minute), [skyFor, minute]);
-  const hour = Math.floor(minute / 60) % 24;
-  const weather = sky ? weatherFor(hour, sky) : null;
+  // 4. точка известна — ищем настоящую панораму рядом
   useEffect(() => {
-    const w = world.current;
-    if (!w || !sky || !ready) return;
-    if (lastHour.current !== hour) {
-      lastHour.current = hour;
-      w.setWeather(weather);
+    if (!loc?.precise) {
+      setPano({ st: 'idle' });
+      return;
     }
-    w.setSky(sky);
-    audio.current?.set(weather, sky.sunAlt);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sky, hour, ready, hours]);
+    let dead = false;
+    setPano({ st: 'search' });
+    import('../lib/scene/yandex')
+      .then((y) => y.nearestPano(loc.lat, loc.lon))
+      .then((hit) => !dead && setPano(hit && hit.dist < 400 ? { st: 'found', hit } : { st: 'none' }))
+      .catch(() => !dead && setPano({ st: 'error', msg: 'Панорамы Яндекса сейчас не отвечают — возможно, закончился суточный лимит. Попробуйте позже.' }));
+    return () => {
+      dead = true;
+    };
+  }, [loc?.lat, loc?.lon, loc?.precise]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // звук стартует от первого касания (так требует браузер)
+  const offset = useCallback(() => {
+    const o = hours?.[0]?.utcOffset;
+    if (o != null && !Number.isNaN(o)) return o;
+    if (src?.meta?.offset) return undefined;
+    return Math.round((ctx?.lon ?? 75) / 15) * 3600;
+  }, [hours, src, ctx?.lon]);
+  const skyFor = useCallback(
+    (min: number): SkyState | null => {
+      if (!ctx || !loc || loc.via === 'none') return null;
+      return skyAt(toUtc(`${ctx.local.slice(0, 10)}T${hm(min)}`, offset(), src?.meta?.offset), ctx.lat, ctx.lon);
+    },
+    [ctx, loc, offset, src],
+  );
+  const photoMin = ctx ? +ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16) : 0;
+  const sky = useMemo(() => skyFor(minute), [skyFor, minute]);
+  const photoSky = useMemo(() => skyFor(photoMin), [skyFor, photoMin]);
+  const hour = Math.floor(minute / 60) % 24;
+  const weather = hours?.[hour] ?? null;
+
+  useEffect(() => {
+    if (sky) audio.current?.set(weather, sky.sunAlt);
+  }, [sky, weather]);
+  useEffect(() => {
+    if (audio.current) audio.current.muted = !sound;
+  }, [sound]);
+  useEffect(() => () => audio.current?.close(), []);
   const wake = async () => {
     if (!sound) return;
     if (!audio.current) {
       const { PlaceSound } = await import('../lib/scene/sound');
-      const s = new PlaceSound();
-      audio.current = s;
-      if (world.current) world.current.onThunder = () => s.thunder();
-      if (sky) s.set(weather, sky.sunAlt);
+      audio.current = new PlaceSound();
+      if (sky) audio.current.set(weather, sky.sunAlt);
     }
     if (!audio.current.running) await audio.current.resume();
   };
-  useEffect(() => {
-    if (audio.current) audio.current.muted = !sound;
-  }, [sound]);
 
-  // наклон телефона — смотреть по сторонам и заглядывать за предметы (на iPhone — после разрешения)
-  const motion = useRef(false);
-  const askMotion = () => {
-    if (motion.current) return;
-    const D = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: () => Promise<string> } }).DeviceOrientationEvent;
-    if (!D?.requestPermission) {
-      motion.current = true;
-      return;
-    }
-    // iOS спрашивает только в ответ на касание (touchend/click)
-    D.requestPermission()
-      .then((r) => (motion.current = r === 'granted'))
-      .catch(() => {});
-  };
-  useEffect(() => {
-    if (!ready) return;
-    const on = (e: DeviceOrientationEvent) => {
-      if (e.beta == null || e.gamma == null) return;
-      const a = screen.orientation?.angle ?? 0;
-      // в горизонтальном положении оси меняются местами
-      const [b, g] = a === 90 ? [-e.gamma, e.beta] : a === 270 || a === -90 ? [e.gamma, -e.beta] : [e.beta, e.gamma];
-      world.current?.tilt(b, g);
-    };
-    window.addEventListener('deviceorientation', on);
-    return () => window.removeEventListener('deviceorientation', on);
-  }, [ready]);
-
-  // управление: тянуть — оглядеться; на телефоне слева — джойстик, чтобы идти; мышь над кадром — заглянуть сбоку
-  const touches = useRef(new Map<number, { x: number; y: number; stick: boolean; ox: number; oy: number }>());
-  const stick = useRef<HTMLDivElement>(null);
-  const onDown = (e: React.PointerEvent) => {
-    wake();
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const isStick = e.pointerType === 'touch' && e.clientX - r.left < r.width * 0.42 && ![...touches.current.values()].some((t) => t.stick);
-    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY, stick: isStick, ox: e.clientX, oy: e.clientY });
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    if (isStick && stick.current) {
-      stick.current.classList.add('on');
-      stick.current.style.left = e.clientX - r.left + 'px';
-      stick.current.style.top = e.clientY - r.top + 'px';
-    }
-  };
-  const onMove = (e: React.PointerEvent) => {
-    const w = world.current;
-    if (!w) return;
-    const d = touches.current.get(e.pointerId);
-    if (d?.stick) {
-      const dx = Math.max(-1, Math.min(1, (e.clientX - d.ox) / 46)),
-        dy = Math.max(-1, Math.min(1, (e.clientY - d.oy) / 46));
-      w.move = { x: dx, z: dy };
-      const knob = stick.current?.firstElementChild as HTMLElement | null;
-      if (knob) knob.style.transform = `translate(${dx * 30}px, ${dy * 30}px)`;
-      return;
-    }
-    if (d) {
-      w.look(e.clientX - d.x, e.clientY - d.y);
-      d.x = e.clientX;
-      d.y = e.clientY;
-      return;
-    }
-    if (e.pointerType === 'mouse') {
-      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      w.lean(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
-    }
-  };
-  const onUp = (e: React.PointerEvent) => {
-    const d = touches.current.get(e.pointerId);
-    touches.current.delete(e.pointerId);
-    if (d?.stick) {
-      if (world.current) world.current.move = { x: 0, z: 0 };
-      stick.current?.classList.remove('on');
-      const knob = stick.current?.firstElementChild as HTMLElement | null;
-      if (knob) knob.style.transform = '';
-      if (stick.current) {
-        stick.current.style.left = '';
-        stick.current.style.top = '';
-      }
-    }
-    askMotion();
-  };
-
-  const asPhoto = () => {
-    if (!ctx) return;
-    world.current?.reset();
-    setMinute(+ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16));
-  };
-
-  const setPlace = async (p: PlaceHit) => {
-    setWhere(false);
-    if (!ctx) return;
-    setCtx({ ...ctx, lat: p.lat, lon: p.lon, place: [p.name, p.country].filter(Boolean).join(', '), source: { ...ctx.source, place: 'day' } });
-    setHours(undefined);
-    const h = await dayHours(p.lat, p.lon, ctx.local.slice(0, 10)).catch(() => null);
-    lastHour.current = -1;
-    setHours(h);
-  };
-  const setDate = async (d: string) => {
-    if (!ctx || !d) return;
-    setCtx({ ...ctx, local: d + ctx.local.slice(10), source: { ...ctx.source, time: 'text' } });
-    const h = await dayHours(ctx.lat, ctx.lon, d).catch(() => null);
-    lastHour.current = -1;
-    setHours(h);
+  const placeFromMap = (lat: number, lon: number) => {
+    setLoc({ lat, lon, name: `${lat.toFixed(5)}, ${lon.toFixed(5)}`, via: 'map', precise: true });
+    setMode('moment');
+    nameAt(lat, lon).then((p) => setLoc((o) => (o?.via === 'map' && o.lat === lat ? { ...o, name: [p.name, p.country].filter(Boolean).join(', ') } : o)));
   };
 
   // —— выбор фото ——
@@ -369,41 +223,50 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
         <label className="there-drop">
           <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && pickFile(e.target.files[0])} />
           <b>Побывать там</b>
-          <span>Выберите фото, окажитесь в том месте, в ту минуту, под тем же небом.</span>
+          <span>Выберите фото — окажитесь на том самом месте, на настоящей улице, в ту минуту.</span>
           <span className="mono">{step || 'выбрать фото'}</span>
           {err && <span className="mono there-err">{err}</span>}
         </label>
       </div>
     );
 
-  const src0 = ctx?.source;
+  if (mode === 'room' && src) return <Imagined src={{ ...src, place: loc && loc.via !== 'none' ? { name: loc.name, lat: loc.lat, lon: loc.lon } : null }} onBack={() => setMode('moment')} />;
+
+  const aspect = src ? src.bmp.width / src.bmp.height : 1;
+  const fovV = vfov(src?.meta, aspect);
+  const fovH = (2 * Math.atan(Math.tan((fovV * Math.PI) / 360) * aspect) * 180) / Math.PI;
   const tags = weather ? wmo(weather.code) : null;
-  const photoMin = ctx ? +ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16) : 0;
+  const found = pano.st === 'found' ? pano.hit : null;
+  const center = loc && loc.via !== 'none' ? { lat: loc.lat, lon: loc.lon, zoom: loc.precise ? 17 : loc.via === 'day' ? 12 : 14 } : src?.rec?.place ? { lat: src.rec.place.lat, lon: src.rec.place.lon, zoom: 12 } : { lat: 51.1283, lon: 71.4305, zoom: 12 };
+
   return (
-    <div className="there">
-      <div ref={holder} className="there-gl" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={(e) => e.pointerType === 'mouse' && world.current?.lean(0, 0)} />
-      {ready && !hinted && <div className="gesture" aria-hidden />}
-      {ready && (
-        <div ref={stick} className="there-stick" aria-hidden>
-          <i />
-        </div>
+    <div className="there" onPointerDown={wake}>
+      {src && mode === 'moment' && <PhotoStage bmp={src.bmp} />}
+      {mode === 'pano' && found && src && (
+        <PanoView hit={found} bmp={src.bmp} heading={heading} fovH={fovH} fovV={fovV} onHeading={setHeading} onBack={() => setMode('moment')} />
       )}
-      {!ready && (
+      {mode === 'map' && <MapPick center={center} onPick={placeFromMap} onCancel={() => setMode('moment')} />}
+      {mode !== 'map' && sky && <Atmos sunAlt={sky.sunAlt} base={mode === 'pano' ? null : (photoSky?.sunAlt ?? null)} weather={weather} />}
+
+      {!loc && (
         <div className="there-load">
-          {src && <BlurPhoto bmp={src.bmp} />}
-          <p className="mono">{err || step || 'готовлю…'}</p>
+          {src && <p className="mono">{err || step || 'готовлю…'}</p>}
+          {!src && <p className="mono">{err || step || 'открываю…'}</p>}
         </div>
       )}
-      <a className="there-x mono" href={back}>
-        ×
-      </a>
-      {ready && ctx && sky && (
+      {mode !== 'map' && (
+        <a className="there-x mono" href={back} aria-label="закрыть">
+          ×
+        </a>
+      )}
+
+      {loc && ctx && mode !== 'map' && (
         <>
           <div className={'there-card' + (open ? ' open' : '')}>
             <button className="there-sum" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-              <b>{ctx.place}</b>
+              <b>{mode === 'pano' && found?.name ? found.name : loc.name}</b>
               <span>
-                {hm(minute)}
+                {sky ? hm(minute) : ctx.source.time === 'exif' ? hm(photoMin) : 'время неизвестно'}
                 {tags && ` · ${tags.label}`}
                 {weather?.temp != null && ` ${weather.temp > 0 ? '+' : ''}${Math.round(weather.temp)}°`}
               </span>
@@ -411,102 +274,352 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
             {open && (
               <div className="there-more">
                 <div>
-                  <button className="there-link" onClick={() => setWhere((v) => !v)}>
-                    изменить место
+                  <button className="there-link" onClick={() => setMode('map')}>
+                    {loc.via === 'none' ? 'указать место' : 'изменить место'}
                   </button>
-                  <small>{src0?.place === 'gps' ? 'GPS из фото' : src0?.place === 'here' ? 'где вы сейчас' : src0?.place === 'sign' ? `по надписи «${ctx.word ?? ''}»` : src0?.place === 'day' ? 'место из записи' : 'место не указано'}</small>
-                </div>
-                {where && <WherePicker onPick={setPlace} initial={src0?.place === 'sign' ? alt : []} />}
-                <div>
-                  <input className="there-date mono" type="date" value={ctx.local.slice(0, 10)} onChange={(e) => setDate(e.target.value)} />
-                  <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок, ${hm(photoMin)}`}</small>
+                  <small>{VIA[loc.via](loc)}</small>
                 </div>
                 <div>
-                  {weather ? (
-                    <>
-                      ветер {Math.round(weather.wind / 3.6)} м/с, {rumb(weather.windDir)} · облака {Math.round(weather.cloud)}%
-                    </>
-                  ) : hours === undefined ? (
-                    '…'
-                  ) : (
-                    'погода того часа неизвестна'
-                  )}
-                  <small>{hours ? 'архив погоды' : weather ? 'погода из записи' : ''}</small>
+                  {ctx.local.slice(0, 10).split('-').reverse().join('.')}
+                  <small>{ctx.source.time === 'exif' ? 'время снимка' : ctx.source.time === 'text' ? 'время по записи' : 'дата и время не указаны в снимке'}</small>
                 </div>
-                {osmUsed && (
+                {weather && (
                   <div>
-                    дома и улицы вокруг <small>© OpenStreetMap</small>
+                    ветер {Math.round(weather.wind / 3.6)} м/с, {rumb(weather.windDir)} · облака {Math.round(weather.cloud)}%<small>архив погоды</small>
                   </div>
                 )}
-                <div>
-                  {sky.sunAlt > 0 ? `солнце ${Math.round(sky.sunAlt)}° над горизонтом, ${rumb(sky.sunAz)}` : `солнце за горизонтом`} · луна {Math.round(sky.moonFrac * 100)}%
-                </div>
+                {sky && (
+                  <div>
+                    {sky.sunAlt > 0 ? `солнце ${Math.round(sky.sunAlt)}° над горизонтом, ${rumb(sky.sunAz)}` : 'солнце за горизонтом'} · луна {Math.round(sky.moonFrac * 100)}%
+                  </div>
+                )}
+                {mode === 'pano' && <div>панорама улицы <small>© Яндекс Карты</small></div>}
               </div>
             )}
           </div>
-          <div className="there-bar">
-            <input type="range" min={0} max={1439} step={5} value={minute} onChange={(e) => setMinute(+e.target.value)} aria-label="время суток" />
-            <button className="btn small" onClick={asPhoto}>
-              как на фото
-            </button>
-            <button
-              className="btn ghost small"
-              onClick={() => {
-                setSound((s) => !s);
-                wake();
-              }}
-            >
-              звук {sound ? 'вкл' : 'выкл'}
-            </button>
-          </div>
-          <div className="there-hint mono">WASD, идти · Shift, быстрее · тянуть, смотреть</div>
+
+          {mode === 'moment' && (
+            <Status
+              loc={loc}
+              pano={pano}
+              inside={inside}
+              onPano={() => setMode('pano')}
+              onMap={() => setMode('map')}
+              onRoom={() => setMode('room')}
+            />
+          )}
+
+          {sky && (
+            <div className={'there-bar' + (mode === 'moment' ? ' up' : '')}>
+              <input type="range" min={0} max={1439} step={5} value={minute} onChange={(e) => setMinute(+e.target.value)} aria-label="время суток" />
+              <button className="btn small" onClick={() => setMinute(photoMin)}>
+                как на фото
+              </button>
+              <button className="btn ghost small" onClick={() => setSound((s) => !s)}>
+                звук {sound ? 'вкл' : 'выкл'}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
 
-function BlurPhoto({ bmp }: { bmp: ImageBitmap }) {
-  const ref = useRef<HTMLCanvasElement>(null);
+/** Честно о том, что нашли и чего нет — и что можно сделать */
+function Status({ loc, pano, inside, onPano, onMap, onRoom }: { loc: Loc; pano: PanoState; inside: boolean; onPano: () => void; onMap: () => void; onRoom: () => void }) {
+  let text = '';
+  const acts: [string, () => void, boolean?][] = [];
+  if (loc.precise) {
+    if (pano.st === 'search') text = 'Нашёл место. Ищу панораму улицы рядом…';
+    else if (pano.st === 'found') {
+      const d = Math.round(pano.hit.dist);
+      text = d <= NEAR_OK ? `Нашёл место: панорама улицы в ${d} м от точки снимка.` : `Нашёл место, но ближайшая панорама улицы — в ${d} м от точки снимка.`;
+      if (inside) text += ' Снимок похож на помещение — панорама покажет улицу снаружи.';
+      acts.push([d <= NEAR_OK ? 'Оглядеться на месте' : 'Посмотреть оттуда', onPano, true]);
+      acts.push(['Другое место', onMap]);
+    } else if (pano.st === 'none') {
+      text = 'Место нашёл, но здесь нет панорам улиц. Придумывать вид вокруг не буду.';
+      acts.push(['Отметить другое место', onMap]);
+      if (inside) acts.push(['Додумать комнату', onRoom]);
+    } else if (pano.st === 'error') {
+      text = pano.msg;
+      acts.push(['Отметить место на карте', onMap]);
+    }
+  } else if (loc.via === 'sign') {
+    text = `По табличке это ${loc.name}. Где именно стояли — по кадру не понять: отметьте точку на карте.`;
+    acts.push(['Отметить на карте', onMap, true]);
+  } else if (loc.via === 'day') {
+    text = `Из записи знаю только город: ${loc.name}. Отметьте точку, где сделан снимок.`;
+    acts.push(['Отметить на карте', onMap, true]);
+  } else if (inside) {
+    text = 'Не вижу в кадре ни неба, ни улицы — похоже на помещение. Внутри домов панорам нет, а придумывать комнату без спроса не буду.';
+    acts.push(['Додумать комнату', onRoom]);
+    acts.push(['Это улица — отметить на карте', onMap]);
+  } else {
+    text = 'Не нашёл, где это снято: в фото нет GPS, а адресов и названий в кадре не видно. Отметьте точку на карте — и окажетесь там.';
+    acts.push(['Отметить на карте', onMap, true]);
+  }
+  return (
+    <div className="there-status">
+      <p>{text}</p>
+      {acts.length > 0 && (
+        <div>
+          {acts.map(([t, f, main]) => (
+            <button key={t} className={'btn small' + (main ? '' : ' ghost')} onClick={f}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Сам снимок: резкий, целиком, без искажений; по краям — он же, размытый */
+function PhotoStage({ bmp }: { bmp: ImageBitmap }) {
+  const a = useRef<HTMLCanvasElement>(null),
+    b = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const c = ref.current;
+    for (const c of [a.current, b.current]) {
+      if (!c) continue;
+      c.width = bmp.width;
+      c.height = bmp.height;
+      c.getContext('2d')!.drawImage(bmp, 0, 0);
+    }
+  }, [bmp]);
+  return (
+    <div className="there-photo">
+      <canvas ref={a} className="bg" />
+      <canvas ref={b} className="fg" />
+    </div>
+  );
+}
+
+// —— проекция снимка на панораму: 4 угла кадра → экран, CSS matrix3d ——
+type V3 = [number, number, number];
+const R = Math.PI / 180;
+const dirv = (b: number, p: number): V3 => [Math.cos(p * R) * Math.sin(b * R), Math.sin(p * R), Math.cos(p * R) * Math.cos(b * R)];
+const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const add = (a: V3, b: V3, k: number): V3 => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
+function adj(m: number[]) {
+  return [m[4] * m[8] - m[5] * m[7], m[2] * m[7] - m[1] * m[8], m[1] * m[5] - m[2] * m[4], m[5] * m[6] - m[3] * m[8], m[0] * m[8] - m[2] * m[6], m[2] * m[3] - m[0] * m[5], m[3] * m[7] - m[4] * m[6], m[1] * m[6] - m[0] * m[7], m[0] * m[4] - m[1] * m[3]];
+}
+function mm(a: number[], b: number[]) {
+  const c = new Array(9).fill(0);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) c[3 * i + j] += a[3 * i + k] * b[3 * k + j];
+  return c;
+}
+function mv(m: number[], v: number[]) {
+  return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]];
+}
+function basis(p: number[]) {
+  const m = [p[0], p[2], p[4], p[1], p[3], p[5], 1, 1, 1];
+  const v = mv(adj(m), [p[6], p[7], 1]);
+  return mm(m, [v[0], 0, 0, 0, v[1], 0, 0, 0, v[2]]);
+}
+/** Прямоугольник w×h → четырёхугольник q (TL, TR, BL, BR) */
+function matrix3d(w: number, h: number, q: number[]) {
+  const s = basis([0, 0, w, 0, 0, h, w, h]);
+  const d = basis(q);
+  const t = mm(d, adj(s)).map((x, _, arr) => x / arr[8]);
+  return `matrix3d(${[t[0], t[3], 0, t[6], t[1], t[4], 0, t[7], 0, 0, 1, 0, t[2], t[5], 0, t[8]].join(',')})`;
+}
+
+/** Настоящая панорама улицы; снимок закреплён там, куда смотрела камера */
+function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: PanoHit; bmp: ImageBitmap; heading: number | null; fovH: number; fovV: number; onHeading: (h: number) => void; onBack: () => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  const pin = useRef<HTMLCanvasElement>(null);
+  const player = useRef<Ymaps | null>(null);
+  const [err, setErr] = useState('');
+  const [far, setFar] = useState(false);
+  const [show, setShow] = useState<'on' | 'ghost' | 'off'>('on');
+  const [align, setAlign] = useState(heading == null);
+  const st = useRef({ heading, align, show, far });
+  st.current = { heading, align, show, far };
+
+  // где сейчас снимок на экране
+  const place = useCallback(() => {
+    const p = player.current,
+      c = pin.current,
+      box = el.current;
+    if (!p || !c || !box) return;
+    const { heading: H, align: al, show: sh, far: fr } = st.current;
+    if (sh === 'off' || fr) {
+      c.style.visibility = 'hidden';
+      return;
+    }
+    const [B, P] = p.getDirection() as number[];
+    const [hs, vs] = p.getSpan() as number[];
+    const W = box.clientWidth,
+      Hh = box.clientHeight;
+    // совмещение: снимок держится в центре экрана, человек поворачивает панораму под него
+    const hd = al || H == null ? B : H,
+      pd = al || H == null ? P : 0;
+    const f = dirv(B, P),
+      r: V3 = [Math.cos(B * R), 0, -Math.sin(B * R)];
+    const u = cross(f, r);
+    const c0 = dirv(hd, pd),
+      rp: V3 = [Math.cos(hd * R), 0, -Math.sin(hd * R)];
+    const up = cross(c0, rp);
+    const tx = Math.tan((fovH / 2) * R),
+      ty = Math.tan((fovV / 2) * R);
+    const th = Math.tan((hs / 2) * R),
+      tv = Math.tan((vs / 2) * R);
+    const q: number[] = [];
+    for (const [sx, sy] of [
+      [-1, 1],
+      [1, 1],
+      [-1, -1],
+      [1, -1],
+    ]) {
+      const d = add(add(c0, rp, sx * tx), up, sy * ty);
+      const z = dot(d, f);
+      if (z < 0.05) {
+        c.style.visibility = 'hidden';
+        return;
+      }
+      q.push(W / 2 + (dot(d, r) / z / th) * (W / 2), Hh / 2 - (dot(d, u) / z / tv) * (Hh / 2));
+    }
+    c.style.visibility = 'visible';
+    c.style.opacity = al ? '0.5' : sh === 'ghost' ? '0.45' : '1';
+    c.style.transform = matrix3d(c.width, c.height, q);
+  }, [fovH, fovV]);
+
+  useEffect(() => {
+    let dead = false;
+    import('../lib/scene/yandex')
+      .then(async (y) => {
+        const ym = await y.loadYmaps();
+        if (dead || !el.current) return;
+        const pl = new ym.panorama.Player(el.current, hit.pano, {
+          direction: heading != null ? [heading, 0] : 'auto',
+          controls: ['zoomControl'],
+          suppressMapOpenBlock: true,
+          hotkeysEnabled: true,
+        });
+        player.current = pl;
+        (window as unknown as { __ottiskPano?: Ymaps }).__ottiskPano = pl;
+        const start = hit.pos;
+        pl.events.add(['directionchange', 'spanchange'], place);
+        pl.events.add('panoramachange', () => {
+          const pos = pl.getPanorama().getPosition() as number[];
+          setFar(y.meters(start, [pos[0], pos[1]]) > 14);
+        });
+        place();
+      })
+      .catch(() => !dead && setErr('Панорама не открылась. Попробуйте позже.'));
+    return () => {
+      dead = true;
+      player.current?.destroy();
+      player.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hit]);
+
+  useEffect(() => {
+    const c = pin.current;
     if (!c) return;
     c.width = bmp.width;
     c.height = bmp.height;
     c.getContext('2d')!.drawImage(bmp, 0, 0);
-  }, [bmp]);
-  return <canvas ref={ref} />;
-}
+    place();
+  }, [bmp, place]);
+  useEffect(() => place(), [heading, align, show, far, place]);
+  useEffect(() => {
+    const on = () => place();
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, [place]);
 
-function WherePicker({ onPick, initial = [] }: { onPick: (p: PlaceHit) => void; initial?: PlaceHit[] }) {
-  const [q, setQ] = useState('');
-  const [hits, setHits] = useState<PlaceHit[]>(initial);
-  const t = useRef(0);
+  const fix = () => {
+    const p = player.current;
+    if (!p) return;
+    onHeading((p.getDirection() as number[])[0]);
+    setAlign(false);
+  };
+
   return (
-    <div className="there-where">
-      <input
-        autoFocus
-        className="mono"
-        placeholder="город или место"
-        value={q}
-        onChange={(e) => {
-          const v = e.target.value;
-          setQ(v);
-          clearTimeout(t.current);
-          t.current = window.setTimeout(() => searchPlaces(v).then(setHits).catch(() => setHits([])), 300);
-        }}
-      />
-      {hits.map((h) => {
-        // одноимённые в одной области — различаем по числу жителей или координатам
-        const twin = hits.some((o) => o !== h && o.name === h.name && o.admin === h.admin);
-        const extra = twin ? (h.pop ? `${h.pop.toLocaleString('ru-RU')} жит.` : `${h.lat.toFixed(2)}, ${h.lon.toFixed(2)}`) : '';
-        return (
-          <button key={`${h.lat},${h.lon}`} onClick={() => onPick(h)}>
-            {h.name}
-            <small>{[h.admin, h.country, extra].filter(Boolean).join(', ')}</small>
+    <div className="there-pano">
+      <div ref={el} className="there-player" />
+      <div className="there-pinbox" aria-hidden>
+        <canvas ref={pin} className="there-pin" />
+      </div>
+      {err && <p className="there-pano-err mono">{err}</p>}
+      <div className="there-pano-bar">
+        <button className="btn small ghost" onClick={onBack}>
+          ← к снимку
+        </button>
+        {far ? (
+          <button className="btn small" onClick={() => player.current?.moveTo(hit.pos)}>
+            вернуться к месту снимка
           </button>
-        );
-      })}
+        ) : align ? (
+          <>
+            <span className="mono">поверните панораму под снимок</span>
+            <button className="btn small" onClick={fix}>
+              совпало
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn small ghost" onClick={() => setShow((s) => (s === 'on' ? 'ghost' : s === 'ghost' ? 'off' : 'on'))}>
+              снимок: {show === 'on' ? 'поверх' : show === 'ghost' ? 'насквозь' : 'скрыт'}
+            </button>
+            <button className="btn small ghost" onClick={() => setAlign(true)}>
+              совместить заново
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
+
+/** Отметить точку снимка на карте */
+function MapPick({ center, onPick, onCancel }: { center: { lat: number; lon: number; zoom: number }; onPick: (lat: number, lon: number) => void; onCancel: () => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  const [pt, setPt] = useState<[number, number] | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let dead = false;
+    let map: Ymaps | null = null;
+    import('../lib/scene/yandex')
+      .then((y) => y.loadYmaps())
+      .then((ym) => {
+        if (dead || !el.current) return;
+        map = new ym.Map(el.current, { center: [center.lat, center.lon], zoom: center.zoom, controls: ['zoomControl', 'searchControl', 'geolocationControl'] }, { suppressMapOpenBlock: true });
+        (window as unknown as { __ottiskMap?: Ymaps }).__ottiskMap = map;
+        const mark = new ym.Placemark([center.lat, center.lon], {}, { preset: 'islands#redCircleDotIcon', visible: false });
+        map.geoObjects.add(mark);
+        map.events.add('click', (e: Ymaps) => {
+          const c = e.get('coords') as [number, number];
+          mark.geometry.setCoordinates(c);
+          mark.options.set('visible', true);
+          setPt(c);
+        });
+      })
+      .catch(() => !dead && setErr('Карта не загрузилась — возможно, закончился суточный лимит Яндекса.'));
+    return () => {
+      dead = true;
+      map?.destroy();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div className="there-map">
+      <div ref={el} className="there-mapbox" />
+      <div className="there-map-bar">
+        <span>{err || (pt ? 'Точка снимка отмечена' : 'Нажмите на карте, где сделан снимок')}</span>
+        <button className="btn small ghost" onClick={onCancel}>
+          отмена
+        </button>
+        <button className="btn small" disabled={!pt} onClick={() => pt && onPick(pt[0], pt[1])}>
+          здесь
+        </button>
+      </div>
+    </div>
+  );
+}
+

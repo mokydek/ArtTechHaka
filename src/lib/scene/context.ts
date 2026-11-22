@@ -119,7 +119,7 @@ export interface ShotContext {
   local: string; // «2026-11-20T18:40»
   hour: number;
   heading: number; // куда смотрела камера (0 — север)
-  source: { place: 'gps' | 'here' | 'sign' | 'day' | 'default'; time: 'exif' | 'text' | 'default' | 'sun'; heading: 'exif' | 'guess' | 'sun' };
+  source: { place: 'gps' | 'here' | 'address' | 'map' | 'sign' | 'day' | 'default'; time: 'exif' | 'text' | 'default' | 'sun'; heading: 'exif' | 'guess' | 'sun' };
   fovV: number;
   /** надпись с таблички, по которой нашли место */
   word?: string;
@@ -130,7 +130,7 @@ export function shotContext(
   rec: DayRecord | null,
   meta: ShotMeta | null | undefined,
   aspect: number,
-  fallbackPlace?: { name: string; lat: number; lon: number; via?: 'here' | 'sign'; word?: string },
+  fallbackPlace?: { name: string; lat: number; lon: number; via?: 'here' | 'address' | 'map' | 'sign'; word?: string },
 ): ShotContext {
   let lat = 51.1694,
     lon = 71.4491,

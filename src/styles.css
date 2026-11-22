@@ -3280,6 +3280,192 @@ a.tab {
     bottom: max(14px, env(safe-area-inset-bottom));
   }
 }
+.there-photo {
+  position: absolute;
+  inset: 0;
+}
+.there-photo canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.there-photo .bg {
+  object-fit: cover;
+  filter: blur(22px) brightness(0.5);
+  transform: scale(1.1);
+}
+.there-photo .fg {
+  object-fit: contain;
+}
+.there-load p {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.62);
+  backdrop-filter: blur(8px);
+}
+/* атмосфера того часа поверх настоящей картинки */
+.atmos {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.atmos > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.atmos-dark {
+  background: #0c1530;
+  mix-blend-mode: multiply;
+}
+.atmos-warm {
+  background: linear-gradient(to bottom, #ffb36b, #ff7a45);
+  mix-blend-mode: soft-light;
+}
+.atmos-grey {
+  background: #7d838c;
+  mix-blend-mode: multiply;
+}
+.atmos-fog {
+  background: linear-gradient(to top, rgba(228, 231, 236, 0.7), rgba(228, 231, 236, 0.25));
+}
+.there .btn {
+  --bg: #f3efe6;
+  --bg-h: #fffaf0;
+  --fg: #111;
+  --frame: rgba(0, 0, 0, 0.3);
+}
+.there .btn.ghost {
+  --fg: #f3efe6;
+}
+.there-status {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(560px, calc(100vw - 28px));
+  padding: 13px 15px;
+  border-radius: 16px;
+  background: rgba(10, 12, 18, 0.66);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.there-status p {
+  margin: 0 0 10px;
+}
+.there-status div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.there-pano,
+.there-player,
+.there-pinbox {
+  position: absolute;
+  inset: 0;
+}
+.there-pinbox {
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.there-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  visibility: hidden;
+  outline: 3px solid rgba(255, 255, 255, 0.9);
+}
+.there-pano-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+  max-width: calc(100vw - 28px);
+  padding: 8px 10px;
+  border-radius: 22px;
+  background: rgba(10, 12, 18, 0.62);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+}
+.there-pano-err {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+.there-map {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #0b0d12;
+}
+.there-mapbox {
+  position: absolute;
+  inset: 0;
+}
+.there-map-bar {
+  position: absolute;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+  width: max-content;
+  max-width: calc(100vw - 28px);
+  padding: 10px 12px;
+  border-radius: 22px;
+  background: rgba(10, 12, 18, 0.78);
+  color: #f3efe6;
+  font-size: 13px;
+}
+.there-made {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(120, 44, 24, 0.78);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+button.there-x {
+  border: 0;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .there-status {
+    bottom: 76px;
+    font-size: 13px;
+  }
+  .there-pano-bar {
+    bottom: 74px;
+  }
+  .there-made {
+    top: 84px;
+  }
+}
 .there-tiles {
   display: flex;
   gap: 8px;

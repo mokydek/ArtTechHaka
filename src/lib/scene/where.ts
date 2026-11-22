@@ -6,7 +6,10 @@ import type { ShotMeta } from '../types';
 // 2) в кадре есть табличка (въезд в село, улица, указатель) — читаем надпись и ищем такое место.
 
 export interface FoundPlace extends PlaceHit {
-  via: 'here' | 'sign';
+  /** here — геолокация телефона, address — адрес с таблички, sign — название села/города с таблички */
+  via: 'here' | 'address' | 'sign';
+  /** точка известна до дома — можно сразу вставать в панораму */
+  precise: boolean;
   /** что прочитали на табличке */
   word?: string;
   /** одноимённые места — на выбор */
@@ -323,23 +326,119 @@ async function lookup(lines: { text: string; conf: number; cut: boolean }[]): Pr
   return { hit: hs[0], word: top.q.word.toUpperCase(), others: hs };
 }
 
-/** Найти место кадра: свежий снимок — геолокация, иначе — надпись на табличке */
-export async function findPlace(img: CanvasImageSource & { width: number; height: number }, meta: ShotMeta | null | undefined, onStep?: (s: string) => void): Promise<FoundPlace | null> {
+// типы улиц — отбрасываем, остаётся название
+const STREET = /^(ул|улица|пр|просп|проспект|пер|переулок|бульв|бульвар|б-р|шоссе|ш|наб|набережная|пл|площадь|мкр|микрорайон|тупик|проезд|көшесі|көш|даңғылы|даң|str|st|ave|avenue|street|road|rd)\.?$/i;
+
+/** Адрес с таблички на доме: «Кенесары 40», «ул. Абая, 12/1» → геокодер Яндекса */
+async function address(lines: { text: string; conf: number }[], near?: { lat: number; lon: number }): Promise<{ hit: PlaceHit; word: string; precise: boolean } | null> {
+  const good = lines.filter((l) => l.conf >= 45);
+  const parse = (t: string) => {
+    const toks = t.split(/[\s,]+/).map((x) => x.replace(/^[^0-9a-zа-яёәғқңөұүһі]+|[^0-9a-zа-яёәғқңөұүһі/-]+$/gi, '')).filter(Boolean);
+    const num = toks.find((x) => /^\d{1,4}[а-яa-z]?(\/\d{1,3})?$/i.test(x));
+    const words = toks.filter((x) => /^[a-zа-яёәғқңөұүһі-]{3,}$/i.test(x) && !STREET.test(x) && !STOP.has(x.toLowerCase()));
+    return { num, words };
+  };
+  const qs: string[] = [];
+  const parsed = good.map((l) => parse(l.text));
+  for (const p of parsed) if (p.num && p.words.length) qs.push(`${p.words.join(' ')} ${p.num}`);
+  // название улицы и номер дома — на разных табличках
+  const nums = parsed.filter((p) => p.num && !p.words.length).map((p) => p.num!);
+  const names = parsed.filter((p) => !p.num && p.words.length).map((p) => p.words.join(' '));
+  for (const n of names) for (const k of nums) qs.push(`${n} ${k}`);
+  if (!qs.length) return null;
+  const { geocode } = await import('./yandex');
+  for (const q of qs.slice(0, 4)) {
+    try {
+      const g = await geocode(q, near);
+      if (g && g.precision !== 'other') return { hit: { name: g.address, lat: g.lat, lon: g.lon }, word: q.toUpperCase(), precise: g.precision === 'exact' };
+    } catch {
+      /* следующий вариант */
+    }
+  }
+  return null;
+}
+
+/** Найти место кадра: свежий снимок — геолокация, иначе — адрес или название на табличке */
+export async function findPlace(
+  img: CanvasImageSource & { width: number; height: number },
+  meta: ShotMeta | null | undefined,
+  opts: { near?: { lat: number; lon: number }; onStep?: (s: string) => void } = {},
+): Promise<FoundPlace | null> {
   if (isFresh(meta) && 'geolocation' in navigator) {
     try {
-      onStep?.('снимок свежий — спрашиваю, где вы');
+      opts.onStep?.('снимок свежий — спрашиваю, где вы');
       const p = await hereNow();
-      return { ...p, via: 'here', others: [] };
+      return { ...p, via: 'here', precise: true, others: [] };
     } catch {
       /* не дали геолокацию — ищем по кадру */
     }
   }
   const ps = plates(img);
   if (!ps.length) return null;
-  onStep?.('читаю надписи в кадре');
+  opts.onStep?.('читаю надписи в кадре');
   const lines = await readPlates(img, ps);
   // для проверки: что нашли и прочитали
   (globalThis as { __ottiskWhere?: unknown }).__ottiskWhere = { ps, lines };
+  const a = await address(lines, opts.near).catch(() => null);
+  if (a) return { ...a.hit, via: 'address', precise: a.precise, word: a.word, others: [] };
   const f = await lookup(lines);
-  return f ? { ...f.hit, via: 'sign', word: f.word, others: f.others } : null;
+  return f ? { ...f.hit, via: 'sign', precise: false, word: f.word, others: f.others } : null;
+}
+
+/**
+ * Улица это или помещение — по самому кадру, без нейросетей: небо у верхнего края и зелень.
+ * «unclear» — не видно ни того, ни другого (стена вплотную, ночь, интерьер).
+ */
+export function outdoorCues(img: CanvasImageSource & { width: number; height: number }): { sky: number; veg: number; verdict: 'outdoor' | 'unclear' } {
+  const s = 96 / Math.max(img.width, img.height);
+  const w = Math.max(8, Math.round(img.width * s)),
+    h = Math.max(8, Math.round(img.height * s));
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(img, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data;
+  const n = w * h;
+  const L = new Float32Array(n);
+  const cand = new Uint8Array(n);
+  let veg = 0;
+  for (let i = 0; i < n; i++) {
+    const r = d[i * 4] / 255,
+      gg = d[i * 4 + 1] / 255,
+      b = d[i * 4 + 2] / 255;
+    const mx = Math.max(r, gg, b),
+      mn = Math.min(r, gg, b);
+    const l = (mx + mn) / 2,
+      sat = (mx - mn) / (mx + 1e-5);
+    L[i] = l;
+    if (gg > r + 0.03 && gg > b && sat > 0.15 && l > 0.08 && l < 0.85) veg++;
+    // небо: голубое или ровное светло-серое
+    if (l > 0.45 && ((b > r + 0.04 && b >= gg - 0.03) || (sat < 0.12 && l > 0.62))) cand[i] = 1;
+  }
+  // небо гладкое: без резких перепадов яркости
+  const smooth = (i: number) => {
+    const x = i % w,
+      y = (i / w) | 0;
+    let m = 0;
+    for (const j of [x > 0 ? i - 1 : i, x < w - 1 ? i + 1 : i, y > 0 ? i - w : i, y < h - 1 ? i + w : i]) m = Math.max(m, Math.abs(L[j] - L[i]));
+    return m < 0.08;
+  };
+  // заливка от верхнего края
+  const sky = new Uint8Array(n);
+  const st: number[] = [];
+  for (let x = 0; x < w; x++) if (cand[x] && smooth(x)) (sky[x] = 1), st.push(x);
+  while (st.length) {
+    const i = st.pop()!;
+    const x = i % w,
+      y = (i / w) | 0;
+    if (y > h * 0.6) continue;
+    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1])
+      if (j >= 0 && !sky[j] && cand[j] && smooth(j)) (sky[j] = 1), st.push(j);
+  }
+  let sk = 0;
+  for (let i = 0; i < n; i++) sk += sky[i];
+  const skyF = sk / n,
+    vegF = veg / n;
+  return { sky: skyF, veg: vegF, verdict: skyF > 0.04 || vegF > 0.15 ? 'outdoor' : 'unclear' };
 }
