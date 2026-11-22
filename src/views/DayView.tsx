@@ -16,6 +16,7 @@ import SkyBox from '../components/Sky';
 import CutoutPicker from '../components/CutoutPicker';
 import type { CutoutRt } from '../lib/render/engine';
 import LightBox from '../components/LightBox';
+import HelpCard, { needsHelp } from '../components/HelpCard';
 import { findLight, isGray } from '../lib/light';
 
 const demoLocal = new LocalStore();
@@ -400,6 +401,7 @@ function DayPage({ id }: { id: string }) {
         </div>
         <h1>{rec.title}</h1>
         {rec.place && <div className="place-stamp" style={{ margin: '0 0 14px' }}>⌖ {placeLine(rec.place)}</div>}
+        {!ro && needsHelp(rec.text) && <HelpCard />}
         <div className="view-pick" role="radiogroup" aria-label="Как воспроизвести">
           <button role="radio" aria-checked={view === 'show'} className={'tab' + (view === 'show' ? ' on' : '')} onClick={() => pickView('show')}>
             Слайдшоу

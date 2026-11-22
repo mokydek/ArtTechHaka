@@ -15,6 +15,7 @@ import { readShot } from '../lib/scene/context';
 import { isFresh } from '../lib/scene/where';
 import type { DayRecord, DiaryFont, PageDeco, PageNote, PhotoLayout, ShotMeta } from '../lib/types';
 import FlowText, { noteRect } from '../components/FlowText';
+import HelpCard, { needsHelp } from '../components/HelpCard';
 import { MOOD_COLORS, MOOD_WORDS, setMood as saveMood, type Mood } from '../lib/moods';
 import { moodImg } from '../components/Bunny';
 import { PhotoPage } from '../components/Journal';
@@ -446,6 +447,7 @@ export default function NewDay({ nb }: { nb?: string }) {
         </button>
         <PlacePicker date={date} value={place} onChange={setPlace} disabled={phase === 'build'} />
       </div>
+      {needsHelp(text) && <HelpCard />}
       {fromPhoto && <div className="nd-note">⌖ {fromPhoto}</div>}
 
       <div className="nd-tools" role="toolbar" aria-label="Страница">

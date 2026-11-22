@@ -104,14 +104,20 @@ export default function Mascot({ route }: { route: string }) {
       const h = (e as CustomEvent<BunnyHint>).detail;
       if (h.key === lastHint.current) return;
       lastHint.current = h.key;
-      setTalk((cur) => (cur && cur.kind !== 'hint' ? cur : { kind: 'hint', key: h.key, text: h.text }));
       setPose(h.pose ?? 'point');
+      // на телефоне реплика закрыла бы страницу — зайчик только показывает позой
+      if (innerWidth < 900) {
+        clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => !talkRef.current && rest(), 4000);
+        return;
+      }
+      setTalk((cur) => (cur && cur.kind !== 'hint' ? cur : { kind: 'hint', key: h.key, text: h.text }));
       clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setTalk((cur) => (cur?.kind === 'hint' ? null : cur)), 7000);
     };
     addEventListener('ottisk:bunny', on);
     return () => removeEventListener('ottisk:bunny', on);
-  }, []);
+  }, [rest]);
   const wasOpen = useRef(false);
   useEffect(() => {
     if (!talk) rest();
