@@ -8,15 +8,27 @@ export interface PlaceHit {
   admin?: string;
   lat: number;
   lon: number;
+  /** жителей — чтобы из одноимённых выбрать вероятнее */
+  pop?: number;
+  /** тип по GeoNames: PPL — населённый пункт, PPLC — столица… */
+  code?: string;
 }
 
-export async function searchPlaces(q: string): Promise<PlaceHit[]> {
+export async function searchPlaces(q: string, count = 6): Promise<PlaceHit[]> {
   const s = q.trim();
   if (s.length < 2) return [];
-  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(s)}&count=6&language=ru&format=json`);
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(s)}&count=${count}&language=ru&format=json`);
   if (!r.ok) return [];
   const j = await r.json();
-  return (j.results ?? []).map((x: { name: string; country?: string; admin1?: string; latitude: number; longitude: number }) => ({ name: x.name, country: x.country, admin: x.admin1, lat: x.latitude, lon: x.longitude }));
+  return (j.results ?? []).map((x: { name: string; country?: string; admin1?: string; latitude: number; longitude: number; population?: number; feature_code?: string }) => ({
+    name: x.name,
+    country: x.country,
+    admin: x.admin1,
+    lat: x.latitude,
+    lon: x.longitude,
+    pop: x.population,
+    code: x.feature_code,
+  }));
 }
 
 /** Название места по координатам */

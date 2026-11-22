@@ -55,6 +55,8 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(true);
   const [where, setWhere] = useState(false);
+  // одноимённые места, если нашли по надписи
+  const [alt, setAlt] = useState<PlaceHit[]>([]);
   const [open, setOpen] = useState(false);
   // жест-подсказка «тяни, чтобы оглядеться» — только в первые разы
   const [hinted] = useState(() => {
@@ -110,13 +112,28 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     let dead = false;
     (async () => {
       try {
-        // место известно — дома и улицы вокруг грузим параллельно с глубиной
-        const c0 = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
-        const osmP = c0.source.place !== 'default' ? import('../lib/scene/osm').then((m) => m.fetchOsm(c0.lat, c0.lon)).catch(() => null) : Promise.resolve(null);
+        const aspect = src.bmp.width / src.bmp.height;
+        // в фото нет GPS и в записи нет места — ищем, где это: свежий снимок → геолокация, табличка в кадре → её надпись
+        const findP: Promise<import('../lib/scene/where').FoundPlace | null> =
+          src.meta?.lat == null && !src.rec?.place
+            ? Promise.race([
+                import('../lib/scene/where').then((m) => m.findPlace(src.bmp, src.meta)),
+                new Promise<null>((r) => setTimeout(() => r(null), 30000)),
+              ]).catch(() => null)
+            : Promise.resolve(null);
+        // место известно точно — дома и улицы вокруг грузим параллельно с глубиной
+        const osmP = findP.then((f) => {
+          const c0 = shotContext(src.rec, src.meta, aspect, f ?? src.rec?.place);
+          return c0.source.place === 'default' || c0.source.place === 'sign' ? null : import('../lib/scene/osm').then((m) => m.fetchOsm(c0.lat, c0.lon)).catch(() => null);
+        });
         const { buildLayers } = await import('../lib/scene/depth');
         const L = await buildLayers(src.bmp, (s) => !dead && setStep(s), { fill: false });
         if (dead) return;
-        let c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
+        setStep('ищу, где это');
+        const found = await findP;
+        if (dead) return;
+        let c = shotContext(src.rec, src.meta, aspect, found ? { ...found, name: [found.name, found.via === 'sign' ? found.admin : found.country].filter(Boolean).join(', ') } : src.rec?.place);
+        if (found?.others.length) setAlt(found.others);
         setStep('поднимаю архив погоды того дня');
         const h = await Promise.race([dayHours(c.lat, c.lon, c.local.slice(0, 10)), new Promise<null>((r) => setTimeout(() => r(null), 9000))]).catch(() => null);
         if (dead) return;
@@ -397,9 +414,9 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
                   <button className="there-link" onClick={() => setWhere((v) => !v)}>
                     изменить место
                   </button>
-                  <small>{src0?.place === 'gps' ? 'GPS из фото' : src0?.place === 'day' ? 'место из записи' : 'место не указано'}</small>
+                  <small>{src0?.place === 'gps' ? 'GPS из фото' : src0?.place === 'here' ? 'где вы сейчас' : src0?.place === 'sign' ? `по надписи «${ctx.word ?? ''}»` : src0?.place === 'day' ? 'место из записи' : 'место не указано'}</small>
                 </div>
-                {where && <WherePicker onPick={setPlace} />}
+                {where && <WherePicker onPick={setPlace} initial={src0?.place === 'sign' ? alt : []} />}
                 <div>
                   <input className="there-date mono" type="date" value={ctx.local.slice(0, 10)} onChange={(e) => setDate(e.target.value)} />
                   <small>{minute === photoMin ? (src0?.time === 'exif' ? 'время снимка' : src0?.time === 'sun' ? 'время по солнцу на фото' : src0?.time === 'text' ? 'время по записи' : 'время не указано') : `снимок, ${hm(photoMin)}`}</small>
@@ -461,9 +478,9 @@ function BlurPhoto({ bmp }: { bmp: ImageBitmap }) {
   return <canvas ref={ref} />;
 }
 
-function WherePicker({ onPick }: { onPick: (p: PlaceHit) => void }) {
+function WherePicker({ onPick, initial = [] }: { onPick: (p: PlaceHit) => void; initial?: PlaceHit[] }) {
   const [q, setQ] = useState('');
-  const [hits, setHits] = useState<PlaceHit[]>([]);
+  const [hits, setHits] = useState<PlaceHit[]>(initial);
   const t = useRef(0);
   return (
     <div className="there-where">
@@ -479,12 +496,17 @@ function WherePicker({ onPick }: { onPick: (p: PlaceHit) => void }) {
           t.current = window.setTimeout(() => searchPlaces(v).then(setHits).catch(() => setHits([])), 300);
         }}
       />
-      {hits.map((h) => (
-        <button key={`${h.lat},${h.lon}`} onClick={() => onPick(h)}>
-          {h.name}
-          <small>{[h.admin, h.country].filter(Boolean).join(', ')}</small>
-        </button>
-      ))}
+      {hits.map((h) => {
+        // одноимённые в одной области — различаем по числу жителей или координатам
+        const twin = hits.some((o) => o !== h && o.name === h.name && o.admin === h.admin);
+        const extra = twin ? (h.pop ? `${h.pop.toLocaleString('ru-RU')} жит.` : `${h.lat.toFixed(2)}, ${h.lon.toFixed(2)}`) : '';
+        return (
+          <button key={`${h.lat},${h.lon}`} onClick={() => onPick(h)}>
+            {h.name}
+            <small>{[h.admin, h.country, extra].filter(Boolean).join(', ')}</small>
+          </button>
+        );
+      })}
     </div>
   );
 }

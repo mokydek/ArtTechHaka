@@ -119,12 +119,19 @@ export interface ShotContext {
   local: string; // «2026-11-20T18:40»
   hour: number;
   heading: number; // куда смотрела камера (0 — север)
-  source: { place: 'gps' | 'day' | 'default'; time: 'exif' | 'text' | 'default' | 'sun'; heading: 'exif' | 'guess' | 'sun' };
+  source: { place: 'gps' | 'here' | 'sign' | 'day' | 'default'; time: 'exif' | 'text' | 'default' | 'sun'; heading: 'exif' | 'guess' | 'sun' };
   fovV: number;
+  /** надпись с таблички, по которой нашли место */
+  word?: string;
 }
 
 /** Собрать «момент кадра»: из EXIF, а чего нет — из записи дня */
-export function shotContext(rec: DayRecord | null, meta: ShotMeta | null | undefined, aspect: number, fallbackPlace?: { name: string; lat: number; lon: number }): ShotContext {
+export function shotContext(
+  rec: DayRecord | null,
+  meta: ShotMeta | null | undefined,
+  aspect: number,
+  fallbackPlace?: { name: string; lat: number; lon: number; via?: 'here' | 'sign'; word?: string },
+): ShotContext {
   let lat = 51.1694,
     lon = 71.4491,
     place = 'Астана',
@@ -140,7 +147,7 @@ export function shotContext(rec: DayRecord | null, meta: ShotMeta | null | undef
     ps = 'day';
   } else if (fallbackPlace) {
     ({ lat, lon, name: place } = fallbackPlace);
-    ps = 'day';
+    ps = fallbackPlace.via ?? 'day';
   }
   let local: string,
     ts: ShotContext['source']['time'] = 'default';
@@ -162,6 +169,7 @@ export function shotContext(rec: DayRecord | null, meta: ShotMeta | null | undef
     heading: meta?.heading ?? 180,
     source: { place: ps, time: ts, heading: meta?.heading != null ? 'exif' : 'guess' },
     fovV: vfov(meta, aspect),
+    word: !meta?.lat && !rec?.place ? fallbackPlace?.word : undefined,
   };
 }
 

@@ -678,7 +678,7 @@ export class Moment {
    */
   applyOsm(osm: OsmWorld): boolean {
     const k = this.tags.kind;
-    if (k === 'indoor' || !(this.o.ctx.source.place === 'gps' || k === 'city' || k === 'park')) return false;
+    if (k === 'indoor' || !(this.o.ctx.source.place === 'gps' || this.o.ctx.source.place === 'here' || k === 'city' || k === 'park')) return false;
     const land = buildLand(this.tags, { seed: this.seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth, cover: this.cover ?? undefined, osm });
     this.world.remove(this.land.group);
     this.disposeTree(this.land.group);
