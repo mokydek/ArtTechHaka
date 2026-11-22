@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDiary } from '../App';
 import Atmos from '../components/Atmos';
 import { loadImage } from '../lib/analysis/photo';
-import { nameAt, wmo, type PlaceHit } from '../lib/place';
+import { nameAt, searchPlaces, wmo, type PlaceHit } from '../lib/place';
 import { dayHours, readShot, shotContext, skyAt, toUtc, vfov, type HourWeather, type ShotContext, type SkyState } from '../lib/scene/context';
 import type { PlaceSound } from '../lib/scene/sound';
 import type { PanoHit, Ymaps } from '../lib/scene/yandex';
@@ -23,7 +23,7 @@ interface Loc {
   word?: string;
   others?: PlaceHit[];
 }
-type PanoState = { st: 'idle' } | { st: 'search' } | { st: 'found'; hit: PanoHit } | { st: 'none' } | { st: 'error'; msg: string };
+type PanoState = { st: 'idle' } | { st: 'search' } | { st: 'found'; hit: PanoHit } | { st: 'none' } | { st: 'frame' };
 type Mode = 'moment' | 'pano' | 'map' | 'room';
 
 const RUMB = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
@@ -165,7 +165,8 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     import('../lib/scene/yandex')
       .then((y) => y.nearestPano(loc.lat, loc.lon))
       .then((hit) => !dead && setPano(hit && hit.dist < 400 ? { st: 'found', hit } : { st: 'none' }))
-      .catch(() => !dead && setPano({ st: 'error', msg: 'Панорамы Яндекса сейчас не отвечают — возможно, закончился суточный лимит. Попробуйте позже.' }));
+      // API Яндекса недоступен (ключ, суточный лимит) — откроем встроенную панораму Яндекс Карт без проверки
+      .catch(() => !dead && setPano({ st: 'frame' }));
     return () => {
       dead = true;
     };
@@ -242,8 +243,9 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   return (
     <div className="there" onPointerDown={wake}>
       {src && mode === 'moment' && <PhotoStage bmp={src.bmp} />}
+      {mode === 'pano' && pano.st === 'frame' && src && loc && <PanoFrame lat={loc.lat} lon={loc.lon} heading={heading} bmp={src.bmp} onBack={() => setMode('moment')} />}
       {mode === 'pano' && found && src && (
-        <PanoView hit={found} bmp={src.bmp} heading={heading} fovH={fovH} fovV={fovV} onHeading={setHeading} onBack={() => setMode('moment')} />
+        <PanoView hit={found} at={[loc!.lat, loc!.lon]} bmp={src.bmp} heading={heading} fovH={fovH} fovV={fovV} onHeading={setHeading} onBack={() => setMode('moment')} />
       )}
       {mode === 'map' && <MapPick center={center} onPick={placeFromMap} onCancel={() => setMode('moment')} />}
       {mode !== 'map' && sky && <Atmos sunAlt={sky.sunAlt} base={mode === 'pano' ? null : (photoSky?.sunAlt ?? null)} weather={weather} />}
@@ -342,9 +344,10 @@ function Status({ loc, pano, inside, onPano, onMap, onRoom }: { loc: Loc; pano: 
       text = 'Место нашёл, но здесь нет панорам улиц. Придумывать вид вокруг не буду.';
       acts.push(['Отметить другое место', onMap]);
       if (inside) acts.push(['Додумать комнату', onRoom]);
-    } else if (pano.st === 'error') {
-      text = pano.msg;
-      acts.push(['Отметить место на карте', onMap]);
+    } else if (pano.st === 'frame') {
+      text = 'Нашёл место. Открою панораму Яндекс Карт рядом — заранее проверить, есть ли она здесь, сейчас не получается.';
+      acts.push(['Оглядеться на месте', onPano, true]);
+      acts.push(['Другое место', onMap]);
     }
   } else if (loc.via === 'sign') {
     text = `По табличке это ${loc.name}. Где именно стояли — по кадру не понять: отметьте точку на карте.`;
@@ -428,7 +431,7 @@ function matrix3d(w: number, h: number, q: number[]) {
 }
 
 /** Настоящая панорама улицы; снимок закреплён там, куда смотрела камера */
-function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: PanoHit; bmp: ImageBitmap; heading: number | null; fovH: number; fovV: number; onHeading: (h: number) => void; onBack: () => void }) {
+function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: PanoHit; at: [number, number]; bmp: ImageBitmap; heading: number | null; fovH: number; fovV: number; onHeading: (h: number) => void; onBack: () => void }) {
   const el = useRef<HTMLDivElement>(null);
   const pin = useRef<HTMLCanvasElement>(null);
   const player = useRef<Ymaps | null>(null);
@@ -436,8 +439,12 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
   const [far, setFar] = useState(false);
   const [show, setShow] = useState<'on' | 'ghost' | 'off'>('on');
   const [align, setAlign] = useState(heading == null);
-  const st = useRef({ heading, align, show, far });
-  st.current = { heading, align, show, far };
+  // поиск направления по самому снимку: search — идёт, ok — нашли, unsure — не уверены
+  const [auto, setAuto] = useState<'idle' | 'search' | 'ok' | 'unsure'>('idle');
+  const [pitch, setPitch] = useState(0);
+  const origin = useRef<[number, number]>(hit.pos);
+  const st = useRef({ heading, align, show, far, pitch });
+  st.current = { heading, align, show, far, pitch };
 
   // где сейчас снимок на экране
   const place = useCallback(() => {
@@ -445,7 +452,7 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
       c = pin.current,
       box = el.current;
     if (!p || !c || !box) return;
-    const { heading: H, align: al, show: sh, far: fr } = st.current;
+    const { heading: H, align: al, show: sh, far: fr, pitch: Pp } = st.current;
     if (sh === 'off' || fr) {
       c.style.visibility = 'hidden';
       return;
@@ -456,7 +463,7 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
       Hh = box.clientHeight;
     // совмещение: снимок держится в центре экрана, человек поворачивает панораму под него
     const hd = al || H == null ? B : H,
-      pd = al || H == null ? P : 0;
+      pd = al || H == null ? P : Pp;
     const f = dirv(B, P),
       r: V3 = [Math.cos(B * R), 0, -Math.sin(B * R)];
     const u = cross(f, r);
@@ -501,13 +508,59 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
         });
         player.current = pl;
         (window as unknown as { __ottiskPano?: Ymaps }).__ottiskPano = pl;
-        const start = hit.pos;
         pl.events.add(['directionchange', 'spanchange'], place);
         pl.events.add('panoramachange', () => {
           const pos = pl.getPanorama().getPosition() as number[];
-          setFar(y.meters(start, [pos[0], pos[1]]) > 14);
+          setFar(y.meters(origin.current, [pos[0], pos[1]]) > 14);
         });
         place();
+        // куда смотрела камера, неизвестно — ищем сами: сравниваем снимок с этой и соседними панорамами
+        if (heading != null) return;
+        setAuto('search');
+        try {
+          const A = await import('../lib/scene/align');
+          const ph = A.photoFeatures(bmp);
+          const cands: Ymaps[] = [hit.pano];
+          try {
+            const arrows = (hit.pano.getConnectionArrows?.() ?? []) as Ymaps[];
+            for (const a of arrows.slice(0, 6)) {
+              const p = await a.getConnectedPanorama();
+              const pos = p.getPosition() as number[];
+              if (y.meters(at, [pos[0], pos[1]]) < 45) cands.push(p);
+            }
+          } catch {
+            /* без соседей */
+          }
+          let best: { p: Ymaps; r: import('../lib/scene/align').AlignResult } | null = null;
+          for (const p of cands) {
+            const e = await A.panoEquirect(p, 2048);
+            await new Promise((r) => setTimeout(r, 0));
+            const r = A.alignOn(e, ph, fovH, fovV);
+            if (!best || r.score > best.r.score) best = { p, r };
+            if (dead) return;
+          }
+          (window as unknown as { __ottiskAlign?: unknown }).__ottiskAlign = best && { heading: best.r.heading, pitch: best.r.pitch, score: best.r.score, sure: best.r.sure, n: cands.length };
+          if (best && best.r.sure > 1) {
+            if (best.p !== hit.pano) {
+              await pl.setPanorama(best.p);
+              const pos = best.p.getPosition() as number[];
+              origin.current = [pos[0], pos[1]];
+              setFar(false);
+            }
+            pl.setDirection([best.r.heading, best.r.pitch]);
+            setPitch(best.r.pitch);
+            onHeading(best.r.heading);
+            setAlign(false);
+            setAuto('ok');
+          } else {
+            // не уверены — разворачиваем к лучшему варианту, а человек поправит и подтвердит
+            if (best) pl.setDirection([best.r.heading, best.r.pitch]);
+            setAuto('unsure');
+          }
+        } catch (e) {
+          console.warn('[Imprint] совмещение по снимку не вышло', e);
+          if (!dead) setAuto('unsure');
+        }
       })
       .catch(() => !dead && setErr('Панорама не открылась. Попробуйте позже.'));
     return () => {
@@ -526,7 +579,7 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
     c.getContext('2d')!.drawImage(bmp, 0, 0);
     place();
   }, [bmp, place]);
-  useEffect(() => place(), [heading, align, show, far, place]);
+  useEffect(() => place(), [heading, align, show, far, pitch, place]);
   useEffect(() => {
     const on = () => place();
     window.addEventListener('resize', on);
@@ -552,12 +605,14 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
           ← к снимку
         </button>
         {far ? (
-          <button className="btn small" onClick={() => player.current?.moveTo(hit.pos)}>
+          <button className="btn small" onClick={() => player.current?.moveTo(origin.current)}>
             вернуться к месту снимка
           </button>
+        ) : align && auto === 'search' ? (
+          <span className="mono">ищу, куда смотрела камера…</span>
         ) : align ? (
           <>
-            <span className="mono">поверните панораму под снимок</span>
+            <span className="mono">{auto === 'unsure' ? 'похоже, камера смотрела сюда — поправьте, если нужно' : 'поверните панораму под снимок'}</span>
             <button className="btn small" onClick={fix}>
               совпало
             </button>
@@ -567,6 +622,7 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
             <button className="btn small ghost" onClick={() => setShow((s) => (s === 'on' ? 'ghost' : s === 'ghost' ? 'off' : 'on'))}>
               снимок: {show === 'on' ? 'поверх' : show === 'ghost' ? 'насквозь' : 'скрыт'}
             </button>
+            {auto === 'ok' && <span className="mono">направление найдено по снимку</span>}
             <button className="btn small ghost" onClick={() => setAlign(true)}>
               совместить заново
             </button>
@@ -577,41 +633,70 @@ function PanoView({ hit, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: P
   );
 }
 
-/** Отметить точку снимка на карте */
+/** Отметить точку снимка на карте (OpenStreetMap: без лимитов Яндекса) */
 function MapPick({ center, onPick, onCancel }: { center: { lat: number; lon: number; zoom: number }; onPick: (lat: number, lon: number) => void; onCancel: () => void }) {
   const el = useRef<HTMLDivElement>(null);
+  const map = useRef<import('leaflet').Map | null>(null);
   const [pt, setPt] = useState<[number, number] | null>(null);
-  const [err, setErr] = useState('');
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<PlaceHit[]>([]);
+  const t = useRef(0);
   useEffect(() => {
     let dead = false;
-    let map: Ymaps | null = null;
-    import('../lib/scene/yandex')
-      .then((y) => y.loadYmaps())
-      .then((ym) => {
-        if (dead || !el.current) return;
-        map = new ym.Map(el.current, { center: [center.lat, center.lon], zoom: center.zoom, controls: ['zoomControl', 'searchControl', 'geolocationControl'] }, { suppressMapOpenBlock: true });
-        (window as unknown as { __ottiskMap?: Ymaps }).__ottiskMap = map;
-        const mark = new ym.Placemark([center.lat, center.lon], {}, { preset: 'islands#redCircleDotIcon', visible: false });
-        map.geoObjects.add(mark);
-        map.events.add('click', (e: Ymaps) => {
-          const c = e.get('coords') as [number, number];
-          mark.geometry.setCoordinates(c);
-          mark.options.set('visible', true);
-          setPt(c);
-        });
-      })
-      .catch(() => !dead && setErr('Карта не загрузилась — возможно, закончился суточный лимит Яндекса.'));
+    let mark: import('leaflet').CircleMarker | null = null;
+    (async () => {
+      const L = (await import('leaflet')).default;
+      await import('leaflet/dist/leaflet.css');
+      if (dead || !el.current) return;
+      const m = L.map(el.current, { zoomControl: true, attributionControl: true }).setView([center.lat, center.lon], center.zoom);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+      map.current = m;
+      (window as unknown as { __ottiskMap?: unknown }).__ottiskMap = m;
+      m.on('click', (e: import('leaflet').LeafletMouseEvent) => {
+        const c: [number, number] = [e.latlng.lat, e.latlng.lng];
+        if (!mark) mark = L.circleMarker(c, { radius: 9, color: '#fff', weight: 3, fillColor: '#e0452b', fillOpacity: 1 }).addTo(m);
+        else mark.setLatLng(c);
+        setPt(c);
+      });
+    })();
     return () => {
       dead = true;
-      map?.destroy();
+      map.current?.remove();
+      map.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <div className="there-map">
       <div ref={el} className="there-mapbox" />
+      <div className="there-map-find">
+        <input
+          className="mono"
+          placeholder="город, улица"
+          value={q}
+          onChange={(e) => {
+            const v = e.target.value;
+            setQ(v);
+            clearTimeout(t.current);
+            t.current = window.setTimeout(() => searchPlaces(v).then(setHits).catch(() => setHits([])), 300);
+          }}
+        />
+        {hits.slice(0, 4).map((h) => (
+          <button
+            key={`${h.lat},${h.lon}`}
+            onClick={() => {
+              map.current?.setView([h.lat, h.lon], 15);
+              setHits([]);
+              setQ(h.name);
+            }}
+          >
+            {h.name}
+            <small>{[h.admin, h.country].filter(Boolean).join(', ')}</small>
+          </button>
+        ))}
+      </div>
       <div className="there-map-bar">
-        <span>{err || (pt ? 'Точка снимка отмечена' : 'Нажмите на карте, где сделан снимок')}</span>
+        <span>{pt ? 'Точка снимка отмечена' : 'Нажмите на карте, где сделан снимок'}</span>
         <button className="btn small ghost" onClick={onCancel}>
           отмена
         </button>
@@ -623,3 +708,29 @@ function MapPick({ center, onPick, onCancel }: { center: { lat: number; lon: num
   );
 }
 
+/** Запасной путь, если API Яндекса недоступен (ключ, лимит): встроенная панорама Яндекс Карт */
+function PanoFrame({ lat, lon, heading, bmp, onBack }: { lat: number; lon: number; heading: number | null; bmp: ImageBitmap; onBack: () => void }) {
+  const [big, setBig] = useState(false);
+  const thumb = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = thumb.current;
+    if (!c) return;
+    c.width = bmp.width;
+    c.height = bmp.height;
+    c.getContext('2d')!.drawImage(bmp, 0, 0);
+  }, [bmp]);
+  const ll = `${lon.toFixed(6)},${lat.toFixed(6)}`;
+  const src = `https://yandex.ru/map-widget/v1/?ll=${encodeURIComponent(ll)}&z=17&panorama%5Bpoint%5D=${encodeURIComponent(ll)}&panorama%5Bdirection%5D=${encodeURIComponent(`${Math.round(heading ?? 0)},0`)}&panorama%5Bspan%5D=${encodeURIComponent('110,60')}&panorama%5Bfull%5D=true`;
+  return (
+    <div className="there-pano">
+      <iframe className="there-player" src={src} title="Панорама Яндекс Карт" allow="fullscreen" />
+      <canvas ref={thumb} className={'there-thumb' + (big ? ' big' : '')} onClick={() => setBig((v) => !v)} />
+      <div className="there-pano-bar">
+        <button className="btn small ghost" onClick={onBack}>
+          ← снимок
+        </button>
+        <span className="mono">панорама Яндекс Карт</span>
+      </div>
+    </div>
+  );
+}
