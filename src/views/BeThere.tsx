@@ -128,13 +128,16 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
           const utcOf = (local: string) => toUtc(local, ho ?? (src.meta?.offset ? undefined : lonOff), src.meta?.offset);
           c = fromSun(c, L.sun, L.horizon, src.bmp.width / src.bmp.height, utcOf, src.rec?.analysis.text.timeOfDay ?? undefined);
         }
-        setStep('ищу улицы вокруг');
-        const els = await Promise.race([osmP, new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
-        if (dead) return;
-        if (els) {
+        // дома и улицы не ждём: придут — мир вокруг пересоберётся по настоящей карте
+        const cc = c;
+        osmP.then(async (els) => {
+          if (dead || !els) return;
           const { localize } = await import('../lib/scene/osm');
-          osmRef.current = localize(els, c.lat, c.lon, c.heading, c.source.heading !== 'guess');
-        }
+          const lw = localize(els, cc.lat, cc.lon, cc.heading, cc.source.heading !== 'guess');
+          if (!lw) return;
+          osmRef.current = lw;
+          if (world.current?.applyOsm(lw)) setOsmUsed(true);
+        });
         setHours(h);
         setLayers(L);
         setCtx(c);

@@ -38,7 +38,7 @@ const ROAD_W: Record<string, number> = {
   track: 3,
 };
 
-export async function fetchOsm(lat: number, lon: number, radius = 260, ms = 14000): Promise<El[] | null> {
+export async function fetchOsm(lat: number, lon: number, radius = 260, ms = 60000): Promise<El[] | null> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {

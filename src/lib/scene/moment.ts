@@ -354,6 +354,8 @@ export class Moment {
   readonly tags: SceneTags;
   /** мир собран по OpenStreetMap */
   osm = false;
+  private seed = 7;
+  private lastSky: SkyState | null = null;
   private heading: number;
   readonly info: { scale: number; pitch0: number };
   onThunder?: () => void;
@@ -424,12 +426,10 @@ export class Moment {
     // ---- мир вокруг: продолжение за рамкой ----
     let seed = 7;
     for (const ch of o.ctx.local + o.ctx.place) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
-    // настоящее место — если координаты точные (GPS) или снимок городской; природу дорисовываем сами
-    const useOsm = !!o.osm && this.tags.kind !== 'indoor' && (o.ctx.source.place === 'gps' || this.tags.kind === 'city' || this.tags.kind === 'park');
-    this.osm = useOsm;
-    if (useOsm) this.heading = o.osm!.heading;
-    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), osm: useOsm ? o.osm : null });
+    this.seed = seed;
+    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH) });
     this.world.add(this.land.group);
+    if (o.osm) this.applyOsm(o.osm);
     this.domeU = {
       uTop: { value: new THREE.Color() },
       uLow: { value: new THREE.Color() },
@@ -526,6 +526,38 @@ export class Moment {
     return mesh;
   }
 
+  /**
+   * Настоящее место пришло (OpenStreetMap): пересобираем мир вокруг — если координаты точные (GPS)
+   * или снимок городской. Природу и комнаты дорисовываем сами.
+   */
+  applyOsm(osm: OsmWorld): boolean {
+    const k = this.tags.kind;
+    if (k === 'indoor' || !(this.o.ctx.source.place === 'gps' || k === 'city' || k === 'park')) return false;
+    const land = buildLand(this.tags, { seed: this.seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), osm });
+    this.world.remove(this.land.group);
+    this.disposeTree(this.land.group);
+    this.land = land;
+    this.world.add(land.group);
+    this.heading = osm.heading;
+    this.osm = true;
+    if (this.lastSky) this.setSky(this.lastSky);
+    if (this.blocked(this.pos.x, this.pos.z)) this.pos = { x: 0, z: 0 };
+    return true;
+  }
+  private disposeTree(root: THREE.Object3D) {
+    root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mats = (Array.isArray(m.material) ? m.material : m.material ? [m.material] : []) as THREE.Material[];
+      for (const mat of mats) {
+        const mm = mat as THREE.MeshLambertMaterial;
+        mm.map?.dispose();
+        mm.emissiveMap?.dispose();
+        mat.dispose();
+      }
+    });
+  }
+
   /** у снимка — кадр во весь экран; когда отходишь от точки съёмки, взгляд становится шире */
   private resize() {
     const w = this.container.clientWidth || 1,
@@ -596,6 +628,7 @@ export class Moment {
 
   /** небо и свет выбранной минуты относительно минуты снимка */
   setSky(s: SkyState) {
+    this.lastSky = s;
     const g = grade(s.sunAlt),
       g0 = grade(this.photoSky.sunAlt);
     const same = Math.abs(s.sunAlt - this.photoSky.sunAlt) < 0.5;

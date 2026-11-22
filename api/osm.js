@@ -2,7 +2,7 @@
 // GET /api/osm?lat=..&lon=..&r=.. → { elements } — дома, улицы, газоны, вода и деревья вокруг точки.
 // Данные © участники OpenStreetMap, ODbL.
 
-const HOSTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+const HOSTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
 
 export default async function handler(req, res) {
   const lat = parseFloat(req.query.lat),
@@ -13,23 +13,23 @@ export default async function handler(req, res) {
     res.status(400).json({ error: 'lat/lon' });
     return;
   }
-  // округляем до ~10 м: один и тот же запрос кешируется
-  const la = lat.toFixed(4),
-    lo = lon.toFixed(4);
-  const q = `[out:json][timeout:20];(
-way["building"](around:${r},${la},${lo});
-way["highway"](around:${r},${la},${lo});
-way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|cemetery)$"](around:${r},${la},${lo});
-way["leisure"~"^(park|garden|pitch|playground)$"](around:${r},${la},${lo});
-way["natural"~"^(wood|water|scrub|grassland|beach|sand)$"](around:${r},${la},${lo});
-way["waterway"="riverbank"](around:${r},${la},${lo});
-node["natural"="tree"](around:${r},${la},${lo});
-);out geom 4000;`;
+  // прямоугольник быстрее, чем «around»
+  const dLat = r / 110540,
+    dLon = r / (111320 * Math.cos((lat * Math.PI) / 180));
+  const bb = `${(lat - dLat).toFixed(5)},${(lon - dLon).toFixed(5)},${(lat + dLat).toFixed(5)},${(lon + dLon).toFixed(5)}`;
+  const q = `[out:json][timeout:25][bbox:${bb}];(
+way["building"];
+way["highway"];
+way["landuse"~"^(grass|forest|meadow|recreation_ground|village_green|cemetery)$"];
+way["leisure"~"^(park|garden|pitch|playground)$"];
+way["natural"~"^(wood|water|scrub|grassland|beach|sand)$"];
+node["natural"="tree"];
+);out geom 5000;`;
   const log = [];
   for (const host of HOSTS) {
     const t0 = Date.now();
     const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 9000);
+    const t = setTimeout(() => ctl.abort(), 25000);
     try {
       const rr = await fetch(host, {
         method: 'POST',
