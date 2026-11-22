@@ -219,106 +219,33 @@ function masks(L: SceneLayers, photo: Pic): Masks {
   return { sky, veg, vegShare: n / (gw * gh), autumn: n ? warm / n : 0, leaf: n ? [lr / n, lg / n, lb / n] : [0.5, 0.6, 0.3] };
 }
 
-/** задник: весь кадр без объекта, а где небо было закрыто — продлённое и размытое небо */
-function skyFill(L: SceneLayers) {
-  const w = 96,
-    h = Math.max(32, Math.round((96 * L.skyImg.height) / L.skyImg.width));
-  const px = pixels(L.skyImg, w, h);
-  let ar = 0,
-    ag = 0,
-    ab = 0,
-    an = 0;
-  for (let i = 0; i < w * h; i++)
-    if (px[i * 4 + 3] > 250) {
-      ar += px[i * 4];
-      ag += px[i * 4 + 1];
-      ab += px[i * 4 + 2];
-      an++;
-    }
-  const avg = an ? [ar / an, ag / an, ab / an] : [176, 196, 222];
-  const out = new ImageData(w, h);
-  for (let x = 0; x < w; x++) {
-    let c = avg;
-    for (let y = 0; y < h; y++) {
-      const i = (y * w + x) * 4;
-      if (px[i + 3] > 250) c = [px[i], px[i + 1], px[i + 2]];
-      out.data[i] = c[0];
-      out.data[i + 1] = c[1];
-      out.data[i + 2] = c[2];
-      out.data[i + 3] = 255;
-    }
-  }
-  const a = document.createElement('canvas');
-  a.width = w;
-  a.height = h;
-  a.getContext('2d')!.putImageData(out, 0, 0);
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = Math.round((512 * h) / w);
-  const g = c.getContext('2d')!;
-  g.filter = 'blur(14px)';
-  g.drawImage(a, -20, -20, c.width + 40, c.height + 40);
-  g.filter = 'none';
-  // поверх — сам снимок без объекта и его настоящее небо: из точки съёмки просветы не видны вовсе
-  const out2 = document.createElement('canvas');
-  out2.width = L.bg.width;
-  out2.height = L.bg.height;
-  const g2 = out2.getContext('2d')!;
-  g2.drawImage(c, 0, 0, out2.width, out2.height);
-  g2.drawImage(L.bg, 0, 0);
-  g2.drawImage(L.skyImg, 0, 0, out2.width, out2.height);
-  return out2;
-}
-
 /**
- * У резких краёв фон уходит назад и берёт цвет того, что дальше: сдвинешься — за краем листа
- * или плеча откроется продолжение дальнего плана, а не резиновая плёнка.
+ * Задний слой: у резких краёв глубина берётся у того, что дальше. Сдвинешься — в просвете за краем
+ * листа или плеча окажется дальний план, а не резиновая плёнка. Цвет тот же, что на снимке,
+ * поэтому из точки съёмки просветов не видно вовсе.
  */
-function dilateFar(d: Float32Array, gw: number, gh: number, bg: HTMLCanvasElement) {
+function dilateFar(d: Float32Array, sky: Uint8Array, gw: number, gh: number) {
   const o = Float32Array.from(d);
-  const from = new Int32Array(gw * gh).fill(-1);
-  const R = 2;
+  const R = 3;
   for (let y = 0; y < gh; y++)
     for (let x = 0; x < gw; x++) {
       const i = y * gw + x;
-      if (d[i] >= SKY * 0.99) continue;
-      let hi = d[i],
-        hj = -1;
+      if (sky[i]) {
+        o[i] = SKY * 1.02;
+        continue;
+      }
+      let hi = d[i];
       for (let dy = -R; dy <= R; dy++)
         for (let dx = -R; dx <= R; dx++) {
           const xx = x + dx,
             yy = y + dy;
           if (xx < 0 || yy < 0 || xx >= gw || yy >= gh) continue;
           const j = yy * gw + xx;
-          if (d[j] < SKY * 0.99 && d[j] > hi) {
-            hi = d[j];
-            hj = j;
-          }
+          if (!sky[j] && d[j] > hi) hi = d[j];
         }
-      if (hj >= 0 && hi / d[i] > 1.3) {
-        o[i] = hi;
-        from[i] = hj;
-      }
+      o[i] = Math.max(hi, d[i]) * 1.012;
     }
-  // цвет: клетка у края получает цвет дальней соседней клетки
-  const c = document.createElement('canvas');
-  c.width = bg.width;
-  c.height = bg.height;
-  const g = c.getContext('2d')!;
-  g.drawImage(bg, 0, 0);
-  const cw = bg.width / (gw - 1),
-    ch = bg.height / (gh - 1);
-  for (let i = 0; i < gw * gh; i++) {
-    const j = from[i];
-    if (j < 0) continue;
-    const x = i % gw,
-      y = (i / gw) | 0,
-      jx = j % gw,
-      jy = (j / gw) | 0;
-    g.clearRect((x - 0.5) * cw, (y - 0.5) * ch, cw, ch);
-    g.drawImage(bg, (jx - 0.5) * cw, (jy - 0.5) * ch, cw, ch, (x - 0.5) * cw, (y - 0.5) * ch, cw, ch);
-  }
-  return { dist: o, tex: c };
+  return o;
 }
 
 /**
@@ -408,16 +335,12 @@ export class Moment {
     this.m = masks(L, o.photo);
     const { gw, gh } = L;
     const dist = (depth: Float32Array, sky: Uint8Array, push: number) => Float32Array.from(depth, (d, i) => this.dist(d, !!sky[i]) * push);
-    // 1) задник — весь кадр далеко-далеко: виден только в просветах у краёв листвы и объектов
-    this.scene.add(this.layer({ gw, gh, dist: new Float32Array(gw * gh).fill(SKY * 1.12), sky: this.m.sky, veg: new Float32Array(gw * gh), map: this.texture(skyFill(L)), order: -2 }));
-    // 2) фон за объектом: объект убран и дорисован; у резких краёв фон отодвинут назад
     const front = haloSky(dist(L.depthRaw, this.m.sky, 1), this.m.sky, gw, gh);
-    const far = dilateFar(dist(L.depth, L.sky, 1.015), gw, gh, L.bg);
-    // то, что позади, не может оказаться ближе самого снимка (дорисовка под ногами берёт близкую землю)
-    for (let i = 0; i < gw * gh; i++) if (far.dist[i] < front[i] * 1.015) far.dist[i] = front[i] * 1.015;
-    this.scene.add(this.layer({ gw, gh, dist: far.dist, sky: L.sky, veg: this.m.veg, map: this.texture(far.tex), order: -1, alpha: true, cut: true }));
-    // 3) сам снимок: грани на разрывах глубины выброшены, под ними — фон
-    this.scene.add(this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: this.texture(toCanvas(o.photo, 2048)), order: 0, cut: true }));
+    const photo = this.texture(toCanvas(o.photo, 2048));
+    // 1) задний слой — тот же снимок, у краёв отодвинут вдаль; заполняет просветы
+    this.scene.add(this.layer({ gw, gh, dist: dilateFar(dist(L.depthRaw, this.m.sky, 1), this.m.sky, gw, gh), sky: this.m.sky, veg: this.m.veg, map: photo, order: -1 }));
+    // 2) сам снимок: грани на разрывах глубины выброшены, под ними — задний слой
+    this.scene.add(this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: photo, order: 0, cut: true }));
     this.setWeather(o.weather);
     this.setSky(o.sky);
     this.ro = new ResizeObserver(() => this.resize());

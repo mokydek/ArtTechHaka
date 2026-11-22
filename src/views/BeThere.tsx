@@ -109,7 +109,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
     (async () => {
       try {
         const { buildLayers } = await import('../lib/scene/depth');
-        const L = await buildLayers(src.bmp, (s) => !dead && setStep(s));
+        const L = await buildLayers(src.bmp, (s) => !dead && setStep(s), { fill: false });
         if (dead) return;
         let c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
         setStep('поднимаю архив погоды того дня');

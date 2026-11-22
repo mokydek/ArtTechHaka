@@ -354,7 +354,7 @@ export interface SceneLayers {
 }
 
 /** Разложить фото на слои для 3D-сцены */
-export async function buildLayers(src: Src, onStep?: (s: string) => void): Promise<SceneLayers> {
+export async function buildLayers(src: Src, onStep?: (s: string) => void, opts: { fill?: boolean } = {}): Promise<SceneLayers> {
   const aspect = src.width / src.height;
   const gw = 192,
     gh = Math.max(96, Math.round(192 / aspect));
@@ -399,11 +399,12 @@ export async function buildLayers(src: Src, onStep?: (s: string) => void): Promi
       if (y - from > gap) for (let k = from; k < y - gap; k++) sky[k * gw + x] = 1;
     }
   }
-  onStep?.('дорисовываю фон за объектом');
+  if (opts.fill !== false) onStep?.('дорисовываю фон за объектом');
   // фон без объекта
   const W = Math.min(1600, src.width),
     H = Math.round(W / aspect);
-  const bg = has ? await fill(src, cut.mask, W, H) : (() => {
+  // дорисовка нейросетью (28 МБ) — только если просят: живому окну хватает самого снимка
+  const bg = has && opts.fill !== false ? await fill(src, cut.mask, W, H) : (() => {
     const c = document.createElement('canvas');
     c.width = W;
     c.height = H;
