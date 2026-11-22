@@ -107,7 +107,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       } else {
         setStep('ищу, где это снято');
         const f = await Promise.race([
-          where.findPlace(src.bmp, src.meta, { near: dayPlace ?? undefined, onStep: (s) => !dead && setStep(s) }),
+          where.findPlace(src.bmp, src.meta, { near: dayPlace ?? days.find((d) => d.place)?.place ?? undefined, onStep: (s) => !dead && setStep(s) }),
           new Promise<null>((r) => setTimeout(() => r(null), 35000)),
         ]).catch(() => null);
         if (dead) return;

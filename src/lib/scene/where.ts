@@ -346,16 +346,43 @@ async function address(lines: { text: string; conf: number }[], near?: { lat: nu
   const names = parsed.filter((p) => !p.num && p.words.length).map((p) => p.words.join(' '));
   for (const n of names) for (const k of nums) qs.push(`${n} ${k}`);
   if (!qs.length) return null;
-  const { geocode } = await import('./yandex');
   for (const q of qs.slice(0, 4)) {
-    try {
-      const g = await geocode(q, near);
-      if (g && g.precision !== 'other') return { hit: { name: g.address, lat: g.lat, lon: g.lon }, word: q.toUpperCase(), precise: g.precision === 'exact' };
-    } catch {
-      /* следующий вариант */
-    }
+    const g = await geocodeAny(q, near);
+    if (g && g.precision !== 'other') return { hit: { name: g.address, lat: g.lat, lon: g.lon }, word: q.toUpperCase(), precise: g.precision === 'exact' };
   }
   return null;
+}
+
+/** Адрес → точка: геокодер Яндекса, а если он недоступен (тариф, лимит) — Photon по данным OpenStreetMap */
+async function geocodeAny(q: string, near?: { lat: number; lon: number }) {
+  try {
+    const { geocode } = await import('./yandex');
+    const g = await geocode(q, near);
+    if (g) return g;
+  } catch {
+    /* дальше — OpenStreetMap */
+  }
+  try {
+    const bias = near ? `&lat=${near.lat}&lon=${near.lon}` : '';
+    const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=3${bias}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    type F = { geometry: { coordinates: [number, number] }; properties: { housenumber?: string; street?: string; name?: string; city?: string; type?: string } };
+    const f = ((j.features ?? []) as F[]).find((x) => x.properties.housenumber || x.properties.type === 'street');
+    if (!f) return null;
+    const pr = f.properties;
+    const [lon, lat] = f.geometry.coordinates;
+    // далеко от известного города — скорее чужая улица с тем же названием
+    if (near && Math.hypot(lat - near.lat, (lon - near.lon) * Math.cos((lat * Math.PI) / 180)) > 0.5) return null;
+    return {
+      lat,
+      lon,
+      address: [pr.city, [pr.street ?? pr.name, pr.housenumber].filter(Boolean).join(', ')].filter(Boolean).join(', '),
+      precision: (pr.housenumber ? 'exact' : 'street') as 'exact' | 'street',
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Найти место кадра: свежий снимок — геолокация, иначе — адрес или название на табличке */
