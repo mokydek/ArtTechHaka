@@ -4277,48 +4277,44 @@ button.there-x {
   }
 }
 
-/* ——— зайчик Пуговка ——— */
-.bun {
-  position: fixed;
-  right: 22px;
-  bottom: 18px;
-  z-index: 45;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  pointer-events: none;
-}
-.bun > * {
-  pointer-events: auto;
-}
-.bun-me {
+/* ——— зайчик Пуговка: живёт в шапке, говорит в окне ——— */
+.bun-dock {
   all: unset;
-  pointer-events: auto;
   position: relative;
-  cursor: pointer;
+  align-self: center;
+  flex: none;
   display: block;
+  margin: -6px 0 -8px;
   line-height: 0;
+  cursor: pointer;
+  border-radius: 14px;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
-.bun-me:hover {
-  transform: translateY(-3px) rotate(-3deg);
+.bun-dock .bunny {
+  width: 46px;
+  height: 50px;
 }
-.bun-me:active {
-  transform: scale(0.92);
+.bun-dock .bunny img {
+  width: auto;
+  height: calc(var(--h, 110) * 0.45px);
 }
-.bun-me:focus-visible {
+.bun-dock:hover {
+  transform: translateY(-2px) rotate(-4deg);
+}
+.bun-dock:active {
+  transform: scale(0.9);
+}
+.bun-dock:focus-visible {
   outline: 2px solid var(--stamp);
-  outline-offset: 2px;
-  border-radius: 16px;
+  outline-offset: 3px;
 }
 .bun-dot {
   position: absolute;
-  top: 10px;
-  right: 8px;
-  width: 13px;
-  height: 13px;
+  top: 2px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: #e2564f;
   border: 2px solid var(--paper-2);
@@ -4329,48 +4325,105 @@ button.there-x {
     transform: scale(1.25);
   }
 }
-/* реплика — бумажная записка с хвостиком к зайчику */
-.bun-say {
+/* окно разговора: отдельное, с затемнением, зайчик сидит на верхнем краю */
+.bun-win {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: start center;
+  padding: max(110px, 14vh) 16px 24px;
+  overflow-y: auto;
+  background: color-mix(in srgb, #24233a 30%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: bun-fade 0.25s ease both;
+}
+@keyframes bun-fade {
+  from {
+    opacity: 0;
+  }
+}
+.bun-panel {
   position: relative;
-  width: min(330px, calc(100vw - 32px));
-  margin-right: 18px;
-  padding: 16px 18px 16px;
+  width: min(380px, 100%);
+  padding: 62px 22px 20px;
   background: #fffaf2;
   color: var(--ink);
-  border-radius: 18px 18px 6px 18px;
+  border-radius: 22px;
   box-shadow:
     0 0 0 1.5px color-mix(in srgb, var(--stamp) 55%, transparent),
-    0 18px 34px -18px rgba(50, 30, 15, 0.55);
-  transform-origin: 92% 100%;
+    0 26px 50px -22px rgba(50, 30, 15, 0.6);
+  transform-origin: 50% 0;
   animation: bun-pop 0.42s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  outline: none;
 }
-.bun-say::after {
+.bun-head {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -58%);
+  line-height: 0;
+  pointer-events: none;
+}
+.bun-head .bunny {
+  width: 100px;
+  height: 106px;
+}
+.bun-head .bunny img {
+  width: auto;
+  height: calc(var(--h, 110) * 0.95px);
+}
+.bun-panel p {
+  margin: 0 0 14px;
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.2;
+  text-align: center;
+}
+.bun-panel .bun-acts {
+  justify-content: center;
+}
+/* подсказка при записи: короткая реплика прямо под зайчиком в шапке */
+.bun-hint {
+  position: fixed;
+  z-index: 45;
+  max-width: min(320px, calc(100vw - 20px));
+  padding: 11px 36px 11px 14px;
+  background: #fffaf2;
+  color: var(--ink);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--stamp) 55%, transparent),
+    0 14px 28px -16px rgba(50, 30, 15, 0.5);
+  transform-origin: calc(100% - var(--tail, 18px)) 0;
+  animation: bun-drop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.bun-hint::before {
   content: '';
   position: absolute;
-  right: 18px;
-  bottom: -9px;
-  width: 16px;
-  height: 16px;
+  top: -7px;
+  right: var(--tail, 18px);
+  width: 14px;
+  height: 14px;
   background: #fffaf2;
-  box-shadow: 1.5px 1.5px 0 color-mix(in srgb, var(--stamp) 55%, transparent);
-  transform: rotate(45deg) skew(8deg, 8deg);
-  border-radius: 0 0 4px 0;
+  box-shadow: -1.5px -1.5px 0 color-mix(in srgb, var(--stamp) 55%, transparent);
+  transform: rotate(45deg);
+  border-radius: 3px 0 0 0;
 }
-.bun-say.hint {
-  padding: 12px 34px 12px 16px;
-}
-.bun-say p {
-  margin: 0 18px 10px 0;
-  font-family: var(--serif);
-  font-size: 21px;
-  line-height: 1.2;
-}
-.bun-say.hint p {
+.bun-hint p {
   margin: 0;
-  font-family: var(--sans);
-  font-size: 14.5px;
-  line-height: 1.4;
-  font-weight: 500;
+  font: 500 14.5px/1.4 var(--sans);
+}
+.bun-hint .bun-x {
+  top: 6px;
+  right: 6px;
+}
+@keyframes bun-drop {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateY(-8px);
+  }
 }
 @keyframes bun-pop {
   from {
@@ -4650,30 +4703,32 @@ button.there-x {
     transform: translate(-6px, -10px);
   }
 }
-.bun.still .bunny *,
-.bun.still .bun-say,
-.bun.still .bun-moods button,
-.bun.still .bun-dot {
+.bun-dock.still .bunny *,
+.bun-dock.still .bun-dot,
+.bun-win.still,
+.bun-win.still *,
+.bun-hint.still {
   animation: none !important;
 }
 @media (max-width: 720px) {
-  .bun {
-    right: 8px;
-    bottom: calc(86px + env(safe-area-inset-bottom));
+  .bun-dock {
+    margin-left: auto;
   }
-  .bun-me .bunny {
-    width: 66px;
-    height: 76px;
+  .bun-dock .bunny {
+    width: 40px;
+    height: 44px;
   }
-  .bun-say {
-    margin-right: 8px;
+  .bun-dock .bunny img {
+    height: calc(var(--h, 110) * 0.4px);
   }
-  .bun-say p {
-    font-size: 19px;
+  .bun-panel p {
+    font-size: 20px;
   }
 }
 @media print {
-  .bun {
+  .bun-dock,
+  .bun-win,
+  .bun-hint {
     display: none;
   }
 }
@@ -6406,14 +6461,14 @@ input {
   transform: translate(calc(var(--ex, 0) * 1px), calc(var(--ey, 0) * 1px));
   transition: transform 0.18s ease-out;
 }
-.bun-me.sq1 .bunny,
-.bun-me.sq2 .bunny {
+.bun-dock.sq1 .bunny,
+.bun-dock.sq2 .bunny {
   transform-origin: 50% 100%;
 }
-.bun-me.sq1 .bunny {
+.bun-dock.sq1 .bunny {
   animation: squish1 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
-.bun-me.sq2 .bunny {
+.bun-dock.sq2 .bunny {
   animation: squish2 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 @keyframes squish1 {
@@ -6555,7 +6610,7 @@ input {
   .feel-bit,
   .jr-curl i,
   .pb-sheet *,
-  .bun-me .bunny,
+  .bun-dock .bunny,
   .more-pop,
   .tab-sheet > div {
     animation: none !important;
@@ -6606,24 +6661,7 @@ input {
 .bunny.pose-happy .b-all {
   animation: b-hop 0.62s cubic-bezier(0.3, 0, 0.5, 1) 3 !important;
 }
-.bun-me .bunny {
-  width: 96px !important;
-  height: 112px !important;
-}
-@media (max-width: 720px) {
-  .bun-me .bunny {
-    width: 74px !important;
-    height: 86px !important;
-  }
-  .bun-me .bunny img {
-    width: auto;
-    height: calc(var(--h, 110) * 0.775px);
-  }
-}
-.bun-dot {
-  top: 4px;
-  right: 2px;
-}
+
 
 /* лица настроения */
 .mood-face {
@@ -6732,9 +6770,9 @@ img.jp-mood {
   opacity: 0.35;
   filter: grayscale(1);
 }
-/* зайчик не закрывает открытый нижний лист */
-body:has(.tab-sheet) .bun,
-body:has(.ce-catalog) .bun {
+/* реплика зайчика не закрывает открытый нижний лист */
+body:has(.tab-sheet) .bun-hint,
+body:has(.ce-catalog) .bun-hint {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;

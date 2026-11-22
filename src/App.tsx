@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Capsule, DayRecord, Notebook } from './lib/types';
 import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
+import Mascot from './components/Mascot';
 import { play, setSoundOn, soundOn } from './lib/feel';
 import Shelf from './views/Shelf';
 import Intro from './components/Intro';
@@ -279,6 +280,7 @@ export default function App() {
             + Записать день
           </a>
         </nav>
+        <Mascot route={parts[0] ?? ''} />
       </header>
       {!['there', 'p', 'film'].includes(parts[0]) && <TabBar on={on} hint={!loading && !ownDays.length && parts[0] !== 'new'} />}
       <main className="page">

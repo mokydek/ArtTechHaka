@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Bunny, { moodImg, type Pose } from './Bunny';
 import { useDiary } from '../App';
 import type { DayRecord } from '../lib/types';
@@ -10,6 +11,9 @@ import { burst, buzz, play } from '../lib/feel';
  * Пуговка — зайчик-компаньон (как питомец в Finch): раз в день спрашивает настроение 1–5,
  * в плохой день показывает самые светлые дни, в хороший — зовёт записать день,
  * иногда спрашивает «А помнишь?..» и подсказывает следующий шаг при записи.
+ *
+ * Живёт в шапке сайта и не закрывает дневник: разговор открывается отдельным окном,
+ * подсказки при записи — короткой репликой под шапкой.
  */
 type Talk =
   | { kind: 'ask' }
@@ -38,6 +42,8 @@ export default function Mascot({ route }: { route: string }) {
   const [talk, setTalk] = useState<Talk | null>(null);
   const [pose, setPose] = useState<Pose>('idle');
   const [mood, setM] = useState<Mood | undefined>(() => moods()[today]);
+  // точка на зайчике: «загляни ко мне» — без всплывающих окон поверх дневника
+  const [nudge, setNudge] = useState(false);
   const timer = useRef<number>(0);
   const home = route === '' || route === 'shelf';
 
@@ -55,11 +61,17 @@ export default function Mascot({ route }: { route: string }) {
   const rest = useCallback(() => setPose(night() ? 'sleep' : 'idle'), []);
   useEffect(rest, [rest]);
 
+  const dock = useRef<HTMLButtonElement>(null);
+  const talkRef = useRef(talk);
+  talkRef.current = talk;
   const close = useCallback(() => {
     play('popDown');
     clearTimeout(timer.current);
+    const wasWin = !!talkRef.current && talkRef.current.kind !== 'hint';
     setTalk(null);
     rest();
+    // фокус возвращается на зайчика в шапке
+    if (wasWin) requestAnimationFrame(() => dock.current?.focus({ preventScroll: true }));
   }, [rest]);
 
   /* раз в день сам спрашивает, как ты — на главной, когда дневник загрузился */
@@ -73,16 +85,16 @@ export default function Mascot({ route }: { route: string }) {
     return () => clearTimeout(t);
   }, [loading, home, mood, today]);
 
-  /* «А помнишь?..» — раз за визит, если настроение уже известно */
+  /* «А помнишь?..» — раз за визит: зайчик машет и ставит точку, окно — по нажатию */
   useEffect(() => {
     if (loading || !home || !mood || !own.length || sessionStorage.getItem(SEEN)) return;
     const t = setTimeout(() => {
       if (talk) return;
       sessionStorage.setItem(SEEN, '1');
-      remember();
+      setNudge(true);
+      setPose('wave');
     }, 16000);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, home, mood, own.length, talk]);
 
   /* подсказки со страниц: следующий шаг записи и т.п. */
@@ -107,8 +119,6 @@ export default function Mascot({ route }: { route: string }) {
     wasOpen.current = !!talk;
   }, [talk, rest]);
   // на действия человека зайчик отвечает позой (если сейчас не разговаривает)
-  const talkRef = useRef(talk);
-  talkRef.current = talk;
   useEffect(() => {
     let t = 0;
     const on = (e: Event) => {
@@ -121,35 +131,40 @@ export default function Mascot({ route }: { route: string }) {
     addEventListener('ottisk:bunny-react', on);
     return () => (removeEventListener('ottisk:bunny-react', on), clearTimeout(t));
   }, [rest]);
-  // глаза следят за курсором
-  const me = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (reduced()) return;
-    let raf = 0;
-    const mv = (e: PointerEvent) => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const el = me.current;
-        if (!el) return;
-        const r = el.getBoundingClientRect();
-        const dx = e.clientX - (r.left + r.width / 2),
-          dy = e.clientY - (r.top + r.height * 0.42);
-        const d = Math.hypot(dx, dy) || 1;
-        const k = Math.min(1, d / 260);
-        el.style.setProperty('--ex', ((dx / d) * 4.2 * k).toFixed(2));
-        el.style.setProperty('--ey', ((dy / d) * 3.2 * k).toFixed(2));
-      });
-    };
-    addEventListener('pointermove', mv, { passive: true });
-    return () => removeEventListener('pointermove', mv);
-  }, []);
   const [squish, setSquish] = useState(0);
   useEffect(() => {
     lastHint.current = '';
     setTalk((cur) => (cur?.kind === 'ask' ? cur : null));
   }, [route]);
 
+  /* окно: Esc закрывает, фокус переходит в окно */
+  const win = !!talk && talk.kind !== 'hint';
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!win) return;
+    const t = requestAnimationFrame(() => panel.current?.focus({ preventScroll: true }));
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    addEventListener('keydown', key);
+    return () => (cancelAnimationFrame(t), removeEventListener('keydown', key));
+  }, [win, close]);
+
+  /* реплика-подсказка висит прямо под зайчиком в шапке */
+  const [at, setAt] = useState<{ top: number; right: number; tail: number } | null>(null);
+  useLayoutEffect(() => {
+    if (talk?.kind !== 'hint') return;
+    const place = () => {
+      const r = dock.current?.getBoundingClientRect();
+      if (!r) return;
+      const right = Math.max(10, innerWidth - r.right - 6);
+      setAt({ top: r.bottom + 10, right, tail: Math.max(14, innerWidth - right - (r.left + r.width / 2) - 8) });
+    };
+    place();
+    addEventListener('resize', place);
+    return () => removeEventListener('resize', place);
+  }, [talk]);
+
   function remember() {
+    setNudge(false);
     const older = own.filter((d) => d.date < today);
     const list = older.length ? older : own;
     if (!list.length) return setTalk({ kind: 'empty' });
@@ -176,7 +191,7 @@ export default function Mascot({ route }: { route: string }) {
     play('boing');
     buzz(8);
     setSquish((x) => x + 1);
-    if (talk) return close();
+    if (talk && talk.kind !== 'hint') return close();
     if (!mood) {
       setPose('wave');
       return setTalk({ kind: 'ask' });
@@ -186,7 +201,7 @@ export default function Mascot({ route }: { route: string }) {
     setTalk({ kind: 'empty' });
   }
 
-  if (['there', 'p', 'film'].includes(route)) return null;
+  if (['p', 'film', 's', 'join'].includes(route)) return null;
 
   const card = (d: DayRecord) => (
     <a className="bun-card" href={`#/day/${encodeURIComponent(d.id)}`} onClick={close}>
@@ -284,23 +299,48 @@ export default function Mascot({ route }: { route: string }) {
         </div>
       </>
     );
-  else if (talk?.kind === 'hint') body = <p>{talk.text}</p>;
 
+  const still = reduced() ? ' still' : '';
   return (
-    <div className={'bun' + (talk ? ' open' : '') + (reduced() ? ' still' : '')} ref={me}>
-      {talk && (
-        <div className={'bun-say' + (talk.kind === 'hint' ? ' hint' : '')} role="dialog" aria-live="polite" aria-label="Зайчик Пуговка">
-          <button className="bun-x" onClick={close} aria-label="Закрыть" data-sfx="none">
-            ×
-          </button>
-          {body}
-        </div>
-      )}
-      <button className={'bun-me' + (squish % 2 ? ' sq1' : squish ? ' sq2' : '')} onClick={poke} aria-label="Зайчик Пуговка, поговорить">
-        <Bunny pose={pose} size={84} />
-        {!mood && !talk && <i className="bun-dot" />}
+    <>
+      <button
+        ref={dock}
+        className={'bun-dock' + still + (squish % 2 ? ' sq1' : squish ? ' sq2' : '')}
+        onClick={poke}
+        aria-label="Зайчик Пуговка, поговорить"
+        aria-haspopup="dialog"
+        aria-expanded={win}
+      >
+        <Bunny pose={pose} />
+        {(!mood || nudge) && !win && <i className="bun-dot" />}
       </button>
-    </div>
+      {win &&
+        createPortal(
+          <div className={'bun-win' + still} onPointerDown={(e) => e.target === e.currentTarget && close()}>
+            <div className="bun-panel" role="dialog" aria-modal="true" aria-label="Зайчик Пуговка" ref={panel} tabIndex={-1}>
+              <span className="bun-head">
+                <Bunny pose={pose} />
+              </span>
+              <button className="bun-x" onClick={close} aria-label="Закрыть" data-sfx="none">
+                ×
+              </button>
+              {body}
+            </div>
+          </div>,
+          document.body,
+        )}
+      {talk?.kind === 'hint' &&
+        at &&
+        createPortal(
+          <div className={'bun-hint' + still} role="status" aria-live="polite" style={{ top: at.top, right: at.right, ['--tail' as string]: at.tail + 'px' }}>
+            <p>{talk.text}</p>
+            <button className="bun-x" onClick={close} aria-label="Закрыть" data-sfx="none">
+              ×
+            </button>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
