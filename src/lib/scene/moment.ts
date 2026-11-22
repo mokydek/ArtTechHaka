@@ -323,7 +323,6 @@ export class Moment {
   private pitch0: number;
   private photo = new THREE.Group();
   private land: Land;
-  private norm = 1;
   // взгляд: цель и сглаженное текущее; наклон телефона и мышь — добавки рядом со снимком
   private aim = { yaw: 0, pitch: 0 };
   private cur = { yaw: 0, pitch: 0 };
@@ -439,9 +438,6 @@ export class Moment {
     this.dome.visible = this.tags.kind !== 'indoor';
     this.world.add(this.dome, this.hemi, this.sun, this.sun.target);
     this.world.fog = this.tags.kind === 'indoor' ? null : this.fog;
-    // свет мира на минуту снимка подобран так, чтобы цвета земли совпали с цветами кадра
-    const ap = (Math.max(0, this.photoSky.sunAlt) * Math.PI) / 180;
-    this.norm = 0.62 + (this.photoSky.sunAlt > 0 ? 0.5 * Math.max(0.12, Math.sin(ap)) : 0);
 
     this.setWeather(o.weather);
     this.setSky(o.sky);
@@ -620,14 +616,15 @@ export class Moment {
     (this.domeU.uSunDir.value as THREE.Vector3).copy(dir);
     this.domeU.uSunUp.value = clamp((s.sunAlt + 1) / 4, 0, 1) * (1 - clamp((this.cloudPct - 60) / 35, 0, 1));
     (this.domeU.uCloudCol.value as THREE.Color).setRGB(...(gr(C.skyLow ? [Math.min(1, C.skyLow[0] * 1.15), Math.min(1, C.skyLow[1] * 1.15), Math.min(1, C.skyLow[2] * 1.12)] : [0.92, 0.92, 0.94]) as RGB));
-    // свет: на минуту снимка земля мира такого же цвета, как на фото
-    const amb = (0.62 * E) / this.norm,
-      sunI = this.sunUp ? ((0.5 * E) / this.norm) * Math.max(0, Math.sin(alt)) * (this.cloudPct > 85 ? 0.35 : 1) : 0;
-    this.hemi.color.setRGB(tint[0], tint[1], tint[2]);
-    this.hemi.groundColor.setRGB(tint[0] * 0.62, tint[1] * 0.6, tint[2] * 0.58);
+    // свет мира — настоящий свет этой минуты: днём светло, ночью темно, горят окна и фонари
+    const ga = grade(s.sunAlt);
+    const amb = 0.56 * ga.exp + (this.sunUp ? 0 : 0.03),
+      sunI = this.sunUp ? 0.56 * ga.exp * Math.max(0, Math.sin(alt)) * (this.cloudPct > 85 ? 0.35 : 1) : 0;
+    this.hemi.color.setRGB(ga.tint[0], ga.tint[1], ga.tint[2]);
+    this.hemi.groundColor.setRGB(ga.tint[0] * 0.62, ga.tint[1] * 0.6, ga.tint[2] * 0.58);
     this.hemi.intensity = Math.PI * amb;
     this.hemi.userData.base = this.hemi.intensity;
-    this.sun.color.setRGB(Math.min(1.3, tint[0] * 1.05), tint[1], tint[2] * 0.92);
+    this.sun.color.setRGB(Math.min(1.3, ga.tint[0] * 1.05), ga.tint[1], ga.tint[2] * 0.92);
     this.sun.intensity = Math.PI * sunI;
     this.sun.position.copy(dir).multiplyScalar(200);
     this.land.setNight(clamp((-s.sunAlt + 1) / 7, 0, 1));

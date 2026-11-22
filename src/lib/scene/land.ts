@@ -361,6 +361,31 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
   }
   let glow: THREE.Points | null = null;
   if (glowPts.length) {
+    // тёплые круги света на земле под фонарями
+    const pool = new THREE.CircleGeometry(1, 24);
+    pool.rotateX(-Math.PI / 2);
+    const pc = document.createElement('canvas');
+    pc.width = pc.height = 128;
+    const pg = pc.getContext('2d')!;
+    const rg = pg.createRadialGradient(64, 64, 0, 64, 64, 64);
+    rg.addColorStop(0, 'rgba(255,210,150,0.9)');
+    rg.addColorStop(0.5, 'rgba(255,190,120,0.35)');
+    rg.addColorStop(1, 'rgba(255,180,110,0)');
+    pg.fillStyle = rg;
+    pg.fillRect(0, 0, 128, 128);
+    const pt = new THREE.CanvasTexture(pc);
+    const pm = new THREE.MeshBasicMaterial({ map: pt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false });
+    const pools = new THREE.InstancedMesh(pool, pm, glowPts.length / 3);
+    const m4 = new THREE.Matrix4();
+    for (let i = 0; i < glowPts.length / 3; i++) {
+      const x = glowPts[i * 3],
+        z = glowPts[i * 3 + 2];
+      m4.makeScale(6, 1, 6).setPosition(x, height(x, z) + 0.16, z);
+      pools.setMatrixAt(i, m4);
+    }
+    pools.renderOrder = 4;
+    pools.userData.night = (n: number) => (pm.opacity = n * 0.55);
+    group.add(pools);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(glowPts, 3));
     const m = new THREE.ShaderMaterial({
@@ -502,7 +527,7 @@ function facade(R: () => number) {
       g.fillRect(x, y + h * 0.38, w, 3);
       g.fillStyle = 'rgba(0,0,0,0.12)';
       g.fillRect(i * cell, j * cell + cell - 4, cell, 4);
-      if (R() < 0.55) {
+      if (R() < 0.32) {
         e.fillStyle = R() < 0.7 ? '#ffd9a0' : '#fff1d6';
         e.fillRect(x, y, w, h);
       }
