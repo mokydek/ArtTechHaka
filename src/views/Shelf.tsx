@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDiary } from '../App';
-import Book from '../components/Book';
-import { dayPrompt, onThisDay, plural, streak, todayISO } from '../lib/prompts';
+import Book, { useCoverUrl } from '../components/Book';
+import { coverInfo, suggestCovers } from '../lib/covers';
+import type { CoverStyle } from '../lib/types';
+import { onThisDay, plural, streak, todayISO } from '../lib/prompts';
 import { humanDate } from '../lib/render/engine';
 import Envelope, { countdown, useNow } from '../components/Envelope';
 import Rewind from '../components/Rewind';
@@ -40,8 +42,10 @@ export default function Shelf() {
   const otd = onThisDay(days.filter((d) => d.date !== today), today);
   const own = days.filter((d) => !d.demo);
   const recent = [...own].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
-  // для облака фото: сначала свои дни, если их мало — примеры
-  const cloudDays = [...recent, ...days.filter((d) => d.demo && !d.sealedUntil)].filter((d) => !d.sealedUntil && d.id !== otd?.day.id).slice(0, 7);
+  // на главной: свои тетради (до трёх), две обложки на выбор и «+»
+  const slots = perRow >= 3 ? 3 : 2; // книг до «+»: как на эскизе — чёрная и две на выбор
+  const heroBooks = notebooks.slice(0, slots - 1);
+  const sugg = suggestCovers(notebooks.map((n) => n.cover.style)).slice(0, slots - heroBooks.length);
   const items = [...notebooks.map((nb) => ({ nb })), { nb: null }];
   const rows: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += perRow) rows.push(items.slice(i, i + perRow));
@@ -49,57 +53,53 @@ export default function Shelf() {
   return (
     <>
       {rw && <Rewind to={rw} onDone={() => (location.hash = `#/day/${encodeURIComponent(rw.id)}`)} />}
-      <section className="today">
+      <section className="today home2">
         <div className="today-main">
           <div className="today-stamp">
             <Dater date={today} />
             {store && <span className="muted">{store.kind === 'cloud' ? 'хранится в облаке' : 'хранится на этом устройстве'}</span>}
           </div>
-          {own.length ? (
-            <h1 className="h1 hero-h">
-              <span className="hero-pre">
-                Фото помнят, как выглядел день. <em>Imprint</em> помнит, как он ощущался.
-              </span>
-              <span className="hero-main">{greeting()}</span>
-            </h1>
-          ) : (
-            <h1 className="h1 hero-h">
-              <span className="hero-pre">Фото помнят, как выглядел день.</span>
-              <span className="hero-main">
-                <em>Imprint</em> помнит, как он ощущался.
-              </span>
-            </h1>
-          )}
-          <div className="prompt-card">
-            <div className="mono muted">о чём написать сегодня</div>
-            <div className="prompt">{dayPrompt(today)}</div>
-            <div className="today-actions">
-              <a className="btn" href="#/new">
-                {s.today ? '+ Ещё один день' : '+ Записать сегодняшний день'}
-              </a>
-              {days.length > 1 && (
-                <button className="btn ghost" onClick={travel}>
-                  ⟲ Перенеси меня
-                </button>
-              )}
-              {s.count > 0 && <span className="streak" title="дней подряд с записью">
+          <h1 className="h1 hero-h">
+            <span className="hero-pre">{own.length ? greeting() : 'Твой личный цифровой дневник'}</span>
+            <span className="hero-main">
+              <em>Imprint</em> помнит, как ощущался день.
+            </span>
+          </h1>
+          <p className="home-about">Вклей фото, напиши пару строк или запиши голос, добавь песню. Дневник соберёт из этого живую страницу: цвета, движение и звук дня.</p>
+          <div className="today-actions">
+            <a className="btn" href="#/new">
+              {s.today ? '+ Ещё один день' : '+ Записать день'}
+            </a>
+            <a className="btn ghost" href="#/nb/new">
+              + Новый дневник
+            </a>
+            {days.length > 1 && (
+              <button className="btn ghost" onClick={travel}>
+                ⟲ Перенеси меня
+              </button>
+            )}
+            {s.count > 0 && (
+              <span className="streak" title="дней подряд с записью">
                 <span className="streak-n">{s.count}</span> {plural(s.count, 'день', 'дня', 'дней')} подряд
-              </span>}
-            </div>
+              </span>
+            )}
           </div>
         </div>
-        <div className="hero-art">
-          <MemoryCloud days={cloudDays} />
-          {otd && (
-            <a className="otd" href={`#/day/${otd.day.id}`}>
-              <div className="mono" style={{ color: 'var(--accent)' }}>
-                ↺ {otd.label}
+        <div className="home-books shelf">
+          <div className="shelf-row" style={{ gridTemplateColumns: `repeat(${heroBooks.length + sugg.length + 1}, 1fr)` }}>
+            {heroBooks.map((nb) => (
+              <Book key={nb.id} nb={nb} count={daysOf(nb.id).length} />
+            ))}
+            {sugg.map((st) => (
+              <SugBook key={st} style={st} />
+            ))}
+            <a className="book book-new" href="#/nb/new">
+              <div className="book-cover">
+                <span>+ каталог или своя обложка</span>
               </div>
-              {covers[otd.day.id] && <img src={covers[otd.day.id]} alt="" />}
-              <div className="otd-title">{otd.day.title}</div>
-              <div className="mono muted">{humanDate(otd.day.date)}</div>
+              <div className="ledge" />
             </a>
-          )}
+          </div>
         </div>
       </section>
 
@@ -114,6 +114,14 @@ export default function Shelf() {
             )}
           </div>
           <div className="recent-row">
+            {otd && !recent.slice(0, 6).some((d) => d.id === otd.day.id) && (
+              <a className="recent-card recent-otd" href={`#/day/${encodeURIComponent(otd.day.id)}`}>
+                <em className="otd-tag">↺ {otd.label}</em>
+                {covers[otd.day.id] ? <img src={covers[otd.day.id]} alt="" loading="lazy" /> : <span className="recent-ph" />}
+                <b>{otd.day.title}</b>
+                <small>{humanDate(otd.day.date)}</small>
+              </a>
+            )}
             {recent.map((d) => (
               <a key={d.id} className="recent-card" href={`#/day/${encodeURIComponent(d.id)}`}>
                 {covers[d.id] ? (
@@ -133,8 +141,10 @@ export default function Shelf() {
         )
       )}
 
+      {notebooks.length > heroBooks.length && (
+      <>
       <h2 className="h2 home-h">
-        Тетради <small>{notebooks.length}</small>
+        Все тетради <small>{notebooks.length}</small>
       </h2>
       <div className="shelf">
         {rows.map((row, i) => (
@@ -154,6 +164,8 @@ export default function Shelf() {
           </div>
         ))}
       </div>
+      </>
+      )}
 
       <h2 className="h2 home-h">Капсулы времени</h2>
       <div className="caps">
@@ -186,6 +198,26 @@ export default function Shelf() {
         </a>
       </div>
     </>
+  );
+}
+
+/** обложка «на выбор»: нажал — открывается новая тетрадь с ней */
+function SugBook({ style }: { style: CoverStyle }) {
+  const url = useCoverUrl({ id: 'sug-' + style, title: 'Новый дневник', cover: { style } }, 420);
+  return (
+    <a className="book hb-sug" href={`#/nb/new/${style}`}>
+      <div className="book-body">
+        <span className="book-pages" aria-hidden />
+        <span className="book-cover">{url ? <img src={url} alt="" /> : <span className="book-ph" />}</span>
+      </div>
+      <div className="ledge" />
+      <div className="book-meta">
+        <div>
+          <div className="book-title">{coverInfo(style).name}</div>
+          <div className="mono muted">на выбор</div>
+        </div>
+      </div>
+    </a>
   );
 }
 
@@ -276,54 +308,3 @@ function HowItWorks() {
 }
 
 // места пузырей: центр в % от ширины/высоты, размер в % ширины
-const SLOTS = [
-  { x: 50, y: 44, s: 40 },
-  { x: 16, y: 20, s: 24 },
-  { x: 84, y: 15, s: 21 },
-  { x: 87, y: 62, s: 27 },
-  { x: 14, y: 72, s: 19 },
-  { x: 57, y: 5, s: 14 },
-  { x: 56, y: 90, s: 15 },
-];
-
-/** Облако воспоминаний: круглые фото дней в радужной кайме, слегка покачиваются; клик — открыть день */
-function MemoryCloud({ days }: { days: DayRecord[] }) {
-  const { photos, loadPhotos } = useDiary();
-  const key = days.map((d) => d.id).join();
-  useEffect(() => {
-    if (days.length) loadPhotos(days);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  // все фото выбранных дней по очереди: первое фото каждого дня, потом вторые…
-  const shots: { d: DayRecord; src?: string }[] = [];
-  for (let k = 0; k < 4 && shots.length < SLOTS.length; k++)
-    for (const d of days) {
-      const list = photos[d.id] ?? d.photoUrls ?? [];
-      if (k === 0 || list[k]) shots.push({ d, src: list[k] });
-      if (shots.length >= SLOTS.length) break;
-    }
-  return (
-    <div className="mc" aria-hidden={!days.length}>
-      {SLOTS.map((sl, i) => {
-        const d = shots[i]?.d;
-        const src = shots[i]?.src;
-        const st = { left: sl.x + '%', top: sl.y + '%', '--s': sl.s, '--d': i } as React.CSSProperties;
-        const face = <img className="mc-face" src={`/ui/mood-${5 - i}.webp`} alt="" draggable={false} />;
-        return d ? (
-          <a key={d.id + i} className="mc-b" href={`#/day/${encodeURIComponent(d.id)}`} style={st} title={d.title}>
-            <span className="mc-f">
-              {src ? <img src={src} alt="" loading="lazy" /> : <span className="mc-ph" style={{ background: `linear-gradient(150deg, ${d.design.palette.colors[1]}, ${d.design.palette.colors[3]})` }} />}
-            </span>
-          </a>
-        ) : (
-          <span key={'e' + i} className="mc-b mc-e" style={st}>
-            <span className="mc-f">
-              <span className="mc-ph" />
-              {!days.length && i < 3 && face}
-            </span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDiary } from '../App';
-import { COVERS, coverInfo } from '../lib/covers';
+import { COVERS, coverInfo, suggestCovers } from '../lib/covers';
 import { useCoverUrl } from '../components/Book';
 import { newId } from '../lib/store';
 import { play, stampMark } from '../lib/feel';
@@ -34,17 +34,20 @@ function Slide({ cover, title, nbId, pos, onClick }: { cover: Cover; title: stri
  * Обложка тетради: первая — чёрная, рядом две из каталога, дальше окошко
  * «каталог» или «своя» (картинка, PDF или цвет + узор + свои фото и стикеры).
  */
-export default function CoverEditor({ id }: { id?: string }) {
+export default function CoverEditor({ id, first }: { id?: string; first?: string }) {
   const { notebooks, saveNotebook, toast } = useDiary();
   void toast;
   const existing = notebooks.find((n) => n.id === id && !n.demo);
   const [title, setTitle] = useState(existing?.title ?? '');
   const start: Cover[] = useMemo(() => {
-    const base: Cover[] = [{ style: 'black' }, { style: 'kraft' }, { style: 'guava' }];
-    if (!existing) return base;
+    // по умолчанию чёрная, рядом две случайные из каталога; выбранная на главной — первой
+    const pick = first && COVERS.some((c) => c.id === first) ? (first as CoverStyle) : null;
+    const base: Cover[] = [{ style: 'black' }, ...suggestCovers(pick ? [pick] : []).map((style) => ({ style }))];
+    if (pick) base.unshift({ style: pick });
+    if (!existing) return base.slice(0, 3);
     const cur = existing.cover;
     return [cur, ...base.filter((b) => b.style !== cur.style)].slice(0, 3);
-  }, [existing]);
+  }, [existing, first]);
   const [slides, setSlides] = useState<Cover[]>(start);
   const [i, setI] = useState(0);
   const [mode, setMode] = useState<'pick' | 'catalog' | 'custom'>('pick');

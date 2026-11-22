@@ -222,7 +222,7 @@ export default function App() {
   else if (parts[0] === 'new') view = <NewDay nb={parts[1]} key={route} />;
   else if (parts[0] === 'day') view = <DayView id={decodeURIComponent(parts[1] ?? '')} key={route} />;
   else if (parts[0] === 'nb' && parts[2] === 'cover') view = <CoverEditor id={parts[1]} key={route} />;
-  else if (parts[0] === 'nb' && parts[1] === 'new') view = <CoverEditor key={route} />;
+  else if (parts[0] === 'nb' && parts[1] === 'new') view = <CoverEditor key={route} first={parts[2]} />;
   else if (parts[0] === 'nb') view = <NotebookView id={parts[1]} tab={parts[2] ?? 'timeline'} key={parts[1]} />;
   else if (parts[0] === 'year') view = <YearView />;
   else if (parts[0] === 'museum') view = <Museum />;

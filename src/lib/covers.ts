@@ -25,6 +25,13 @@ export const COVERS: CoverInfo[] = [
 ];
 
 export const coverInfo = (id: CoverStyle) => COVERS.find((c) => c.id === id) ?? COVERS[0];
+/** две случайные обложки «на выбор» (без чёрной — она и так первая), один раз за открытие сайта */
+const SUGGEST: CoverStyle[] = ['kraft', 'marble', 'guava', 'birds', 'linen', 'night', 'olive'];
+let picked: CoverStyle[] | null = null;
+export function suggestCovers(exclude: CoverStyle[] = []): CoverStyle[] {
+  if (!picked) picked = [...SUGGEST].sort(() => Math.random() - 0.5);
+  return picked.filter((s) => !exclude.includes(s)).slice(0, 2);
+}
 /** каталог: всё, кроме своей обложки */
 export const CATALOG = COVERS;
 
