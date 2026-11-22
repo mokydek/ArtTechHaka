@@ -365,9 +365,13 @@ function Status({ loc, pano, inside, onPano, onMap, onRoom }: { loc: Loc; pano: 
     text = 'Не нашёл, где это снято: в фото нет GPS, а адресов и названий в кадре не видно. Отметьте точку на карте — и окажетесь там.';
     acts.push(['Отметить на карте', onMap, true]);
   }
+  // на iPhone геопозиция фото передаётся сайту, только если включить её в окне выбора фото
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const tip = ios && !loc.precise ? 'На iPhone: в окне выбора фото нажмите «Параметры» и включите геопозицию — тогда место найдётся само.' : '';
   return (
     <div className="there-status">
       <p>{text}</p>
+      {tip && <p className="there-tip">{tip}</p>}
       {acts.length > 0 && (
         <div>
           {acts.map(([t, f, main]) => (

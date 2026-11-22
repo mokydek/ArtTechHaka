@@ -3364,6 +3364,11 @@ a.tab {
   flex-wrap: wrap;
   gap: 8px;
 }
+.there-status p.there-tip {
+  margin-top: -4px;
+  font-size: 12px;
+  opacity: 0.75;
+}
 .there-pano,
 .there-player,
 .there-pinbox {
