@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { SceneLayers } from './depth';
 import type { HourWeather, ShotContext, SkyState } from './context';
-import { buildLand, type Land } from './land';
+import { buildLand, type Land, type ShotCover } from './land';
 import type { OsmWorld } from './osm';
 import { readScene, type RGB, type SceneTags } from './tags';
 
@@ -121,7 +121,9 @@ void main(){
   // снимок верен только под тем углом, под которым его сняли: чем сильнее смотришь сбоку,
   // тем прозрачнее он становится — растянутые «рёбра» глубины не лезут в глаза
   float ang = dot(normalize(vWorld - uEye), normalize(vWorld - cameraPosition));
-  a *= smoothstep(0.82, 0.965, ang);
+  a *= smoothstep(0.93, 0.988, ang);
+  // далеко от точки съёмки снимок уже не нужен — вокруг мир
+  a *= 1.0 - smoothstep(7.0, 14.0, distance(cameraPosition.xz, uEye.xz));
   if (a < 0.03) discard;
   gl_FragColor = vec4(col, a);
 }`;
@@ -344,6 +346,7 @@ export class Moment {
   private pitch0: number;
   private photo = new THREE.Group();
   private maxDepth = 40;
+  private cover: ShotCover | null = null;
   private norm = 1;
   private plantLight = new THREE.Color(1, 1, 1);
   private land: Land;
@@ -415,7 +418,8 @@ export class Moment {
     };
     this.m = masks(L, o.photo);
     const mo = +o.ctx.local.slice(5, 7);
-    this.tags = readScene(L, o.photo, { month: mo, south: o.ctx.lat < 0, temp: o.weather?.temp, sunUp: o.sky.sunAlt > 0 });
+    const wc = o.weather?.code ?? 0;
+    this.tags = readScene(L, o.photo, { month: mo, south: o.ctx.lat < 0, temp: o.weather?.temp, sunUp: o.sky.sunAlt > 0, snowing: (wc >= 71 && wc <= 77) || wc === 85 || wc === 86 });
 
     // ---- снимок: окно в тот момент, стоит в точке съёмки ----
     const { gw, gh } = L;
@@ -469,6 +473,20 @@ export class Moment {
     const front = haloSky(raw, this.m.sky, gw, gh);
     this.maxDepth = 0;
     for (let i = 0; i < gw * gh; i++) this.maxDepth = Math.max(this.maxDepth, front[i] * scale);
+    // по столбцам: до какой дали снимок закрывает вид и с какого угла над горизонтом у него небо
+    const cd = new Float32Array(gw),
+      cs = new Float32Array(gw).fill(9);
+    for (let x = 0; x < gw; x++)
+      for (let y = 0; y < gh; y++) {
+        const i = y * gw + x;
+        const b = (1 - (y / (gh - 1)) * 2) * this.tanV;
+        if (this.m.sky[i]) {
+          // угол неба в мире (после наклона камеры): берём самую нижнюю точку неба в столбце
+          const el = Math.atan2(b * cp + sp, cp - b * sp);
+          if (el < cs[x]) cs[x] = el;
+        } else cd[x] = Math.max(cd[x], front[i] * scale * Math.hypot(1, b));
+      }
+    this.cover = { hHalf: Math.atan(this.tanH), depth: cd, sky: cs };
     const mesh = this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: this.texture(toCanvas(o.photo, 2048)), order: 2 });
     (mesh.material as THREE.ShaderMaterial).polygonOffset = true;
     (mesh.material as THREE.ShaderMaterial).polygonOffsetFactor = -2;
@@ -486,7 +504,7 @@ export class Moment {
     let seed = 7;
     for (const ch of o.ctx.local + o.ctx.place) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
     this.seed = seed;
-    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth });
+    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth, cover: this.cover ?? undefined });
     this.world.add(this.land.group);
     if (o.osm) this.applyOsm(o.osm);
     this.domeU = {
@@ -607,7 +625,7 @@ export class Moment {
   applyOsm(osm: OsmWorld): boolean {
     const k = this.tags.kind;
     if (k === 'indoor' || !(this.o.ctx.source.place === 'gps' || k === 'city' || k === 'park')) return false;
-    const land = buildLand(this.tags, { seed: this.seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth, osm });
+    const land = buildLand(this.tags, { seed: this.seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), keep: this.maxDepth, cover: this.cover ?? undefined, osm });
     this.world.remove(this.land.group);
     this.disposeTree(this.land.group);
     this.land = land;

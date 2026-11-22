@@ -79,7 +79,14 @@ function paint(geo: THREE.BufferGeometry, f: (n: THREE.Vector3, p: THREE.Vector3
   return g;
 }
 
-export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number; keep?: number; osm?: OsmWorld | null }): Land {
+/** что видно на снимке по столбцам: до какой дали он закрывает вид и где у него начинается небо */
+export interface ShotCover {
+  hHalf: number; // половина горизонтального угла кадра
+  depth: Float32Array; // по столбцам: дальняя точка снимка (не небо), м
+  sky: Float32Array; // по столбцам: угол над горизонтом, где начинается небо (рад), или 9 — неба нет
+}
+
+export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number; keep?: number; cover?: ShotCover; osm?: OsmWorld | null }): Land {
   const R = rng(o.seed);
   const nz = noise2(o.seed % 997);
   const group = new THREE.Group();
@@ -89,7 +96,24 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
   const osm = o.osm && t.kind !== 'indoor' ? o.osm : null;
   // в кадре снимка до его дальнего плана ничего не ставим: там стоит сам снимок (дорога и земля — можно)
   const keep = (o.keep ?? 40) * 1.15 + 15;
-  const inShot = (x: number, z: number, pad = 0) => z < 0 && Math.abs(Math.atan2(x, -z)) < o.hHalf + 0.08 + pad && Math.hypot(x, z) < keep;
+  // ставить можно и в кадре — но только позади снимка и не выше его кромки неба:
+  // из точки съёмки такое не видно, а отойдёшь — там уже есть продолжение
+  const inShot = (x: number, z: number, pad = 0, top = 6) => {
+    if (z >= 0) return false;
+    const ang = Math.atan2(x, -z);
+    if (Math.abs(ang) >= o.hHalf + 0.08 + pad) return false;
+    const r = Math.hypot(x, z);
+    const cv = o.cover;
+    if (!cv) return r < keep;
+    const n = cv.depth.length;
+    const th = Math.tan(o.hHalf);
+    const col = (a: number) => (Math.tan(Math.max(-1.4, Math.min(1.4, a))) / th / 2 + 0.5) * (n - 1);
+    const c0 = Math.max(0, Math.min(n - 1, Math.floor(col(ang - 0.08 - pad)))),
+      c1 = Math.max(0, Math.min(n - 1, Math.ceil(col(ang + 0.08 + pad))));
+    const el = Math.atan2(top - 1.6, r);
+    for (let c = c0; c <= c1; c++) if (r < cv.depth[c] * 1.08 + 3 || el > cv.sky[c] - 0.03) return true;
+    return false;
+  };
   const road = osm ? null : t.road;
   const city = t.kind === 'city' || !!osm;
   const park = t.kind === 'park';
@@ -306,7 +330,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         z1 = Math.max(z1, z);
       }
       if (x1 - x0 > 400 || z1 - z0 > 400) continue;
-      if (b.pts.some(([x, z]) => inShot(x, z))) continue;
+      if (b.pts.some(([x, z]) => inShot(x, z, 0, b.h))) continue;
       let g: THREE.BufferGeometry;
       try {
         g = new THREE.ExtrudeGeometry(new THREE.Shape(b.pts.map(([x, z]) => new THREE.Vector2(x, -z))), { depth: b.h, bevelEnabled: false });
@@ -360,7 +384,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     const add = (x: number, z: number, w: number, d: number, h: number) => {
       // ближе 10 м от точки съёмки домов нет (считаем до ближайшей стены, а не до центра)
       if (Math.hypot(Math.max(Math.abs(x) - w / 2, 0), Math.max(Math.abs(z) - d / 2, 0)) < 10) return;
-      if (inShot(x, z, 0.1) || inShot(x - w / 2, z + d / 2) || inShot(x + w / 2, z + d / 2)) return;
+      if (inShot(x, z, 0.1, h) || inShot(x - w / 2, z + d / 2, 0, h) || inShot(x + w / 2, z + d / 2, 0, h)) return;
       for (const q of houses) if (Math.abs(q.x - x) < (q.w + w) / 2 + 2 && Math.abs(q.z - z) < (q.d + d) / 2 + 2) return;
       houses.push({ x, z, w, d });
       colliders.push({ x0: x - w / 2 - 0.4, x1: x + w / 2 + 0.4, z0: z - d / 2 - 0.4, z1: z + d / 2 + 0.4 });
@@ -443,16 +467,18 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         if (z < 0 && R() > 0.25 + side * 2.2) continue; // впереди — как на фото по сторонам
       }
       const r = Math.hypot(x, z);
-      if (r < 3.5) continue;
+      if (r < 6) continue;
       if (road && Math.abs(x - road.x) < roadClear && !(city && Math.abs(Math.abs(x - road.x) - (road.width / 2 + 3.9)) < 0.8)) continue;
-      // прямо в кадре вблизи — пусто: там стоит сам снимок
-      if (inShot(x, z)) continue;
+      const sc = 0.75 + R() * (t.kind === 'nature' ? 1.3 : 0.7);
+      // в кадре — только позади снимка и не выше его неба
+      if (inShot(x, z, 0.02, 5.4 * sc * 1.15)) continue;
       if (inHouse(x, z, 2)) continue;
-      items.push({ x, z, s: 0.75 + R() * (t.kind === 'nature' ? 1.3 : 0.7), c: R(), kind: R() < coniferShare ? 1 : 0 });
+      items.push({ x, z, s: sc, c: R(), kind: R() < coniferShare ? 1 : 0 });
     }
     for (const [x, z] of osmTrees.slice(0, 1600)) {
-      if (Math.hypot(x, z) < 3.5 || solid(x, z) || inShot(x, z)) continue;
-      items.push({ x, z, s: 0.8 + R() * 0.9, c: R(), kind: R() < coniferShare ? 1 : 0 });
+      const sc = 0.8 + R() * 0.9;
+      if (Math.hypot(x, z) < 6 || solid(x, z) || inShot(x, z, 0.02, 5.4 * sc * 1.15)) continue;
+      items.push({ x, z, s: sc, c: R(), kind: R() < coniferShare ? 1 : 0 });
     }
     // листва — из куска самого снимка (если зелень на фото есть), ствол — цветом коры
     const texLeaf = o.snowy && !t.conifer ? null : leafTex;
@@ -476,7 +502,9 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
           im.setMatrixAt(i, m4);
           im.setColorAt(i, col);
         }
-        if (it.s > 0.6) colliders.push({ x0: it.x - 0.4, x1: it.x + 0.4, z0: it.z - 0.4, z1: it.z + 0.4 });
+        // ель — не пройти сквозь ветки (до пола), под кроной лиственного — можно, но не сквозь ствол
+        const cr = kind ? 1.15 * it.s : 0.45;
+        colliders.push({ x0: it.x - cr, x1: it.x + cr, z0: it.z - cr, z1: it.z + cr });
       });
       for (const im of ims) {
         im.instanceMatrix.needsUpdate = true;
@@ -504,7 +532,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         const x = Math.sin(a) * r,
           z = -Math.cos(a) * r;
         if (road && Math.abs(x - road.x) < road.width / 2 + 1) continue;
-        if (inShot(x, z)) continue;
+        if (inShot(x, z, 0.02, 2.2)) continue;
         const sz = 0.7 + R() * 0.8;
         ipos.push(x, height(x, z) - 0.05, z);
         isz.push(sz * (1.1 + R() * 0.4), sz);

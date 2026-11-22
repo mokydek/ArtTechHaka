@@ -50,7 +50,7 @@ const tame = (c: RGB, lo: number, hi: number): RGB => {
   return [Math.min(1, c[0] * k), Math.min(1, c[1] * k), Math.min(1, c[2] * k)];
 };
 
-export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; south: boolean; temp?: number; sunUp: boolean }): SceneTags {
+export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; south: boolean; temp?: number; sunUp: boolean; snowing?: boolean }): SceneTags {
   const { gw, gh } = L;
   const px = pixels(photo, gw, gh);
   const fg = L.fg ? pixels(L.fg, gw, gh) : null;
@@ -250,13 +250,21 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
       }
     return n > 0 && g > r * 1.04 && g > b * 1.12;
   };
+  const vegShareAll = () => {
+    let v = 0;
+    for (let i = 0; i < gw * gh; i++) if (!skyX[i] && cls(i) === 'veg') v++;
+    return v / (gw * gh);
+  };
   let ground: SceneTags['ground'] = 'soil';
   const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
-  if (share('snow') > 0.3 || (winter && (opts.temp ?? 5) <= 0 && share('snow') > 0.12)) ground = 'snow';
+  // снег — только если ему есть откуда взяться: зима, мороз или снегопад; и не там, где всё зелёное
+  // (светлый гравий, указатель или блик экрана — не снег)
+  const snowOk = (winter || (opts.temp ?? 10) <= 1 || !!opts.snowing) && !greenGround() && vegShareAll() < 0.35;
+  if (snowOk && (share('snow') > 0.3 || (winter && (opts.temp ?? 5) <= 0 && share('snow') > 0.12))) ground = 'snow';
   else if (top === 'veg' || share('veg') > 0.35 || greenGround()) ground = 'grass';
   else if (top === 'asphalt') ground = 'asphalt';
   else if (top === 'sand') ground = 'sand';
-  else if (winter && (opts.temp ?? 5) <= -3) ground = 'snow';
+  else if (snowOk && winter && (opts.temp ?? 5) <= -3) ground = 'snow';
 
   // комната: днём не видно неба и почти нет зелени, а земля не похожа на улицу
   // комната: на снимке нет настоящего неба и зелени, а кадр — крупный план или светлый интерьер
@@ -371,22 +379,34 @@ function swatch(photo: Pic, gw: number, gh: number, hit: (i: number) => boolean,
     sy = (by / gh) * H,
     sw = (ws / gw) * W,
     sh = (ws / gh) * H;
+  // бесшовная плитка: под кадром — он же, сдвинутый на полплитки; сверху сам кадр, края которого растворяются
+  const S = 512;
+  const A = document.createElement('canvas');
+  A.width = A.height = S;
+  const ga = A.getContext('2d')!;
+  ga.imageSmoothingQuality = 'high';
+  ga.drawImage(photo, sx, sy, sw, sh, 0, 0, S, S);
   const c = document.createElement('canvas');
-  c.width = c.height = 512;
+  c.width = c.height = S;
   const g = c.getContext('2d')!;
-  g.imageSmoothingQuality = 'high';
-  for (const [fx, fy] of [
-    [0, 0],
-    [1, 0],
-    [0, 1],
-    [1, 1],
-  ]) {
-    g.save();
-    g.translate(fx ? 512 : 0, fy ? 512 : 0);
-    g.scale(fx ? -1 : 1, fy ? -1 : 1);
-    g.drawImage(photo, sx, sy, sw, sh, 0, 0, 256, 256);
-    g.restore();
-  }
+  for (const [ox, oy] of [
+    [-S / 2, -S / 2],
+    [S / 2, -S / 2],
+    [-S / 2, S / 2],
+    [S / 2, S / 2],
+  ])
+    g.drawImage(A, ox, oy);
+  const M = document.createElement('canvas');
+  M.width = M.height = S;
+  const gm = M.getContext('2d')!;
+  gm.drawImage(A, 0, 0);
+  gm.globalCompositeOperation = 'destination-in';
+  const rg = gm.createRadialGradient(S / 2, S / 2, S * 0.22, S / 2, S / 2, S * 0.5);
+  rg.addColorStop(0, 'rgba(0,0,0,1)');
+  rg.addColorStop(1, 'rgba(0,0,0,0)');
+  gm.fillStyle = rg;
+  gm.fillRect(0, 0, S, S);
+  g.drawImage(M, 0, 0);
   return c;
 }
 
