@@ -47,3 +47,30 @@ export function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/** дата ±n дней в формате YYYY-MM-DD (по местному времени) */
+export function isoAdd(iso: string, n: number) {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** одно слово о дне, который не записан (из «Пока тебя не было») */
+const WKEY = 'ottisk:words';
+export function words(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(WKEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+export function setWord(date: string, w: string) {
+  const all = words();
+  if (w.trim()) all[date] = w.trim().slice(0, 40);
+  else delete all[date];
+  try {
+    localStorage.setItem(WKEY, JSON.stringify(all));
+  } catch {
+    /* без хранилища */
+  }
+}

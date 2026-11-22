@@ -117,6 +117,38 @@ export async function dayWeather(lat: number, lon: number, date: string): Promis
   return undefined;
 }
 
+/** погода за несколько дней подряд одним запросом (для «Пока тебя не было») */
+export async function rangeWeather(lat: number, lon: number, start: string, end: string): Promise<Record<string, NonNullable<PlaceInfo['weather']>>> {
+  const daily = 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,daylight_duration';
+  const q = `latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=${daily}&timezone=auto`;
+  for (const u of [`https://api.open-meteo.com/v1/forecast?${q}`, `https://archive-api.open-meteo.com/v1/archive?${q}`]) {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) continue;
+      const d = (await r.json()).daily;
+      if (!d?.time?.length) continue;
+      const out: Record<string, NonNullable<PlaceInfo['weather']>> = {};
+      (d.time as string[]).forEach((t, i) => {
+        const code = d.weather_code?.[i];
+        if (code == null) return;
+        out[t] = {
+          code,
+          label: wmo(code).label,
+          tmax: d.temperature_2m_max?.[i] ?? undefined,
+          tmin: d.temperature_2m_min?.[i] ?? undefined,
+          sunrise: d.sunrise?.[i]?.slice(11, 16) || undefined,
+          sunset: d.sunset?.[i]?.slice(11, 16) || undefined,
+          daylight: d.daylight_duration?.[i] ?? undefined,
+        };
+      });
+      if (Object.keys(out).length) return out;
+    } catch {
+      /* следующий источник */
+    }
+  }
+  return {};
+}
+
 export const today = () => iso(new Date());
 
 export function tempStr(w?: PlaceInfo['weather']) {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { DayRecord, ModeId } from '../lib/types';
 import { MODES } from '../lib/design/system';
-import { MOOD_COLORS, MOOD_WORDS, moods, valenceMood, type Mood } from '../lib/moods';
+import { MOOD_COLORS, MOOD_WORDS, moods, valenceMood, words, type Mood } from '../lib/moods';
 
 const M = ['Я', 'Ф', 'М', 'А', 'М', 'И', 'И', 'А', 'С', 'О', 'Н', 'Д'];
 export const MODE_COLOR: Record<ModeId, string> = {
@@ -78,7 +78,9 @@ export default function YearPixels({ days }: { days: DayRecord[] }) {
 }
 
 type By = 'mode' | 'palette' | 'mood';
+const said = () => words();
 function Row({ di, year, map, by, checks }: { di: number; year: number; map: Map<string, DayRecord>; by: By; checks: Record<string, Mood> }) {
+  const w = useMemo(said, []);
   return (
     <>
       <span className="yp-d pt">{di + 1}</span>
@@ -89,7 +91,7 @@ function Row({ di, year, map, by, checks }: { di: number; year: number; map: Map
         if (!exists) return <span key={mi} className="yp-c none" />;
         // настроение: отмеченное у зайчика, иначе — по записанному дню
         const m = checks[iso] ?? (d ? valenceMood(d.design.mood.valence) : undefined);
-        if (!d) return by === 'mood' && m ? <span key={mi} className="yp-c on" title={`${iso} · ${MOOD_WORDS[m]}`} style={{ background: MOOD_COLORS[m] }} /> : <span key={mi} className="yp-c" />;
+        if (!d) return by === 'mood' && m ? <span key={mi} className="yp-c on" title={`${iso} · ${MOOD_WORDS[m]}${w[iso] ? ` · «${w[iso]}»` : ''}`} style={{ background: MOOD_COLORS[m] }} /> : <span key={mi} className="yp-c" />;
         const bg = by === 'mode' ? MODE_COLOR[d.design.mode] : by === 'mood' ? MOOD_COLORS[m!] : d.design.palette.colors[2];
         return <a key={mi} className="yp-c on" href={`#/day/${encodeURIComponent(d.id)}`} title={`${iso} · ${d.title}`} style={{ background: bg }} />;
       })}

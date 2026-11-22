@@ -4,7 +4,8 @@ import Bunny, { moodImg, type Pose } from './Bunny';
 import { useDiary } from '../App';
 import type { DayRecord } from '../lib/types';
 import { humanDate } from '../lib/render/engine';
-import { MOOD_WORDS, moods, setMood, todayIso, type Mood } from '../lib/moods';
+import { MOOD_WORDS, isoAdd, moods, setMood, todayIso, type Mood } from '../lib/moods';
+import BackDays from './BackDays';
 import { burst, buzz, play } from '../lib/feel';
 
 /**
@@ -20,9 +21,11 @@ type Talk =
   | { kind: 'answer'; mood: Mood; i: number }
   | { kind: 'remember'; day: DayRecord }
   | { kind: 'hint'; key: string; text: string }
+  | { kind: 'back'; days: string[] }
   | { kind: 'empty' };
 
 const ASKED = 'ottisk:bunny-asked';
+const LAST = 'ottisk:last-visit';
 const SEEN = 'ottisk:bunny-remember';
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -73,6 +76,32 @@ export default function Mascot({ route }: { route: string }) {
     // фокус возвращается на зайчика в шапке
     if (wasWin) requestAnimationFrame(() => dock.current?.focus({ preventScroll: true }));
   }, [rest]);
+
+  /* вернулся после паузы: «Пока тебя не было» — небо пропущенных дней вместо упрёка.
+     ?away=N в адресе — показать, как будто человека не было N дней (для показа) */
+  useEffect(() => {
+    if (loading || !home || sessionStorage.getItem('ottisk:back-checked')) return;
+    sessionStorage.setItem('ottisk:back-checked', '1');
+    const prev = localStorage.getItem(LAST);
+    localStorage.setItem(LAST, today);
+    const away = Number(new URLSearchParams(location.search).get('away') || 0);
+    const from = away > 0 ? isoAdd(today, -away - 1) : prev;
+    if (!from || from >= today) return;
+    const marked = moods();
+    const missed: string[] = [];
+    for (let d = isoAdd(today, -1); d > from && missed.length < 7; d = isoAdd(d, -1)) {
+      if (own.some((r) => r.date === d) || marked[d]) continue;
+      missed.unshift(d);
+    }
+    if (missed.length < 2) return;
+    localStorage.setItem(ASKED, today); // вместо обычного вопроса о настроении
+    const t = setTimeout(() => {
+      setPose('wave');
+      setTalk({ kind: 'back', days: missed });
+    }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, home]);
 
   /* раз в день сам спрашивает, как ты — на главной, когда дневник загрузился */
   useEffect(() => {
@@ -294,7 +323,21 @@ export default function Mascot({ route }: { route: string }) {
         </div>
       </>
     );
-  else if (talk?.kind === 'empty')
+  else if (talk?.kind === 'back') {
+    // город дневника: место последнего записанного дня
+    const city = [...pool].sort((a, b) => b.date.localeCompare(a.date)).find((d) => d.place)?.place ?? null;
+    body = (
+      <BackDays
+        days={talk.days}
+        place={city}
+        onDone={() => {
+          if (moods()[today]) return close();
+          setPose('wave');
+          setTalk({ kind: 'ask' });
+        }}
+      />
+    );
+  } else if (talk?.kind === 'empty')
     body = (
       <>
         <p>Здесь пока пусто. Запиши первый день, и я буду напоминать тебе о хорошем.</p>
