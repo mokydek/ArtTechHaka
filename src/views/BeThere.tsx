@@ -238,14 +238,16 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   const fovH = (2 * Math.atan(Math.tan((fovV * Math.PI) / 360) * aspect) * 180) / Math.PI;
   const tags = weather ? wmo(weather.code) : null;
   const found = pano.st === 'found' ? pano.hit : null;
-  const center = loc && loc.via !== 'none' ? { lat: loc.lat, lon: loc.lon, zoom: loc.precise ? 17 : loc.via === 'day' ? 12 : 14 } : src?.rec?.place ? { lat: src.rec.place.lat, lon: src.rec.place.lon, zoom: 12 } : { lat: 51.1283, lon: 71.4305, zoom: 12 };
+  // где искать на карте: найденное место, иначе — город из последних записей дневника
+  const lastPlace = src?.rec?.place ?? days.find((d) => d.place)?.place ?? null;
+  const center = loc && loc.via !== 'none' ? { lat: loc.lat, lon: loc.lon, zoom: loc.precise ? 17 : loc.via === 'day' ? 12 : 14 } : lastPlace ? { lat: lastPlace.lat, lon: lastPlace.lon, zoom: 12 } : { lat: 51.1283, lon: 71.4305, zoom: 12 };
 
   return (
     <div className="there" onPointerDown={wake}>
       {src && mode === 'moment' && <PhotoStage bmp={src.bmp} />}
       {mode === 'pano' && pano.st === 'frame' && src && loc && <PanoFrame lat={loc.lat} lon={loc.lon} heading={heading} bmp={src.bmp} onBack={() => setMode('moment')} />}
       {mode === 'pano' && found && src && (
-        <PanoView hit={found} at={[loc!.lat, loc!.lon]} bmp={src.bmp} heading={heading} fovH={fovH} fovV={fovV} onHeading={setHeading} onBack={() => setMode('moment')} />
+        <PanoView onFail={() => setPano({ st: 'frame' })} hit={found} at={[loc!.lat, loc!.lon]} bmp={src.bmp} heading={heading} fovH={fovH} fovV={fovV} onHeading={setHeading} onBack={() => setMode('moment')} />
       )}
       {mode === 'map' && <MapPick center={center} onPick={placeFromMap} onCancel={() => setMode('moment')} />}
       {mode !== 'map' && sky && <Atmos sunAlt={sky.sunAlt} base={mode === 'pano' ? null : (photoSky?.sunAlt ?? null)} weather={weather} />}
@@ -431,11 +433,10 @@ function matrix3d(w: number, h: number, q: number[]) {
 }
 
 /** Настоящая панорама улицы; снимок закреплён там, куда смотрела камера */
-function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack }: { hit: PanoHit; at: [number, number]; bmp: ImageBitmap; heading: number | null; fovH: number; fovV: number; onHeading: (h: number) => void; onBack: () => void }) {
+function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack, onFail }: { hit: PanoHit; at: [number, number]; bmp: ImageBitmap; heading: number | null; fovH: number; fovV: number; onHeading: (h: number) => void; onBack: () => void; onFail: () => void }) {
   const el = useRef<HTMLDivElement>(null);
   const pin = useRef<HTMLCanvasElement>(null);
   const player = useRef<Ymaps | null>(null);
-  const [err, setErr] = useState('');
   const [far, setFar] = useState(false);
   const [show, setShow] = useState<'on' | 'ghost' | 'off'>('on');
   const [align, setAlign] = useState(heading == null);
@@ -509,6 +510,7 @@ function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack }: { hi
         player.current = pl;
         (window as unknown as { __ottiskPano?: Ymaps }).__ottiskPano = pl;
         pl.events.add(['directionchange', 'spanchange'], place);
+        pl.events.add('error', () => !dead && onFail());
         pl.events.add('panoramachange', () => {
           const pos = pl.getPanorama().getPosition() as number[];
           setFar(y.meters(origin.current, [pos[0], pos[1]]) > 14);
@@ -562,7 +564,8 @@ function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack }: { hi
           if (!dead) setAuto('unsure');
         }
       })
-      .catch(() => !dead && setErr('Панорама не открылась. Попробуйте позже.'));
+      // плеер API не открылся — переходим на встроенную панораму Яндекс Карт
+      .catch(() => !dead && onFail());
     return () => {
       dead = true;
       player.current?.destroy();
@@ -599,7 +602,6 @@ function PanoView({ hit, at, bmp, heading, fovH, fovV, onHeading, onBack }: { hi
       <div className="there-pinbox" aria-hidden>
         <canvas ref={pin} className="there-pin" />
       </div>
-      {err && <p className="there-pano-err mono">{err}</p>}
       <div className="there-pano-bar">
         <button className="btn small ghost" onClick={onBack}>
           ← к снимку
