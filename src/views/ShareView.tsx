@@ -102,7 +102,7 @@ export default function ShareView({ token }: { token: string }) {
               {d.rec.text && <p className="sv-text">{d.rec.text}</p>}
               {(d.rec.music.title || d.rec.music.artist) && (
                 <div className="sv-song">
-                  ♪ {[d.rec.music.artist, d.rec.music.title].filter(Boolean).join(' — ')}
+                  ♪ {[d.rec.music.artist, d.rec.music.title].filter(Boolean).join(' · ')}
                 </div>
               )}
               {(d.excerpt || d.voice) && (

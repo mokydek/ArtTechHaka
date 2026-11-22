@@ -3,7 +3,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Capsule, DayRecord, Notebook } from './lib/types';
 import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
-import Mascot from './components/Mascot';
 import { play, setSoundOn, soundOn } from './lib/feel';
 import Shelf from './views/Shelf';
 import JournalHome from './views/JournalHome';
@@ -273,7 +272,6 @@ export default function App() {
         </div>
       </main>
       {msg && <div className="toast">{msg}</div>}
-      <Mascot route={parts[0] ?? ''} />
     </Ctx.Provider>
   );
 }
