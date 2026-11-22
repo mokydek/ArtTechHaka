@@ -618,7 +618,8 @@ export class Moment {
     (this.domeU.uCloudCol.value as THREE.Color).setRGB(...(gr(C.skyLow ? [Math.min(1, C.skyLow[0] * 1.15), Math.min(1, C.skyLow[1] * 1.15), Math.min(1, C.skyLow[2] * 1.12)] : [0.92, 0.92, 0.94]) as RGB));
     // свет мира — настоящий свет этой минуты: днём светло, ночью темно, горят окна и фонари
     const ga = grade(s.sunAlt);
-    const amb = 0.56 * ga.exp + (this.sunUp ? 0 : 0.03),
+    // в комнате вечером горит свет — темнее, чем днём, но не темнота
+    const amb = this.tags.kind === 'indoor' ? Math.max(0.5, 0.62 * ga.exp) : 0.56 * ga.exp + (this.sunUp ? 0 : 0.03),
       sunI = this.sunUp ? 0.56 * ga.exp * Math.max(0, Math.sin(alt)) * (this.cloudPct > 85 ? 0.35 : 1) : 0;
     this.hemi.color.setRGB(ga.tint[0], ga.tint[1], ga.tint[2]);
     this.hemi.groundColor.setRGB(ga.tint[0] * 0.62, ga.tint[1] * 0.6, ga.tint[2] * 0.58);

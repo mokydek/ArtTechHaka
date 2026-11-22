@@ -549,36 +549,75 @@ function room(t: SceneTags, o: { seed: number }, R: () => number): Land {
   const group = new THREE.Group();
   const W = 7 + R() * 3,
     D = 9 + R() * 3,
-    H = 3;
-  const wall = mix(t.colors.indoorWall, [0.8, 0.77, 0.72], 0.45);
-  const floor = mul(t.colors.ground, 0.85);
-  const parts: THREE.BufferGeometry[] = [];
-  const box = (w: number, h: number, d: number, x: number, y: number, z: number, c: RGB) => {
-    const g = new THREE.BoxGeometry(w, h, d);
-    g.translate(x, y, z);
-    parts.push(paint(g, () => c));
-  };
+    H = 2.9;
+  const wall = mix(t.colors.indoorWall, [0.82, 0.79, 0.74], 0.45);
+  const floorC = mix(t.colors.ground, [0.5, 0.36, 0.24], 0.5);
   const z0 = -D * 0.62,
-    z1 = D * 0.38;
-  box(W, 0.1, D, 0, -0.05, (z0 + z1) / 2, floor);
-  box(W, 0.1, D, 0, H + 0.05, (z0 + z1) / 2, mul(wall, 1.08));
-  box(0.1, H, D, -W / 2, H / 2, (z0 + z1) / 2, wall);
-  box(0.1, H, D, W / 2, H / 2, (z0 + z1) / 2, mul(wall, 0.94));
-  box(W, H, 0.1, 0, H / 2, z0, mul(wall, 0.97));
-  box(W, H, 0.1, 0, H / 2, z1, mul(wall, 0.9));
-  // плинтус и дверь
-  box(W - 0.2, 0.1, 0.02, 0, 0.05, z1 - 0.06, mul(wall, 0.7));
-  box(1, 2.1, 0.04, W / 2 - 1.4, 1.05, z1 - 0.07, mul(t.colors.ground, 0.6));
-  const g = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshLambertMaterial({ vertexColors: true }));
-  group.add(g);
-  // окно: светится светом неба
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.5), new THREE.MeshBasicMaterial({ color: 0xdde8f5 }));
-  win.position.set(-W / 2 + 0.06, 1.65, (z0 + z1) / 2 + 1);
-  win.rotation.y = Math.PI / 2;
-  win.userData.window = true;
-  group.add(win);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff0d8 }));
-  lamp.position.set(0, H - 0.3, (z0 + z1) / 2);
+    z1 = D * 0.38,
+    zc = (z0 + z1) / 2;
+  // стены и пол — с рисунком (обои в мелкую полосу, паркет), цвет — из снимка
+  const canvasTex = (draw: (g: CanvasRenderingContext2D) => void, rx: number, ry: number) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    draw(c.getContext('2d')!);
+    const x = new THREE.CanvasTexture(c);
+    x.wrapS = x.wrapT = THREE.RepeatWrapping;
+    x.repeat.set(rx, ry);
+    x.colorSpace = THREE.NoColorSpace;
+    x.anisotropy = 8;
+    return x;
+  };
+  const paper = canvasTex((g) => {
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, 256, 256);
+    for (let x = 0; x < 256; x += 32) {
+      g.fillStyle = 'rgba(0,0,0,0.035)';
+      g.fillRect(x, 0, 14, 256);
+    }
+  }, W / 1.2, H / 1.2);
+  const parquet = canvasTex((g) => {
+    for (let y = 0; y < 256; y += 32)
+      for (let x = (y / 32) % 2 ? -64 : 0; x < 256; x += 128) {
+        const k = 0.82 + R() * 0.3;
+        g.fillStyle = `rgb(${Math.round(255 * k)},${Math.round(255 * k * 0.97)},${Math.round(255 * k * 0.93)})`;
+        g.fillRect(x, y, 127, 31);
+      }
+  }, W / 2.4, D / 2.4);
+  const lam = (map: THREE.Texture | null, c: RGB) => new THREE.MeshLambertMaterial({ map, color: new THREE.Color(...c) });
+  const plane = (w: number, h: number, mat: THREE.Material, x: number, y: number, z: number, ry: number, rx = 0) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, 0, 'YXZ');
+    group.add(m);
+    return m;
+  };
+  const wallMat = lam(paper, wall);
+  plane(W, D, lam(parquet, floorC), 0, 0, zc, 0, -Math.PI / 2);
+  plane(W, D, lam(null, mul(wall, 1.1)), 0, H, zc, 0, Math.PI / 2);
+  plane(D, H, wallMat, -W / 2, H / 2, zc, Math.PI / 2);
+  plane(D, H, wallMat, W / 2, H / 2, zc, -Math.PI / 2);
+  plane(W, H, wallMat, 0, H / 2, z0, 0);
+  plane(W, H, wallMat, 0, H / 2, z1, Math.PI);
+  // плинтусы, дверь, окна со светом неба этой минуты
+  const trim = lam(null, mul(wall, 0.72));
+  plane(D, 0.1, trim, -W / 2 + 0.01, 0.05, zc, Math.PI / 2);
+  plane(D, 0.1, trim, W / 2 - 0.01, 0.05, zc, -Math.PI / 2);
+  plane(W, 0.1, trim, 0, 0.05, z1 - 0.01, Math.PI);
+  plane(0.95, 2.05, lam(null, mul(floorC, 0.7)), W / 2 - 1.4, 1.025, z1 - 0.02, Math.PI);
+  const wins: THREE.Mesh[] = [];
+  const glass = new THREE.MeshBasicMaterial({ color: 0xdde8f5 });
+  const frame = lam(null, [0.92, 0.92, 0.9]);
+  for (const [x, ry] of [
+    [-W / 2 + 0.02, Math.PI / 2],
+    [W / 2 - 0.02, -Math.PI / 2],
+  ] as const)
+    for (const dz of [-1.6, 1.6]) {
+      plane(1.5, 1.7, frame, x, 1.55, zc + dz, ry);
+      wins.push(plane(1.3, 1.5, glass, x + Math.sign(-x) * 0.01, 1.55, zc + dz, ry));
+    }
+  // лампа под потолком и тёплый круг света от неё
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 10), new THREE.MeshBasicMaterial({ color: 0xfff0d8 }));
+  lamp.position.set(0, H - 0.35, zc);
   group.add(lamp);
   const colliders = [
     { x0: -W / 2 - 1, x1: -W / 2 + 0.4, z0: z0 - 1, z1: z1 + 1 },
@@ -587,8 +626,8 @@ function room(t: SceneTags, o: { seed: number }, R: () => number): Land {
     { x0: -W, x1: W, z0: z1 - 0.4, z1: z1 + 1 },
   ];
   const setNight = (n: number) => {
-    (win.material as THREE.MeshBasicMaterial).color.setRGB(0.86 - n * 0.75, 0.9 - n * 0.76, 0.96 - n * 0.7);
-    (lamp.material as THREE.MeshBasicMaterial).color.setRGB(0.6 + n * 0.4, 0.58 + n * 0.36, 0.55 + n * 0.3);
+    glass.color.setRGB(0.86 - n * 0.78, 0.9 - n * 0.79, 0.96 - n * 0.74);
+    (lamp.material as THREE.MeshBasicMaterial).color.setRGB(0.7 + n * 0.3, 0.66 + n * 0.3, 0.6 + n * 0.25);
   };
   return { group, colliders, height: () => 0, setNight, radius: Math.max(W, D) / 2 };
 }
