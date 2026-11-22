@@ -332,4 +332,6 @@ export interface ShotMeta {
   f35?: number; // фокусное в эквиваленте 35 мм
   alt?: number;
   camera?: string;
+  /** device — координаты не из EXIF, а с телефона в момент записи свежего снимка */
+  geo?: 'device';
 }

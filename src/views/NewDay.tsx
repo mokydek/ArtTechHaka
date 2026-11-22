@@ -12,6 +12,7 @@ import Why from '../components/Why';
 import { PROMPTS, dayPrompt } from '../lib/prompts';
 import { dayWeather, hereNow, nameAt, placeLine, searchPlaces, type PlaceHit } from '../lib/place';
 import { readShot } from '../lib/scene/context';
+import { isFresh } from '../lib/scene/where';
 import type { DayRecord, DiaryFont, PageDeco, PageNote, PhotoLayout, ShotMeta } from '../lib/types';
 import FlowText, { noteRect } from '../components/FlowText';
 import { MOOD_COLORS, MOOD_WORDS, setMood as saveMood, type Mood } from '../lib/moods';
@@ -106,6 +107,17 @@ export default function NewDay({ nb }: { nb?: string }) {
     let dead = false;
     Promise.all(photos.map((f) => readShot(f))).then(async (ms) => {
       if (dead) return;
+      // снимок только что сделан, а GPS в нём нет (браузер вырезал) — человек ещё там: берём геолокацию телефона
+      const fresh = ms.map((m) => !!m && m.lat == null && isFresh(m));
+      if (fresh.some(Boolean) && 'geolocation' in navigator) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 120000 }));
+          ms = ms.map((m, i) => (fresh[i] && m ? { ...m, lat: +pos.coords.latitude.toFixed(6), lon: +pos.coords.longitude.toFixed(6), geo: 'device' as const } : m));
+        } catch {
+          /* не дали — место останется из записи */
+        }
+        if (dead) return;
+      }
       setMetas(ms);
       const g = ms.find((m) => m?.lat != null);
       const t = ms.find((m) => m?.local);

@@ -32,7 +32,7 @@ const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:$
 const NEAR_OK = 40; // м: дальше — честно говорим, насколько далеко панорама
 
 const VIA: Record<Via, (l: Loc) => string> = {
-  gps: () => 'по GPS снимка',
+  gps: (l) => (l.word === 'device' ? 'по геолокации телефона, когда снимок добавили' : 'по GPS снимка'),
   here: () => 'где вы сейчас: снимок свежий',
   address: (l) => `по адресу на табличке «${l.word ?? ''}»`,
   map: () => 'отмечено на карте',
@@ -102,7 +102,7 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       const dayPlace = src.rec?.place ?? null;
       let L: Loc;
       if (src.meta?.lat != null && src.meta.lon != null) {
-        L = { lat: src.meta.lat, lon: src.meta.lon, name: `${src.meta.lat.toFixed(4)}, ${src.meta.lon.toFixed(4)}`, via: 'gps', precise: true };
+        L = { lat: src.meta.lat, lon: src.meta.lon, name: `${src.meta.lat.toFixed(4)}, ${src.meta.lon.toFixed(4)}`, via: 'gps', precise: true, word: src.meta.geo };
         nameAt(L.lat, L.lon).then((p) => !dead && setLoc((o) => (o && o.via === 'gps' && /^\d/.test(o.name) ? { ...o, name: [p.name, p.country].filter(Boolean).join(', ') } : o)));
       } else {
         setStep('ищу, где это снято');
