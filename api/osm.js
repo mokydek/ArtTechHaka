@@ -25,9 +25,11 @@ way["natural"~"^(wood|water|scrub|grassland|beach|sand)$"](around:${r},${la},${l
 way["waterway"="riverbank"](around:${r},${la},${lo});
 node["natural"="tree"](around:${r},${la},${lo});
 );out geom 4000;`;
+  const log = [];
   for (const host of HOSTS) {
+    const t0 = Date.now();
     const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 12000);
+    const t = setTimeout(() => ctl.abort(), 9000);
     try {
       const rr = await fetch(host, {
         method: 'POST',
@@ -35,17 +37,20 @@ node["natural"="tree"](around:${r},${la},${lo});
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Imprint-diary/1.0 (hackathon project)' },
         signal: ctl.signal,
       });
-      if (!rr.ok) continue;
+      if (!rr.ok) {
+        log.push(`${host.split('/')[2]} ${rr.status} ${Date.now() - t0}ms`);
+        continue;
+      }
       const j = await rr.json();
       if (!Array.isArray(j.elements)) continue;
       res.setHeader('Cache-Control', 'public, s-maxage=604800, max-age=86400');
       res.status(200).json({ elements: j.elements });
       return;
-    } catch {
-      /* следующий сервер */
+    } catch (e) {
+      log.push(`${host.split('/')[2]} ${String(e).slice(0, 60)} ${Date.now() - t0}ms`);
     } finally {
       clearTimeout(t);
     }
   }
-  res.status(502).json({ error: 'overpass unavailable' });
+  res.status(502).json({ error: 'overpass unavailable', log });
 }
