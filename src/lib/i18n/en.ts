@@ -457,7 +457,7 @@ export const EN: Record<string, string> = {
   'архив погоды': 'weather archive', 'взгляд:': 'view:', 'время не указано': 'time not specified', 'время по записи': 'time from the entry',
   'время по солнцу на фото': 'time from the sun in the photo', 'время снимка': 'time of the shot', 'время суток': 'time of day', 'выбрать фото': 'choose a photo',
   'город или место': 'city or place', 'готовлю…': 'preparing…', 'изменить место': 'change place', 'ищу, где стояло солнце': 'finding where the sun was',
-  'солнце за горизонтом': 'sun below the horizon', 'м/с,': 'm/s,', 'звук вкл': 'sound on', 'звук выкл': 'sound off',
+  'солнце за горизонтом': 'sun below the horizon', 'дома и улицы вокруг': 'buildings and streets around', 'ищу улицы вокруг': 'finding the streets around', 'м/с,': 'm/s,', 'звук вкл': 'sound on', 'звук выкл': 'sound off',
   'как на фото': 'as in the photo', 'компас снимка': 'photo compass', 'м/с': 'm/s', 'место из записи': 'place from the entry', 'место не указано': 'place not specified',
   'направление угадано': 'direction guessed', 'открываю фото': 'opening the photo', 'по солнцу на фото': 'from the sun in the photo', 'погода из записи': 'weather from the entry',
   'погода того часа неизвестна': "that hour's weather is unknown", 'поднимаю архив погоды того дня': "pulling up that day's weather archive",

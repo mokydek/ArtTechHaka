@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { RGB, SceneTags } from './tags';
+import type { OsmWorld } from './osm';
 
 /**
  * Условное продолжение за рамкой снимка: земля, дорога, деревья, дома, фонари, холмы на горизонте.
@@ -11,6 +12,7 @@ import type { RGB, SceneTags } from './tags';
 export interface Land {
   group: THREE.Group;
   colliders: { x0: number; x1: number; z0: number; z1: number }[];
+  solid?: (x: number, z: number) => boolean;
   height: (x: number, z: number) => number;
   setNight: (n: number) => void;
   radius: number;
@@ -75,15 +77,16 @@ function paint(geo: THREE.BufferGeometry, f: (n: THREE.Vector3, p: THREE.Vector3
   return g;
 }
 
-export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number }): Land {
+export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf: number; osm?: OsmWorld | null }): Land {
   const R = rng(o.seed);
   const nz = noise2(o.seed % 997);
   const group = new THREE.Group();
   const colliders: Land['colliders'] = [];
   const C = t.colors;
   const snow: RGB = [0.9, 0.92, 0.96];
-  const road = t.road;
-  const city = t.kind === 'city';
+  const osm = o.osm && t.kind !== 'indoor' ? o.osm : null;
+  const road = osm ? null : t.road;
+  const city = t.kind === 'city' || !!osm;
   const park = t.kind === 'park';
   const RAD = 760;
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
@@ -109,7 +112,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     x.anisotropy = 8;
     return x;
   };
-  const groundTex = o.snowy && t.ground !== 'snow' ? null : tex(t.tex.ground);
+  const groundTex = osm || (o.snowy && t.ground !== 'snow') ? null : tex(t.tex.ground);
   const leafTex = tex(t.tex.leaf);
 
   // ---------- земля ----------
@@ -121,7 +124,8 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
       uvs: number[] = [],
       idx: number[] = [];
     // с текстурой из снимка цвет уже в ней — вершинам остаётся только лёгкая пятнистость
-    const base: RGB = groundTex ? [1, 1, 1] : o.snowy ? mix(C.ground, snow, t.ground === 'snow' ? 0.15 : 0.75) : C.ground;
+    const paving = mix(C.road, [0.62, 0.61, 0.58], 0.55);
+    const base: RGB = groundTex ? [1, 1, 1] : o.snowy ? mix(C.ground, snow, t.ground === 'snow' ? 0.15 : 0.75) : osm ? paving : C.ground;
     for (let i = 0; i <= rings; i++) {
       const r = i === 0 ? 0 : 1.5 * Math.pow(RAD / 1.5, (i - 1) / (rings - 1));
       for (let j = 0; j < segs; j++) {
@@ -201,9 +205,151 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     group.add(m);
   }
 
+  // ---------- настоящее место (OpenStreetMap) ----------
+  const solidPolys: { pts: [number, number][]; x0: number; x1: number; z0: number; z1: number }[] = [];
+  const osmTrees: [number, number][] = [];
+  const osmLamps: number[] = [];
+  if (osm) {
+    const shapeGeo = (pts: [number, number][], y: number) => {
+      const sh = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z)));
+      const g = new THREE.ShapeGeometry(sh);
+      g.rotateX(-Math.PI / 2);
+      g.translate(0, y, 0);
+      return g;
+    };
+    // газоны, лес, вода, песок
+    const ap: THREE.BufferGeometry[] = [];
+    const grassC = o.snowy ? mix(snow, C.ground, 0.1) : t.ground === 'grass' ? C.ground : mul(C.leaf, 0.95);
+    for (const a of osm.areas) {
+      const c: RGB = a.kind === 'water' ? (o.snowy ? [0.78, 0.82, 0.88] : [0.22, 0.33, 0.42]) : a.kind === 'sand' ? [0.78, 0.7, 0.52] : a.kind === 'wood' ? mul(grassC, 0.82) : grassC;
+      try {
+        ap.push(paint(shapeGeo(a.pts, a.kind === 'water' ? 0.03 : 0.02), () => c));
+      } catch {
+        /* кривой полигон — пропускаем */
+      }
+      // деревья в лесу и парке
+      let x0 = Infinity,
+        x1 = -Infinity,
+        z0 = Infinity,
+        z1 = -Infinity;
+      for (const [x, z] of a.pts) {
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x);
+        z0 = Math.min(z0, z);
+        z1 = Math.max(z1, z);
+      }
+      if (a.kind === 'water' || a.kind === 'sand') continue;
+      const per = a.kind === 'wood' ? 45 : 260;
+      const n = Math.min(300, Math.round(((x1 - x0) * (z1 - z0)) / per));
+      for (let k = 0; k < n; k++) {
+        const x = x0 + R() * (x1 - x0),
+          z = z0 + R() * (z1 - z0);
+        if (inPoly(x, z, a.pts)) osmTrees.push([x, z]);
+      }
+    }
+    if (ap.length) group.add(new THREE.Mesh(mergeGeometries(ap), matSmooth));
+    // улицы и дорожки
+    const rp: THREE.BufferGeometry[] = [];
+    const asphalt = o.snowy ? mix(C.road, [0.72, 0.74, 0.78], 0.4) : C.road;
+    const path = o.snowy ? mix(snow, C.road, 0.25) : mix(C.road, [0.7, 0.66, 0.6], 0.45);
+    for (const r of osm.roads) {
+      const c = r.kind === 'path' ? path : asphalt;
+      const y = r.kind === 'major' ? 0.05 : r.kind === 'minor' ? 0.045 : 0.04;
+      const pos: number[] = [];
+      for (let i = 0; i < r.pts.length - 1; i++) {
+        const [ax, az] = r.pts[i],
+          [bx, bz] = r.pts[i + 1];
+        const L = Math.hypot(bx - ax, bz - az) || 1;
+        const nx = (-(bz - az) / L) * (r.w / 2),
+          nz2 = ((bx - ax) / L) * (r.w / 2);
+        // продлеваем на полширины — стыки без щелей
+        const ex = ((bx - ax) / L) * (r.w / 2),
+          ez = ((bz - az) / L) * (r.w / 2);
+        const A = [ax - ex + nx, az - ez + nz2],
+          B = [ax - ex - nx, az - ez - nz2],
+          Cc = [bx + ex + nx, bz + ez + nz2],
+          D = [bx + ex - nx, bz + ez - nz2];
+        pos.push(A[0], y, A[1], Cc[0], y, Cc[1], B[0], y, B[1], B[0], y, B[1], Cc[0], y, Cc[1], D[0], y, D[1]);
+        // фонари вдоль улиц
+        if (r.kind !== 'path')
+          for (let s2 = 12; s2 < L; s2 += 32) {
+            const x = ax + ((bx - ax) * s2) / L + nx * 1.25,
+              z = az + ((bz - az) * s2) / L + nz2 * 1.25;
+            if (Math.hypot(x, z) > 8 && osmLamps.length < 240 * 3) osmLamps.push(x, z, Math.atan2(-nx, -nz2));
+          }
+      }
+      if (!pos.length) continue;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      const nrm = g.getAttribute('normal');
+      for (let i = 0; i < nrm.count; i++) if (nrm.getY(i) < 0) nrm.setXYZ(i, 0, 1, 0);
+      rp.push(paint(g, () => c));
+    }
+    if (rp.length) group.add(new THREE.Mesh(mergeGeometries(rp), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
+    // дома по контурам, высота — из карты (этажи) или по типу
+    const bp: THREE.BufferGeometry[] = [];
+    for (const b of osm.buildings) {
+      let x0 = Infinity,
+        x1 = -Infinity,
+        z0 = Infinity,
+        z1 = -Infinity;
+      for (const [x, z] of b.pts) {
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x);
+        z0 = Math.min(z0, z);
+        z1 = Math.max(z1, z);
+      }
+      if (x1 - x0 > 400 || z1 - z0 > 400) continue;
+      let g: THREE.BufferGeometry;
+      try {
+        g = new THREE.ExtrudeGeometry(new THREE.Shape(b.pts.map(([x, z]) => new THREE.Vector2(x, -z))), { depth: b.h, bevelEnabled: false });
+      } catch {
+        continue;
+      }
+      g.rotateX(-Math.PI / 2);
+      g.computeVertexNormals();
+      // окна: UV в метрах этажа
+      const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+      const nor = g.getAttribute('normal');
+      for (let i = 0; i < uv.count; i++) {
+        if (Math.abs(nor.getY(i)) > 0.5) uv.setXY(i, 0.02, 0.02);
+        else uv.setXY(i, uv.getX(i) / 3.4, uv.getY(i) / 3.1);
+      }
+      const tone = 0.88 + R() * 0.24;
+      const pick = R();
+      let base: RGB = pick < 0.35 ? C.wall : pick < 0.6 ? [0.58, 0.36, 0.27] : pick < 0.82 ? [0.8, 0.74, 0.62] : [0.7, 0.7, 0.68];
+      if (b.color) {
+        const cc = new THREE.Color();
+        try {
+          cc.setStyle(b.color);
+          base = [cc.r, cc.g, cc.b];
+        } catch {
+          /* неизвестный цвет */
+        }
+      }
+      const wall = mul(mix(base, C.wall, 0.25), tone);
+      const roof: RGB = o.snowy ? snow : mul(wall, 0.55);
+      bp.push(paint(g, (n) => (n.y > 0.5 ? roof : wall), true));
+      solidPolys.push({ pts: b.pts, x0: x0 - 0.5, x1: x1 + 0.5, z0: z0 - 0.5, z1: z1 + 0.5 });
+    }
+    if (bp.length) {
+      const { map, glow: gm } = facade(R);
+      const bmat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, map, emissiveMap: gm, emissive: new THREE.Color(1, 0.78, 0.48), emissiveIntensity: 0 });
+      const m = new THREE.Mesh(mergeGeometries(bp), bmat);
+      m.userData.night = (n: number) => (bmat.emissiveIntensity = n * 0.9);
+      group.add(m);
+    }
+    for (const tr of osm.trees) osmTrees.push(tr);
+  }
+  const solid = (x: number, z: number) => {
+    for (const p of solidPolys) if (x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1 && (inPoly(x, z, p.pts) || inPoly(x + 0.4, z, p.pts) || inPoly(x - 0.4, z, p.pts) || inPoly(x, z + 0.4, p.pts) || inPoly(x, z - 0.4, p.pts))) return true;
+    return false;
+  };
+
   // ---------- дома ----------
   const houses: { x: number; z: number; w: number; d: number }[] = [];
-  if (city || park) {
+  if ((city || park) && !osm) {
     const parts: THREE.BufferGeometry[] = [];
     const add = (x: number, z: number, w: number, d: number, h: number) => {
       // ближе 10 м от точки съёмки домов нет (считаем до ближайшей стены, а не до центра)
@@ -264,12 +410,12 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
       group.add(m);
     }
   }
-  const inHouse = (x: number, z: number, pad: number) => houses.some((q) => Math.abs(q.x - x) < q.w / 2 + pad && Math.abs(q.z - z) < q.d / 2 + pad);
+  const inHouse = (x: number, z: number, pad: number) => houses.some((q) => Math.abs(q.x - x) < q.w / 2 + pad && Math.abs(q.z - z) < q.d / 2 + pad) || solid(x, z);
 
   // ---------- деревья ----------
   {
     const veg = Math.max(t.veg, park ? 0.12 : 0.04);
-    const total = Math.round(t.kind === 'nature' ? (veg > 0.25 ? 1500 : veg > 0.1 ? 700 : 160) : city ? 160 : 520);
+    const total = osm ? 0 : Math.round(t.kind === 'nature' ? (veg > 0.25 ? 1500 : veg > 0.1 ? 700 : 160) : city ? 160 : 520);
     const leaf = o.snowy && !t.conifer ? mix(C.leaf, [0.42, 0.38, 0.34], 0.7) : C.leaf;
     const coniferShare = t.conifer ? 0.75 : o.snowy ? 0.45 : 0.15;
     const items: { x: number; z: number; s: number; c: number; kind: 0 | 1 }[] = [];
@@ -296,6 +442,10 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
       if (z < 0 && Math.abs(Math.atan2(x, -z)) < o.hHalf + 0.06 && r < 18) continue;
       if (inHouse(x, z, 2)) continue;
       items.push({ x, z, s: 0.75 + R() * (t.kind === 'nature' ? 1.3 : 0.7), c: R(), kind: R() < coniferShare ? 1 : 0 });
+    }
+    for (const [x, z] of osmTrees.slice(0, 1600)) {
+      if (Math.hypot(x, z) < 3.5 || solid(x, z)) continue;
+      items.push({ x, z, s: 0.8 + R() * 0.9, c: R(), kind: R() < coniferShare ? 1 : 0 });
     }
     // листва — из куска самого снимка (если зелень на фото есть), ствол — цветом коры
     const texLeaf = o.snowy && !t.conifer ? null : leafTex;
@@ -346,6 +496,24 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
         poles.push(paint(p, () => metal), paint(arm, () => metal), paint(head, () => [0.9, 0.86, 0.72]));
         glowPts.push(x - side * 1.2, 4.92 + height(x, z), z);
       }
+    if (poles.length) group.add(new THREE.Mesh(mergeGeometries(poles), mat));
+  } else if (osm && osmLamps.length) {
+    const poles: THREE.BufferGeometry[] = [];
+    const metal: RGB = [0.16, 0.17, 0.19];
+    for (let i = 0; i < osmLamps.length; i += 3) {
+      const x = osmLamps[i],
+        z = osmLamps[i + 1],
+        a = osmLamps[i + 2];
+      if (solid(x, z)) continue;
+      const p = new THREE.CylinderGeometry(0.07, 0.1, 5.2, 6);
+      p.translate(x, 2.6, z);
+      const hx = x + Math.sin(a) * 1.1,
+        hz = z + Math.cos(a) * 1.1;
+      const head = new THREE.BoxGeometry(0.4, 0.12, 0.4);
+      head.translate(hx, 5.0, hz);
+      poles.push(paint(p, () => metal), paint(head, () => [0.9, 0.86, 0.72]));
+      glowPts.push(hx, 4.92, hz);
+    }
     if (poles.length) group.add(new THREE.Mesh(mergeGeometries(poles), mat));
   } else if (park) {
     for (let k = 0; k < 16; k++) {
@@ -451,7 +619,7 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     group.traverse((o2) => o2.userData.night?.(n));
     if (glow) (glow.material as THREE.ShaderMaterial).uniforms.uOn.value = n;
   };
-  return { group, colliders, height, setNight, radius: 300 };
+  return { group, colliders, solid, height, setNight, radius: osm ? 250 : 300 };
 }
 
 /** ель (1) или лиственное дерево (0), высота ~5 м при масштабе 1: ствол и крона отдельно */
@@ -630,4 +798,14 @@ function room(t: SceneTags, o: { seed: number }, R: () => number): Land {
     (lamp.material as THREE.MeshBasicMaterial).color.setRGB(0.7 + n * 0.3, 0.66 + n * 0.3, 0.6 + n * 0.25);
   };
   return { group, colliders, height: () => 0, setNight, radius: Math.max(W, D) / 2 };
+}
+
+function inPoly(x: number, y: number, poly: [number, number][]) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i],
+      [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
 }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SceneLayers } from './depth';
 import type { HourWeather, ShotContext, SkyState } from './context';
 import { buildLand, type Land } from './land';
+import type { OsmWorld } from './osm';
 import { readScene, type RGB, type SceneTags } from './tags';
 
 /**
@@ -12,6 +13,7 @@ import { readScene, type RGB, type SceneTags } from './tags';
  */
 
 export interface MomentOpts {
+  osm?: OsmWorld | null; // настоящие дома и улицы вокруг, если место известно
   layers: SceneLayers;
   ctx: ShotContext;
   weather: HourWeather | null;
@@ -350,6 +352,9 @@ export class Moment {
   private container: HTMLElement;
   private o: MomentOpts;
   readonly tags: SceneTags;
+  /** мир собран по OpenStreetMap */
+  osm = false;
+  private heading: number;
   readonly info: { scale: number; pitch0: number };
   onThunder?: () => void;
 
@@ -363,6 +368,7 @@ export class Moment {
     this.renderer.autoClear = false;
     container.appendChild(this.renderer.domElement);
     this.photoSky = o.sky;
+    this.heading = o.ctx.heading;
     const L = o.layers;
     this.tanV = Math.tan(((o.ctx.fovV / 2) * Math.PI) / 180);
     this.tanH = this.tanV * (o.photo.width / o.photo.height);
@@ -418,7 +424,11 @@ export class Moment {
     // ---- мир вокруг: продолжение за рамкой ----
     let seed = 7;
     for (const ch of o.ctx.local + o.ctx.place) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
-    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH) });
+    // настоящее место — если координаты точные (GPS) или снимок городской; природу дорисовываем сами
+    const useOsm = !!o.osm && this.tags.kind !== 'indoor' && (o.ctx.source.place === 'gps' || this.tags.kind === 'city' || this.tags.kind === 'park');
+    this.osm = useOsm;
+    if (useOsm) this.heading = o.osm!.heading;
+    this.land = buildLand(this.tags, { seed, snowy: this.tags.ground === 'snow', hHalf: Math.atan(this.tanH), osm: useOsm ? o.osm : null });
     this.world.add(this.land.group);
     this.domeU = {
       uTop: { value: new THREE.Color() },
@@ -610,7 +620,7 @@ export class Moment {
     this.fog.color.copy(fogC);
     (this.domeU.uBelow.value as THREE.Color).copy(fogC);
     this.domeU.uNight.value = night;
-    const rel = ((s.sunAz - this.o.ctx.heading) * Math.PI) / 180,
+    const rel = ((s.sunAz - this.heading) * Math.PI) / 180,
       alt = (s.sunAlt * Math.PI) / 180;
     const dir = new THREE.Vector3(Math.sin(rel) * Math.cos(alt), Math.sin(alt), -Math.cos(rel) * Math.cos(alt));
     (this.domeU.uSunDir.value as THREE.Vector3).copy(dir);
@@ -750,7 +760,7 @@ export class Moment {
   }
   /** ветер «откуда дует» → куда сносит, в осях мира (вперёд — направление съёмки) */
   private windVec() {
-    const rel = ((this.wind.dir + 180 - this.o.ctx.heading) * Math.PI) / 180;
+    const rel = ((this.wind.dir + 180 - this.heading) * Math.PI) / 180;
     const s = clamp(this.wind.speed, 0, 12);
     return { x: Math.sin(rel) * s, z: -Math.cos(rel) * s };
   }
@@ -758,7 +768,7 @@ export class Moment {
   private blocked(x: number, z: number) {
     if (Math.hypot(x, z) > this.land.radius) return true;
     for (const c of this.land.colliders) if (x > c.x0 && x < c.x1 && z > c.z0 && z < c.z1) return true;
-    return false;
+    return !!this.land.solid?.(x, z);
   }
 
   private loop = () => {

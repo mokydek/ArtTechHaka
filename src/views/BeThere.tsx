@@ -68,6 +68,8 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
   });
   const holder = useRef<HTMLDivElement>(null);
   const world = useRef<Moment | null>(null);
+  const osmRef = useRef<import('../lib/scene/osm').OsmWorld | null>(null);
+  const [osmUsed, setOsmUsed] = useState(false);
   const audio = useRef<PlaceSound | null>(null);
   const lastHour = useRef(-1);
   const back = dayId ? `#/day/${dayId}` : '#/';
@@ -113,6 +115,8 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
         if (dead) return;
         let c = shotContext(src.rec, src.meta, src.bmp.width / src.bmp.height, src.rec?.place);
         setStep('поднимаю архив погоды того дня');
+        // если место известно — заодно дома и улицы вокруг из OpenStreetMap
+        const osmP = c.source.place !== 'default' ? import('../lib/scene/osm').then((m) => m.fetchOsm(c.lat, c.lon)).catch(() => null) : Promise.resolve(null);
         const h = await Promise.race([dayHours(c.lat, c.lon, c.local.slice(0, 10)), new Promise<null>((r) => setTimeout(() => r(null), 9000))]).catch(() => null);
         if (dead) return;
         // солнце в кадре: по нему — направление камеры и, если время неизвестно, минута
@@ -122,6 +126,13 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
           const lonOff = Math.round(c.lon / 15) * 3600;
           const utcOf = (local: string) => toUtc(local, ho ?? (src.meta?.offset ? undefined : lonOff), src.meta?.offset);
           c = fromSun(c, L.sun, L.horizon, src.bmp.width / src.bmp.height, utcOf, src.rec?.analysis.text.timeOfDay ?? undefined);
+        }
+        setStep('ищу улицы вокруг');
+        const els = await osmP;
+        if (dead) return;
+        if (els) {
+          const { localize } = await import('../lib/scene/osm');
+          osmRef.current = localize(els, c.lat, c.lon, c.heading, c.source.heading !== 'guess');
         }
         setHours(h);
         setLayers(L);
@@ -169,7 +180,8 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
       if (dead || !holder.current) return;
       const photoMin = +ctx.local.slice(11, 13) * 60 + +ctx.local.slice(14, 16);
       const sky = skyFor(photoMin)!;
-      const w = new Moment(holder.current, { layers, ctx, weather: weatherFor(ctx.hour, sky), sky, photo: src.bmp });
+      const w = new Moment(holder.current, { layers, ctx, weather: weatherFor(ctx.hour, sky), sky, photo: src.bmp, osm: osmRef.current });
+      setOsmUsed(w.osm);
       lastHour.current = ctx.hour;
       world.current = w;
       (window as unknown as { __ottiskWorld: Moment }).__ottiskWorld = w;
@@ -400,6 +412,11 @@ export default function BeThere({ dayId, idx }: { dayId?: string; idx?: number }
                   )}
                   <small>{hours ? 'архив погоды' : weather ? 'погода из записи' : ''}</small>
                 </div>
+                {osmUsed && (
+                  <div>
+                    дома и улицы вокруг <small>© OpenStreetMap</small>
+                  </div>
+                )}
                 <div>
                   {sky.sunAlt > 0 ? `солнце ${Math.round(sky.sunAlt)}° над горизонтом, ${rumb(sky.sunAz)}` : `солнце за горизонтом`} · луна {Math.round(sky.moonFrac * 100)}%
                 </div>
