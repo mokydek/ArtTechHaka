@@ -478,6 +478,44 @@ export function buildLand(t: SceneTags, o: { seed: number; snowy: boolean; hHalf
     }
   }
 
+  // ---------- заросли из самого снимка (поле, кусты, высокая трава) ----------
+  if (t.tex.plants.length && !osm && !o.snowy) {
+    const card = new THREE.PlaneGeometry(1, 1);
+    card.translate(0, 0.5, 0);
+    const cross = mergeGeometries([card.clone(), card.clone().rotateY(Math.PI / 2)]);
+    const m4 = new THREE.Matrix4(),
+      q = new THREE.Quaternion(),
+      e = new THREE.Euler();
+    const col = new THREE.Color();
+    const per = Math.round(1800 / t.tex.plants.length);
+    for (const cv of t.tex.plants) {
+      const map = tex(cv)!;
+      map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
+      const pm = new THREE.MeshLambertMaterial({ map, alphaTest: 0.45, side: THREE.DoubleSide });
+      const im = new THREE.InstancedMesh(cross, pm, per);
+      let n = 0;
+      for (let k = 0; k < per * 3 && n < per; k++) {
+        const a = R() * Math.PI * 2,
+          r = 2.5 + Math.pow(R(), 0.75) * 90;
+        const x = Math.sin(a) * r,
+          z = -Math.cos(a) * r;
+        if (road && Math.abs(x - road.x) < road.width / 2 + 1) continue;
+        if (z < 0 && Math.abs(Math.atan2(x, -z)) < o.hHalf + 0.04 && r < 9) continue;
+        const sz = 1.1 + R() * 0.9;
+        e.set(0, R() * Math.PI, 0);
+        q.setFromEuler(e);
+        m4.compose(new THREE.Vector3(x, height(x, z) - 0.05, z), q, new THREE.Vector3(sz * 1.3, sz, sz * 1.3));
+        im.setMatrixAt(n, m4);
+        const kk = 0.85 + R() * 0.25;
+        im.setColorAt(n, col.setRGB(kk, kk, kk));
+        n++;
+      }
+      im.count = n;
+      im.instanceMatrix.needsUpdate = true;
+      group.add(im);
+    }
+  }
+
   // ---------- фонари ----------
   const glowPts: number[] = [];
   if ((city || park) && road) {

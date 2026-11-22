@@ -10,7 +10,7 @@ type Pic = CanvasImageSource & { width: number; height: number };
 
 export interface SceneTags {
   kind: 'nature' | 'city' | 'park' | 'indoor';
-  tex: { ground: HTMLCanvasElement | null; leaf: HTMLCanvasElement | null }; // куски самого снимка для земли и листвы
+  tex: { ground: HTMLCanvasElement | null; leaf: HTMLCanvasElement | null; plants: HTMLCanvasElement[] }; // куски самого снимка: земля, листва, кусты и цветы
   ground: 'grass' | 'asphalt' | 'snow' | 'sand' | 'soil';
   road: { x: number; width: number } | null; // смещение центра дороги вбок (м) и ширина
   veg: number; // доля зелени в кадре
@@ -279,9 +279,30 @@ export function readScene(L: SceneLayers, photo: Pic, opts: { month: number; sou
   // листва деревьев — зелёная и выше горизонта (не цветы и не трава под ногами)
   const green = (i: number) => px[i * 4 + 1] >= px[i * 4] && cls(i) === 'veg';
   const texLeaf = leafN > gw * gh * 0.04 ? swatch(photo, gw, gh, (i) => !skyX[i] && !isFg(i) && green(i), 0, Math.min(gh, hy + Math.round(gh * 0.08)), 0.12) : null;
+  // заросли под ногами (поле подсолнухов, высокая трава, кусты) — вырезаем куски и потом рассаживаем вокруг
+  const plants: HTMLCanvasElement[] = [];
+  if (kind !== 'indoor' && cnt.veg / Math.max(1, nG) > 0.35) {
+    const used: [number, number][] = [];
+    const ws = Math.round(gw * 0.16);
+    for (let k = 0; k < 4; k++) {
+      let best = -1,
+        bx = 0,
+        by = 0;
+      for (let y = Math.max(hy, Math.round(gh * 0.45)); y + ws <= gh; y += 3)
+        for (let x = 0; x + ws <= gw; x += 3) {
+          if (used.some(([ux, uy]) => Math.abs(ux - x) < ws && Math.abs(uy - y) < ws)) continue;
+          let v = 0;
+          for (let yy = y; yy < y + ws; yy += 2) for (let xx = x; xx < x + ws; xx += 2) if (!skyX[yy * gw + xx] && !isFg(yy * gw + xx) && cls(yy * gw + xx) === 'veg') v++;
+          if (v > best) (best = v), (bx = x), (by = y);
+        }
+      if (best < (ws * ws) / 4 * 0.45) break;
+      used.push([bx, by]);
+      plants.push(clump(photo, (bx / gw) * photo.width, (by / gh) * photo.height, (ws / gw) * photo.width, (ws / gh) * photo.height, k));
+    }
+  }
   return {
     kind,
-    tex: { ground: kind === 'indoor' ? null : texGround, leaf: texLeaf },
+    tex: { ground: kind === 'indoor' ? null : texGround, leaf: texLeaf, plants },
     ground,
     road: kind === 'indoor' ? null : road,
     veg: vegShare,
@@ -346,5 +367,45 @@ function swatch(photo: Pic, gw: number, gh: number, hit: (i: number) => boolean,
     g.drawImage(photo, sx, sy, sw, sh, 0, 0, 256, 256);
     g.restore();
   }
+  return c;
+}
+
+/** куст из куска снимка: снизу плотный, сверху — рваный край по зелени, бока растворяются */
+function clump(photo: Pic, sx: number, sy: number, sw: number, sh: number, seed: number): HTMLCanvasElement {
+  const S = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(photo, sx, sy, sw, sh, 0, 0, S, S);
+  const im = g.getImageData(0, 0, S, S);
+  const d = im.data;
+  const h = (x: number) => {
+    const v = Math.sin(x * 12.9898 + seed * 78.233) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  // верхний край — ломаная «макушек»
+  const top: number[] = [];
+  for (let x = 0; x < S; x++) {
+    const k = Math.floor(x / 16);
+    const a = h(k),
+      b = h(k + 1),
+      t = (x % 16) / 16;
+    top.push(S * (0.08 + 0.3 * (a + (b - a) * t * t * (3 - 2 * t))));
+  }
+  for (let y = 0; y < S; y++)
+    for (let x = 0; x < S; x++) {
+      const i = (y * S + x) * 4;
+      const r = d[i] / 255,
+        gg = d[i + 1] / 255,
+        b = d[i + 2] / 255;
+      const mx = Math.max(r, gg, b),
+        sat = mx ? (mx - Math.min(r, gg, b)) / mx : 0;
+      const plant = (gg >= r * 0.9 && gg > b && sat > 0.12) || (r > gg && gg > b * 1.2 && sat > 0.35);
+      const side = Math.min(1, Math.min(x, S - 1 - x) / (S * 0.18));
+      const above = y < top[x] ? 0 : Math.min(1, (y - top[x]) / 10);
+      const a = (plant ? 1 : y > S * 0.75 ? 0.85 : 0.25) * side * above;
+      d[i + 3] = Math.round(255 * a);
+    }
+  g.putImageData(im, 0, 0);
   return c;
 }
