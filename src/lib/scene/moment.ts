@@ -220,38 +220,9 @@ function masks(L: SceneLayers, photo: Pic): Masks {
 }
 
 /**
- * Задний слой: у резких краёв глубина берётся у того, что дальше. Сдвинешься — в просвете за краем
- * листа или плеча окажется дальний план, а не резиновая плёнка. Цвет тот же, что на снимке,
- * поэтому из точки съёмки просветов не видно вовсе.
- */
-function dilateFar(d: Float32Array, sky: Uint8Array, gw: number, gh: number) {
-  const o = Float32Array.from(d);
-  const R = 3;
-  for (let y = 0; y < gh; y++)
-    for (let x = 0; x < gw; x++) {
-      const i = y * gw + x;
-      if (sky[i]) {
-        o[i] = SKY * 1.02;
-        continue;
-      }
-      let hi = d[i];
-      for (let dy = -R; dy <= R; dy++)
-        for (let dx = -R; dx <= R; dx++) {
-          const xx = x + dx,
-            yy = y + dy;
-          if (xx < 0 || yy < 0 || xx >= gw || yy >= gh) continue;
-          const j = yy * gw + xx;
-          if (!sky[j] && d[j] > hi) hi = d[j];
-        }
-      o[i] = Math.max(hi, d[i]) * 1.012;
-    }
-  return o;
-}
-
-/**
  * Кромка неба у силуэта (2 клетки) стоит на глубине силуэта и двигается вместе с ним.
  * Она того же цвета, что и небо за ней, — поэтому край дома или дерева остаётся цельным, без ступенек,
- * а разрыв уходит в само небо, где задник совпадает с ним.
+ * а растяжка уходит в само небо, где однотонный цвет тянется незаметно.
  */
 function haloSky(d: Float32Array, sky: Uint8Array, gw: number, gh: number) {
   const o = Float32Array.from(d);
@@ -336,11 +307,9 @@ export class Moment {
     const { gw, gh } = L;
     const dist = (depth: Float32Array, sky: Uint8Array, push: number) => Float32Array.from(depth, (d, i) => this.dist(d, !!sky[i]) * push);
     const front = haloSky(dist(L.depthRaw, this.m.sky, 1), this.m.sky, gw, gh);
-    const photo = this.texture(toCanvas(o.photo, 2048));
-    // 1) задний слой — тот же снимок, у краёв отодвинут вдаль; заполняет просветы
-    this.scene.add(this.layer({ gw, gh, dist: dilateFar(dist(L.depthRaw, this.m.sky, 1), this.m.sky, gw, gh), sky: this.m.sky, veg: this.m.veg, map: photo, order: -1 }));
-    // 2) сам снимок: грани на разрывах глубины выброшены, под ними — задний слой
-    this.scene.add(this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: photo, order: 0, cut: true }));
+    // кадр — одна сетка на лучах от точки съёмки: из неё видно ровно фото, а при сдвиге края
+    // мягко тянутся (на размытом фоне это незаметно), без ступенек и чужих пятен
+    this.scene.add(this.layer({ gw, gh, dist: front, sky: this.m.sky, veg: this.m.veg, map: this.texture(toCanvas(o.photo, 2048)), order: 0 }));
     this.setWeather(o.weather);
     this.setSky(o.sky);
     this.ro = new ResizeObserver(() => this.resize());
@@ -368,7 +337,7 @@ export class Moment {
   }
 
   /** Слой кадра: каждая точка стоит на своём луче от точки съёмки, поэтому оттуда видно ровно фото */
-  private layer(o: { gw: number; gh: number; dist: Float32Array; sky: Uint8Array; veg: Float32Array; map: THREE.Texture; order: number; cut?: boolean; alpha?: boolean }) {
+  private layer(o: { gw: number; gh: number; dist: Float32Array; sky: Uint8Array; veg: Float32Array; map: THREE.Texture; order: number }) {
     const { gw, gh, dist, sky, veg } = o;
     const n = gw * gh;
     const pos = new Float32Array(n * 3);
@@ -392,13 +361,10 @@ export class Moment {
         uv[i * 2 + 1] = 1 - ve;
       }
     const idx: number[] = [];
-    // на разрыве глубины (лист перед небом, человек перед стеной) грань не тянем — там виден слой позади
-    const ok = (a: number, b: number, c: number) => !o.cut || Math.max(dist[a], dist[b], dist[c]) / Math.min(dist[a], dist[b], dist[c]) < 1.3;
     for (let y = 0; y < gh - 1; y++)
       for (let x = 0; x < gw - 1; x++) {
         const a = y * gw + x;
-        if (ok(a, a + gw, a + 1)) idx.push(a, a + gw, a + 1);
-        if (ok(a + 1, a + gw, a + gw + 1)) idx.push(a + 1, a + gw, a + gw + 1);
+        idx.push(a, a + gw, a + 1, a + 1, a + gw, a + gw + 1);
       }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -411,7 +377,6 @@ export class Moment {
       uniforms: { ...this.uni, uMap: { value: o.map } },
       vertexShader: VERT,
       fragmentShader: FRAG,
-      transparent: !!o.alpha,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.renderOrder = o.order;
