@@ -8683,3 +8683,501 @@ a.mc-b:hover {
     }
   }
 }
+
+/* =====================================================================
+   Интро (src/components/Intro.tsx): дневник листается крупным планом,
+   камера отъезжает, дневник закрывается → «Начать» → дневник раскрывается
+   и камера ныряет в страницу.
+   ===================================================================== */
+html.in-lock,
+html.in-lock body {
+  overflow: hidden;
+}
+.intro {
+  --W: min(27vw, 330px);
+  --H: calc(var(--W) * 1.38);
+  --bx: calc(19vw - var(--W) * 0.5);
+  --by: 1vh;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  overflow: hidden;
+  perspective: 2200px;
+  background:
+    radial-gradient(60% 50% at 70% 45%, rgba(185, 168, 244, 0.18), transparent 70%),
+    radial-gradient(120% 90% at 50% 40%, #fffdf8 0%, #f6f1e8 62%, #ece4d6 100%);
+  color: var(--ink);
+}
+.in-cam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+.in-book {
+  position: absolute;
+  left: calc(var(--W) * -1);
+  top: calc(var(--H) * -0.5);
+  width: calc(var(--W) * 2);
+  height: var(--H);
+  transform-style: preserve-3d;
+}
+/* мягкая тень книги на столе */
+.in-book::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--W) * 0.92);
+  right: -4%;
+  bottom: -7%;
+  height: 12%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(36, 35, 58, 0.28), transparent);
+  transform: translateZ(-2px);
+  filter: blur(6px);
+}
+.in-back {
+  position: absolute;
+  left: var(--W);
+  top: -4px;
+  width: calc(var(--W) + 6px);
+  height: calc(var(--H) + 8px);
+  border-radius: 3px 14px 14px 3px;
+  background: #17161c;
+  transform: translateZ(-0.5px);
+}
+.in-face.in-last {
+  left: var(--W);
+  width: var(--W);
+  height: var(--H);
+  transform: translateZ(0.2px);
+}
+.in-leaf,
+.in-cover {
+  position: absolute;
+  left: var(--W);
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+}
+.in-leaf {
+  top: 0;
+  width: var(--W);
+  height: var(--H);
+  transform: rotateY(0deg) translateZ(var(--z));
+}
+.in-cover {
+  top: -4px;
+  width: calc(var(--W) + 6px);
+  height: calc(var(--H) + 8px);
+  transform: rotateY(0deg) translateZ(6.5px);
+}
+.in-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: 2px 10px 10px 2px;
+  background: #fbf8f1 url('/paper-noise.png');
+}
+.in-front::after,
+.in-backface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(36, 30, 20, 0.13), transparent 14%);
+}
+.in-backface {
+  transform: rotateY(180deg);
+  border-radius: 10px 2px 2px 10px;
+}
+.in-backface::after {
+  background: linear-gradient(270deg, rgba(36, 30, 20, 0.13), transparent 14%);
+}
+/* обложка: чёрная, резинка, бумажная наклейка; стопка страниц видна снизу справа */
+.in-cover-front {
+  border-radius: 3px 14px 14px 3px;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.06) 4%, transparent 9%),
+    radial-gradient(120% 80% at 30% 18%, #2d2c36, #17161c 72%);
+  box-shadow:
+    1px 1px 0 #2a2930,
+    3px 3px 0 #f1eadc,
+    4px 4px 0 #ddd3bf,
+    6px 6px 0 #f1eadc,
+    7px 7px 0 #1a191f,
+    18px 26px 40px -16px rgba(36, 35, 58, 0.5);
+  overflow: visible;
+}
+.in-cover-back {
+  transform: rotateY(180deg);
+  border-radius: 14px 3px 3px 14px;
+  background:
+    radial-gradient(circle, rgba(91, 75, 196, 0.22) 1.2px, transparent 1.6px) 0 0 / 14px 14px,
+    #efeafd;
+}
+.in-band {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  right: 15%;
+  width: 7px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #8f7fd6, #b9a8f4 45%, #8f7fd6);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+}
+.in-label {
+  position: absolute;
+  left: 18%;
+  right: 26%;
+  top: 22%;
+  padding: 10% 8% 9%;
+  border-radius: 6px;
+  background: #fffdf8 url('/paper-noise.png');
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  rotate: -1.5deg;
+}
+.in-label b {
+  display: block;
+  font: 600 calc(var(--W) * 0.12) / 1 var(--serif);
+  color: var(--ink);
+}
+.in-label small {
+  display: block;
+  margin-top: 6%;
+  font: 400 calc(var(--W) * 0.05) / 1.2 var(--hand);
+  color: var(--ink-2);
+}
+.in-ribbon {
+  position: absolute;
+  left: calc(var(--W) * 1.62);
+  bottom: calc(var(--H) * -0.11);
+  width: calc(var(--W) * 0.045);
+  height: calc(var(--H) * 0.16);
+  background: linear-gradient(90deg, #f49b83, #f7b59f);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+  transform: translateZ(3px);
+}
+/* страницы, которые пролистываются */
+.in-pg {
+  position: absolute;
+  inset: 7% 9% 7% 11%;
+}
+.in-pg-lines {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--H) * 0.035);
+  padding-top: 4%;
+  font: 400 calc(var(--W) * 0.072) / 1.15 var(--hand);
+  color: #4a4766;
+  background: repeating-linear-gradient(180deg, transparent 0 calc(var(--H) * 0.078 - 1px), rgba(91, 75, 196, 0.16) calc(var(--H) * 0.078 - 1px) calc(var(--H) * 0.078));
+}
+.in-pg-lines b {
+  font-size: calc(var(--W) * 0.09);
+  font-weight: 600;
+  color: var(--accent);
+}
+.in-pola {
+  position: absolute;
+  width: 52%;
+  padding: 5% 5% 4%;
+  background: #fff;
+  box-shadow: 0 6px 14px -6px rgba(36, 35, 58, 0.45);
+}
+.in-pola-big {
+  width: 70%;
+}
+.in-pola i {
+  display: block;
+  aspect-ratio: 1;
+}
+.in-pola small {
+  display: block;
+  padding-top: 6%;
+  font: 400 calc(var(--W) * 0.05) / 1.1 var(--hand);
+  color: #4a4766;
+  text-align: center;
+}
+.in-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5%;
+  align-content: center;
+}
+.in-grid i {
+  display: block;
+  aspect-ratio: 0.82;
+  border-radius: 3px;
+}
+.in-tape {
+  position: absolute;
+  width: 26%;
+  height: 6%;
+  background: rgba(185, 168, 244, 0.6);
+  rotate: 6deg;
+}
+.in-heart {
+  width: 28%;
+  fill: #f49b83;
+  margin-bottom: 4%;
+}
+.in-star {
+  position: absolute;
+  right: 12%;
+  bottom: 14%;
+  width: 22%;
+  fill: #f6c85f;
+}
+.in-ph-sunset {
+  background:
+    radial-gradient(circle at 50% 62%, #fff3c4 0 12%, transparent 13%),
+    linear-gradient(180deg, #f8c49a 0%, #f49b83 45%, #b9a8f4 78%, #8f7fd6 100%);
+}
+.in-ph-sea {
+  background: linear-gradient(180deg, #d8ecf8 0 44%, #86bbe0 44% 70%, #f3e4c6 70%);
+}
+.in-ph-forest {
+  background: linear-gradient(180deg, #e2f1e7 0 40%, #8fbca0 40% 62%, #557f68 62%);
+}
+.in-ph-city {
+  background:
+    radial-gradient(circle, #f6c85f 0 1.4px, transparent 2px) 0 0 / 9px 11px,
+    linear-gradient(180deg, #2c2b45 0 55%, #3e3b5e 55%);
+}
+.in-ph-field {
+  background:
+    radial-gradient(circle at 70% 30%, #fff 0 9%, transparent 10%),
+    linear-gradient(180deg, #fde9b8 0 52%, #c9dd9b 52%);
+}
+.in-ph-rose {
+  background: radial-gradient(circle at 50% 46%, #f7b7c8 0 24%, #f3d5de 25% 100%);
+}
+/* наклейки вокруг закрытого дневника */
+.in-doodles {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(12px);
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.in-d {
+  position: absolute;
+  opacity: 0;
+  filter: drop-shadow(0 3px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 8px 10px rgba(36, 35, 58, 0.25));
+}
+.in-d1 {
+  width: calc(var(--W) * 0.2);
+  left: calc(var(--W) * 0.86);
+  top: calc(var(--H) * 0.06);
+  fill: #f49b83;
+  rotate: -14deg;
+}
+.in-d2 {
+  width: calc(var(--W) * 0.17);
+  left: calc(var(--W) * 1.94);
+  top: calc(var(--H) * 0.64);
+  fill: #f6c85f;
+  rotate: 12deg;
+}
+.in-d3 {
+  width: calc(var(--W) * 0.2);
+  left: calc(var(--W) * 1.12);
+  top: calc(var(--H) * 0.92);
+  fill: #b9a8f4;
+}
+.in-d3 .in-d-mid {
+  fill: #f6c85f;
+}
+/* текст и кнопка */
+.in-copy {
+  position: absolute;
+  left: 8vw;
+  top: 50%;
+  width: min(38vw, 480px);
+  translate: 0 -50%;
+  pointer-events: none;
+}
+.in-copy h1 {
+  margin: 0 0 16px;
+  font: 600 clamp(34px, 4.6vw, 66px) / 1.02 var(--serif);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.in-copy p {
+  margin: 0 0 30px;
+  font-size: clamp(15px, 1.3vw, 18px);
+  color: var(--ink-2);
+}
+.in-copy .in-go {
+  padding: 15px 34px;
+  font-size: 16px;
+  pointer-events: auto;
+}
+.in-copy > * {
+  opacity: 0;
+}
+
+/* ---- фазы ---- */
+.ph-flip {
+  animation: in-blur 1.75s ease-out both;
+}
+@keyframes in-blur {
+  from {
+    filter: blur(1.8px);
+  }
+  to {
+    filter: blur(0.3px);
+  }
+}
+.ph-flip .in-cam {
+  transform: translate(calc(var(--W) * -0.12), calc(var(--H) * 0.05)) scale(2.45) rotateX(16deg) rotateZ(-4deg);
+}
+.ph-pull .in-cam {
+  animation: in-pull 1.55s cubic-bezier(0.65, 0, 0.25, 1) both;
+}
+@keyframes in-pull {
+  from {
+    transform: translate(calc(var(--W) * -0.12), calc(var(--H) * 0.05)) scale(2.45) rotateX(16deg) rotateZ(-4deg);
+  }
+  to {
+    transform: translate(var(--bx), var(--by)) scale(1) rotateX(0deg) rotateZ(0deg);
+  }
+}
+.ph-rest .in-cam {
+  transform: translate(var(--bx), var(--by)) scale(1) rotateX(0deg) rotateZ(0deg);
+}
+.ph-open .in-cam {
+  animation: in-dive 1.95s cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+@keyframes in-dive {
+  from {
+    transform: translate(var(--bx), var(--by)) scale(1) rotateX(0deg) rotateZ(0deg);
+  }
+  40% {
+    transform: translate(0px, 0px) scale(1.05) rotateX(8deg) rotateZ(0deg);
+  }
+  to {
+    transform: translate(calc(var(--W) * -0.4), 0px) scale(3.6) rotateX(12deg) rotateZ(-2deg);
+  }
+}
+.ph-open {
+  animation: in-fade 0.55s ease-in 1.4s both;
+}
+@keyframes in-fade {
+  to {
+    opacity: 0;
+  }
+}
+/* обложка */
+.ph-flip .in-cover {
+  transform: rotateY(-180deg) translateZ(6.5px);
+}
+.ph-pull .in-cover {
+  animation: in-close 0.85s cubic-bezier(0.5, 0, 0.3, 1) 0.3s both;
+}
+@keyframes in-close {
+  from {
+    transform: rotateY(-180deg) translateZ(6.5px);
+  }
+  to {
+    transform: rotateY(0deg) translateZ(6.5px);
+  }
+}
+.ph-open .in-cover {
+  animation: in-close 0.8s cubic-bezier(0.4, 0, 0.25, 1) 0.08s reverse both;
+}
+/* листы */
+.ph-flip .in-leaf {
+  animation: in-turn 0.5s cubic-bezier(0.45, 0.05, 0.35, 1) calc(var(--i) * 150ms + 80ms) both;
+}
+.ph-pull .in-leaf {
+  animation: in-turn 0.78s cubic-bezier(0.5, 0, 0.3, 1) calc(240ms + var(--j) * 10ms) reverse both;
+}
+.ph-open .in-leaf {
+  animation: in-turn 0.42s cubic-bezier(0.45, 0.05, 0.35, 1) calc(var(--i) * 85ms + 520ms) both;
+}
+@keyframes in-turn {
+  from {
+    transform: rotateY(0deg) translateZ(var(--z));
+  }
+  to {
+    transform: rotateY(-180deg) translateZ(var(--z));
+  }
+}
+/* дневник «дышит», пока ждёт */
+.ph-rest .in-book {
+  animation: in-float 5s ease-in-out infinite;
+}
+@keyframes in-float {
+  50% {
+    translate: 0 -7px;
+  }
+}
+.ph-rest .in-d {
+  animation: in-pop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.ph-rest .in-d2 {
+  animation-delay: 0.12s;
+}
+.ph-rest .in-d3 {
+  animation-delay: 0.24s;
+}
+@keyframes in-pop {
+  from {
+    opacity: 0;
+    scale: 0.2;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+.ph-rest .in-copy > * {
+  animation: rv-rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --rv-d: 1;
+}
+.ph-rest .in-copy p {
+  animation-delay: 0.1s;
+}
+.ph-rest .in-copy .in-go {
+  animation-delay: 0.2s;
+}
+.ph-open .in-copy > * {
+  opacity: 1;
+  animation: in-fade 0.35s ease-in both;
+}
+.ph-open .in-d {
+  opacity: 1;
+  animation: in-fade 0.3s ease-in both;
+}
+
+@media (max-width: 760px) {
+  .intro {
+    --W: min(50vw, 230px);
+    --bx: calc(var(--W) * -0.5);
+    --by: 14vh;
+  }
+  .in-copy {
+    left: 7vw;
+    right: 7vw;
+    top: 9vh;
+    width: auto;
+    translate: none;
+    text-align: center;
+  }
+  .in-copy h1 {
+    font-size: clamp(30px, 9vw, 42px);
+  }
+  .in-copy p {
+    margin-bottom: 0;
+  }
+  .in-copy .in-go {
+    position: fixed;
+    left: 50%;
+    bottom: 7vh;
+    translate: -50% 0;
+  }
+}

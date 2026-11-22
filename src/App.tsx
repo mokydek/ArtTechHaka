@@ -5,6 +5,7 @@ import { getStore, newId, type DiaryStore } from './lib/store';
 import { loadDemo } from './lib/demo';
 import { play, setSoundOn, soundOn } from './lib/feel';
 import Shelf from './views/Shelf';
+import Intro from './components/Intro';
 import JournalHome from './views/JournalHome';
 import NotebookView from './views/NotebookView';
 import CoverEditor from './views/CoverEditor';
@@ -79,6 +80,20 @@ function useHash() {
 
 export default function App() {
   const hash = useHash();
+  // интро: при первом заходе в сессии на главную и по адресу #/intro
+  const [intro, setIntro] = useState(() => {
+    const r = location.hash.replace(/^#\/?/, '').split('/')[0];
+    if (r === 'intro') return true;
+    if (r && r !== 'shelf') return false;
+    try {
+      return !sessionStorage.getItem('imprint:intro');
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (hash.replace(/^#\/?/, '').startsWith('intro')) setIntro(true);
+  }, [hash]);
   const [store, setStore] = useState<DiaryStore | null>(null);
   const [mine, setMine] = useState<DayRecord[]>([]);
   const [demo, setDemo] = useState<DayRecord[]>([]);
@@ -203,7 +218,7 @@ export default function App() {
   const route = hash.replace(/^#/, '');
   const parts = route.split('/').filter(Boolean);
   let view = <JournalHome />;
-  if (parts[0] === 'shelf') view = <Shelf />;
+  if (parts[0] === 'shelf' || parts[0] === 'intro') view = <Shelf />;
   else if (parts[0] === 'new') view = <NewDay nb={parts[1]} key={route} />;
   else if (parts[0] === 'day') view = <DayView id={decodeURIComponent(parts[1] ?? '')} key={route} />;
   else if (parts[0] === 'nb' && parts[2] === 'cover') view = <CoverEditor id={parts[1]} key={route} />;
@@ -272,6 +287,14 @@ export default function App() {
         </div>
       </main>
       {msg && <div className="toast">{msg}</div>}
+      {intro && (
+        <Intro
+          onDone={() => {
+            setIntro(false);
+            location.hash = '#/shelf';
+          }}
+        />
+      )}
     </Ctx.Provider>
   );
 }
